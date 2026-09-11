@@ -1,7 +1,20 @@
 spring:
   application:
     name: class-enrollment-backend
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/class_enrollment?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:class_user}
+    password: ${DB_PASSWORD:class_password}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
 server:
   port: 8080
-
