@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: class-enrollment-backend
+
+server:
+  port: 8080
+
