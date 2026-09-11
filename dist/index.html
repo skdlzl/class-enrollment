@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Class Enrollment - 수강신청 동시성 실험을 위한 기본 시스템" />
+  <title>Class Enrollment</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231d3d74'/%3E%3Cpath d='M18 17h28v8H26v14h20v8H18z' fill='%23fff'/%3E%3Ccircle cx='45' cy='43' r='8' fill='%23ffca3a'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Class Enrollment 홈">
+      <span class="brand-mark">CE</span>
+      <span>
+        <strong>Class Enrollment</strong>
+        <small>2026학년도 1학기</small>
+      </span>
+    </a>
+    <div class="top-actions">
+      <div class="student-switcher">
+        <span class="avatar" aria-hidden="true">김</span>
+        <label>
+          <span>현재 학생</span>
+          <select id="studentSelect" aria-label="현재 학생 선택"></select>
+        </label>
+      </div>
+      <button class="icon-button" id="resetButton" type="button" title="테스트 데이터 초기화" aria-label="테스트 데이터 초기화">↻</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="summary" aria-label="신청 현황 요약">
+      <div class="summary-copy">
+        <p class="eyebrow">ENROLLMENT STATUS</p>
+        <h1>수강신청</h1>
+        <p>과목을 검색하고 신청 현황을 한눈에 확인하세요.</p>
+      </div>
+      <div class="metrics">
+        <article><span>신청 학점</span><strong><b id="creditCount">0</b> / 18</strong></article>
+        <article><span>신청 과목</span><strong><b id="courseCount">0</b>개</strong></article>
+        <article><span>남은 학점</span><strong><b id="remainingCredits">18</b>학점</strong></article>
+      </div>
+    </section>
+
+    <div class="workspace">
+      <section class="catalog card">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">COURSE CATALOG</p>
+            <h2>개설 과목</h2>
+          </div>
+          <span class="result-count" id="resultCount"></span>
+        </div>
+
+        <div class="filters">
+          <label class="search-box">
+            <span aria-hidden="true">⌕</span>
+            <input id="searchInput" type="search" placeholder="과목명, 교수명으로 검색" />
+          </label>
+          <select id="departmentFilter" aria-label="학과 필터">
+            <option value="all">전체 학과</option>
+          </select>
+          <select id="statusFilter" aria-label="신청 가능 여부 필터">
+            <option value="all">전체 상태</option>
+            <option value="open">신청 가능</option>
+            <option value="closed">마감</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>과목 정보</th><th>담당 교수</th><th>시간</th><th>학점</th><th>신청 현황</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="courseTable"></tbody>
+          </table>
+          <div class="empty-state" id="emptyState" hidden>
+            <strong>검색 결과가 없습니다.</strong>
+            <span>검색어나 필터를 변경해 보세요.</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="enrollments card">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">MY SCHEDULE</p>
+            <h2>내 신청 과목</h2>
+          </div>
+          <span class="badge" id="sidebarCount">0</span>
+        </div>
+        <div id="enrollmentList" class="enrollment-list"></div>
+        <div id="enrollmentEmpty" class="sidebar-empty">
+          <span class="empty-icon">＋</span>
+          <strong>신청한 과목이 없습니다.</strong>
+          <p>왼쪽 목록에서 원하는 과목을 신청해 주세요.</p>
+        </div>
+        <div class="notice">
+          <strong>신청 안내</strong>
+          <p>최대 18학점까지 신청할 수 있으며 시간이 겹치는 과목은 동시에 신청할 수 없습니다.</p>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./app.js"></script>
+</body>
+</html>
