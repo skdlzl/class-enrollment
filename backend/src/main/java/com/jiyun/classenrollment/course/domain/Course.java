@@ -34,6 +34,17 @@ public class Course {
     protected Course() {
     }
 
+    public boolean isFull() {
+        return enrolledCount >= capacity;
+    }
+
+    public void increaseEnrolledCount() {
+        if (isFull()) {
+            throw new IllegalStateException("수강 정원이 마감되었습니다.");
+        }
+        enrolledCount++;
+    }
+
     public Long getId() { return id; }
     public String getCourseCode() { return courseCode; }
     public String getName() { return name; }

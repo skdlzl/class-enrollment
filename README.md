@@ -14,6 +14,8 @@
 - Docker Compose 기반 MySQL 8.4
 - Flyway 기반 스키마와 예시 데이터 관리
 - Student, Course, CourseSchedule, Enrollment JPA 매핑
+- Redis와 DB 락을 사용하지 않은 수강신청 API
+- 학생 상태, 중복 신청, 최대 학점, 시간표, 정원 검증
 
 현재 수강신청 데이터는 브라우저 메모리에서 동작합니다. 백엔드는 이번 단계에서 독립적으로 실행되며 다음 단계에서 MySQL과 프론트엔드를 연결합니다.
 
@@ -50,9 +52,23 @@ GET http://localhost:8080/api/health
 }
 ```
 
+수강신청 요청:
+
+```http
+POST http://localhost:8080/api/enrollments
+Content-Type: application/json
+
+{
+  "studentId": 1,
+  "courseId": 1
+}
+```
+
+현재 구현은 의도적으로 동시성 락을 사용하지 않습니다. 단건 요청의 비즈니스 규칙은 검증하지만 같은 과목에 요청이 몰리면 정원 정합성이 깨질 수 있으며 이후 JMeter 테스트에서 이를 재현합니다.
+
 ## 다음 단계
 
-1. Redis 없는 수강신청 API와 검증 로직 구현
+1. 수강신청 API 단위 테스트
 2. 프론트엔드와 백엔드 연결
 3. JMeter를 이용한 Race Condition 재현
 4. DB 비관적 락 적용 및 병목 측정

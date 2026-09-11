@@ -24,6 +24,15 @@ public class Enrollment {
     protected Enrollment() {
     }
 
+    private Enrollment(Student student, Course course) {
+        this.student = student;
+        this.course = course;
+    }
+
+    public static Enrollment create(Student student, Course course) {
+        return new Enrollment(student, course);
+    }
+
     public Long getId() { return id; }
     public Student getStudent() { return student; }
     public Course getCourse() { return course; }
