@@ -62,4 +62,25 @@ class EnrollmentServiceTest {
         assertEquals("CREDIT_LIMIT_EXCEEDED", exception.getCode());
         verify(enrollmentRepository, never()).save(any(Enrollment.class));
     }
+
+    @Test
+    void 동일과목을_중복신청하면_실패한다() {
+        Long studentId = 1L;
+        Long courseId = 10L;
+        Student student = mock(Student.class);
+        Course course = mock(Course.class);
+
+        when(studentRepository.findById(studentId)).thenReturn(Optional.of(student));
+        when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
+        when(student.getStatus()).thenReturn(StudentStatus.ACTIVE);
+        when(enrollmentRepository.existsByStudentIdAndCourseId(studentId, courseId)).thenReturn(true);
+
+        // 이미 신청된 과목이 존재하면 중복신청이므로 저장하지 않는다.
+        EnrollmentException exception = assertThrows(EnrollmentException.class,
+                () -> enrollmentService.enroll(studentId, courseId));
+
+        assertEquals("DUPLICATE_ENROLLMENT", exception.getCode());
+        verify(enrollmentRepository, never()).save(any(Enrollment.class));
+
+    }
 }
