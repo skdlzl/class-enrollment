@@ -1,0 +1,23 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: class-enrollment-mysql
+    environment:
+      MYSQL_DATABASE: class_enrollment
+      MYSQL_USER: class_user
+      MYSQL_PASSWORD: class_password
+      MYSQL_ROOT_PASSWORD: root_password
+      TZ: Asia/Seoul
+    ports:
+      - "3306:3306"
+    volumes:
+      - class-enrollment-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_password"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  class-enrollment-mysql-data:
+
