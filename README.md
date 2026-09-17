@@ -4,32 +4,47 @@
 
 ## 현재 구현
 
-- Redis를 적용하기 전 기본 수강신청 화면
+- React + TypeScript + Vite 기반 수강신청 프론트엔드
+- 학생용 수강신청 화면과 관리자 확장용 `/admin` 라우트
 - 학생 선택, 과목 검색 및 필터
 - 수강신청과 취소
 - 학점 제한과 시간 중복 검증
-- 테스트 데이터 초기화
 - Java 17 + Spring Boot 3.5.16 기반 백엔드
-- 서버 상태 확인 API와 컨트롤러 테스트
 - Docker Compose 기반 MySQL 8.4
 - Flyway 기반 스키마와 예시 데이터 관리
 - Student, Course, CourseSchedule, Enrollment JPA 매핑
 - Redis와 DB 락을 사용하지 않은 수강신청 API
-- 학생 상태, 중복 신청, 최대 학점, 시간표, 정원 검증
+- JUnit, Mockito, Testcontainers 기반 단위·통합·동시성 테스트
 
-현재 수강신청 데이터는 브라우저 메모리에서 동작합니다. 백엔드는 이번 단계에서 독립적으로 실행되며 다음 단계에서 MySQL과 프론트엔드를 연결합니다.
+현재 프론트엔드 데이터는 브라우저 메모리에서 동작합니다. 백엔드 API와의 연결은 동시성 문제 재현 후 진행합니다.
 
-## 실행
-
-`dist/index.html`을 정적 서버로 실행합니다.
+## 프론트엔드 실행
 
 ```bash
-python3 -m http.server 4173 --directory dist
+cd frontend
+npm install
+npm run dev
 ```
 
-브라우저에서 `http://localhost:4173`으로 접속합니다.
+학생용 화면:
 
-### 백엔드
+```text
+http://localhost:5173
+```
+
+관리자 확장 경로:
+
+```text
+http://localhost:5173/admin
+```
+
+프로덕션 빌드:
+
+```bash
+npm run build
+```
+
+## 백엔드 실행
 
 먼저 프로젝트 루트에서 MySQL을 실행합니다.
 
@@ -39,17 +54,10 @@ docker compose up -d mysql
 
 IntelliJ에서 `backend/pom.xml`을 Maven 프로젝트로 연 뒤 `ClassEnrollmentApplication`을 실행합니다.
 
+상태 확인:
+
 ```http
 GET http://localhost:8080/api/health
-```
-
-예상 응답:
-
-```json
-{
-  "status": "UP",
-  "service": "class-enrollment-backend"
-}
 ```
 
 수강신청 요청:
@@ -64,13 +72,14 @@ Content-Type: application/json
 }
 ```
 
-현재 구현은 의도적으로 동시성 락을 사용하지 않습니다. 단건 요청의 비즈니스 규칙은 검증하지만 같은 과목에 요청이 몰리면 정원 정합성이 깨질 수 있으며 이후 JMeter 테스트에서 이를 재현합니다.
+현재 백엔드는 의도적으로 동시성 락을 사용하지 않습니다. 단건 요청의 비즈니스 규칙은 검증하지만 같은 과목에 요청이 몰리면 정원 정합성이 깨질 수 있습니다.
 
 ## 다음 단계
 
-1. 수강신청 API 단위 테스트
-2. 프론트엔드와 백엔드 연결
-3. JMeter를 이용한 Race Condition 재현
-4. DB 비관적 락 적용 및 병목 측정
-5. Redis Redisson 과목별 분산 락 적용
-6. 성능과 락 경합 지표 시각화
+1. 락 없는 동시 수강신청 문제 재현
+2. Redis Redisson 과목별 분산 락 적용
+3. 동일 동시성 테스트로 정합성 재검증
+4. 프론트엔드와 실제 백엔드 API 연결
+5. JMeter 부하 테스트 및 성능 비교
+6. Vercel 프론트엔드 배포
+7. 성능과 락 경합 지표 시각화
