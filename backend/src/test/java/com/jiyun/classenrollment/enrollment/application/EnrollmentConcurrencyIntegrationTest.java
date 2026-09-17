@@ -29,14 +29,38 @@ class EnrollmentConcurrencyIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
-    void 정원이_한자리인_과목을_준비한다() {
-        jdbcTemplate.update("DELETE FROM enrollments WHERE course_id = ?", 1L);
+    void 테스트데이터를_준비한다() {
+        jdbcTemplate.update(
+                "DELETE FROM enrollments WHERE course_id = ? OR student_id BETWEEN ? AND ?",
+                1L, 100L, 109L
+        );
+        jdbcTemplate.update(
+                "DELETE FROM students WHERE id BETWEEN ? AND ?",
+                100L, 109L
+        );
         jdbcTemplate.update("""
                 UPDATE courses
                 SET capacity = 1,
                     enrolled_count = 0
                 WHERE id = ?
                 """, 1L);
+
+        for (long studentId = 100L; studentId <= 109L; studentId++) {
+            jdbcTemplate.update("""
+                    INSERT INTO students (
+                        id,
+                        student_number,
+                        name,
+                        status,
+                        max_credits
+                    )
+                    VALUES (?, ?, ?, 'ACTIVE', 18)
+                    """,
+                    studentId,
+                    "TEST" + studentId,
+                    "동시신청학생" + studentId
+            );
+        }
     }
 
     @Test
