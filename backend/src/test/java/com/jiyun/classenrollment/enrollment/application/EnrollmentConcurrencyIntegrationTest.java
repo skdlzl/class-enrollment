@@ -4,6 +4,7 @@ import com.jiyun.classenrollment.common.error.EnrollmentException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.redisson.api.RLock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -13,11 +14,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import java.sql.Connection;
@@ -543,31 +540,21 @@ class EnrollmentConcurrencyIntegrationTest {
 
         // 2번 과목의 정원을 2명으로 초기화
         jdbcTemplate.update("""
-            UPDATE courses
-            SET capacity = 2,
-                enrolled_count = 0
-            WHERE id = ?
-            """, courseId);
+                UPDATE courses
+                SET capacity = 2,
+                    enrolled_count = 0
+                WHERE id = ?
+                """, courseId);
 
         ExecutorService executorService = Executors.newFixedThreadPool(requestCount);
-
         CountDownLatch readyLatch = new CountDownLatch(requestCount);
-
-        CountDownLatch startLatch =
-                new CountDownLatch(1);
-
-        CountDownLatch doneLatch =
-                new CountDownLatch(requestCount);
-
-        AtomicInteger successCount =
-                new AtomicInteger();
-
-        List<Throwable> failures =
-                new CopyOnWriteArrayList<>();
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(requestCount);
+        AtomicInteger successCount = new AtomicInteger();
+        List<Throwable> failures = new CopyOnWriteArrayList<>();
 
         try {
             for (long studentId = 100L; studentId <= 104L; studentId++) {
-
                 long requestStudentId = studentId;
 
                 executorService.submit(() -> {
@@ -679,6 +666,326 @@ class EnrollmentConcurrencyIntegrationTest {
                         )
                 ),
                 "실패한 요청은 모두 COURSE_FULL 예외여야 합니다."
+        );
+    }
+
+    @Disabled("고정 leaseTime 만료로 동시 실행되는 위험 재현")
+    @Test
+    void 고정_leaseTime보다_작업이_길면_두_요청이_동시에_실행된다()
+            throws Exception {
+
+        String lockKey = "test:lock:lease-expiration";
+
+        // 이전 테스트에서 락이 남아 있을 가능성을 제거
+        redissonClient.getLock(lockKey).forceUnlock();
+
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+
+        // 첫 번째 스레드가 락을 획득했는지 확인
+        CountDownLatch firstLockAcquired = new CountDownLatch(1);
+        // 현재 임계영역에서 실행 중인 스레드 수
+        AtomicInteger concurrentCount = new AtomicInteger();
+        // 동시에 실행된 최대 스레드 수
+        AtomicInteger maxConcurrentCount = new AtomicInteger();
+
+        try {
+            Future<?> firstRequest = executorService.submit(() -> {
+
+                RLock lock = redissonClient.getLock(lockKey);
+                boolean acquired = false;
+                boolean entered = false;
+
+                try {
+                    /*
+                     * 락 획득 대기: 최대 1초
+                     * 락 유지 시간: 10초
+                     */
+                    acquired = lock.tryLock(
+                            1,
+                            10,
+                            TimeUnit.SECONDS
+                    );
+
+                    if (!acquired) {
+                        throw new IllegalStateException("첫 번째 요청이 락을 획득하지 못했습니다.");
+                    }
+
+                    firstLockAcquired.countDown();
+
+                    int current = concurrentCount.incrementAndGet();
+
+                    entered = true;
+
+                    maxConcurrentCount.accumulateAndGet(
+                            current,
+                            Math::max
+                    );
+
+                    /*
+                     * 실제 작업이 오래 걸리는 상황을 재현합니다.
+                     *
+                     * leaseTime은 10초인데 작업은 15초이므로
+                     * 작업이 끝나기 전에 Redis 락이 만료됩니다.
+                     */
+                    Thread.sleep(15_000);
+
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(exception);
+
+                } finally {
+                    if (entered) {
+                        concurrentCount.decrementAndGet();
+                    }
+
+                    /*
+                     * 10초 후 락이 이미 만료됐을 수 있으므로
+                     * 현재 스레드가 보유한 경우에만 해제합니다.
+                     */
+                    if (acquired && lock.isHeldByCurrentThread()) {
+                        lock.unlock();
+                    }
+                }
+            });
+
+            // 첫 번째 요청이 락을 획득할 때까지 대기
+            assertTrue(
+                    firstLockAcquired.await(5, TimeUnit.SECONDS),
+                    "첫 번째 요청이 락을 획득해야 합니다."
+            );
+
+            Future<?> secondRequest = executorService.submit(() -> {
+
+                RLock lock = redissonClient.getLock(lockKey);
+                boolean acquired = false;
+                boolean entered = false;
+
+                try {
+                    /*
+                     * 첫 번째 락이 10초 후 만료되면
+                     * 두 번째 요청이 락을 획득합니다.
+                     */
+                    acquired = lock.tryLock(
+                            15,
+                            10,
+                            TimeUnit.SECONDS
+                    );
+
+                    if (!acquired) {
+                        throw new IllegalStateException(
+                                "두 번째 요청이 락을 획득하지 못했습니다."
+                        );
+                    }
+
+                    int current =
+                            concurrentCount.incrementAndGet();
+
+                    entered = true;
+
+                    maxConcurrentCount.accumulateAndGet(
+                            current,
+                            Math::max
+                    );
+
+                    // 첫 번째 요청과 겹치는 시간을 확보
+                    Thread.sleep(3_000);
+
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(exception);
+
+                } finally {
+                    if (entered) {
+                        concurrentCount.decrementAndGet();
+                    }
+
+                    if (acquired && lock.isHeldByCurrentThread()) {
+                        lock.unlock();
+                    }
+                }
+            });
+
+            firstRequest.get();
+            secondRequest.get();
+
+        } finally {
+            executorService.shutdownNow();
+            redissonClient.getLock(lockKey).forceUnlock();
+        }
+
+        System.out.printf(
+                "동시에 실행된 최대 요청 수=%d%n",
+                maxConcurrentCount.get()
+        );
+
+        /*
+         * 분산 락이 작업 종료까지 유지됐다면 1이어야 합니다.
+         *
+         * 하지만 leaseTime이 먼저 만료되므로 실제 결과는 2가 되어
+         * 이 테스트가 의도적으로 실패합니다.
+         */
+        assertEquals(
+                1,
+                maxConcurrentCount.get(),
+                "분산 락 내부에는 한 번에 한 요청만 들어와야 합니다."
+        );
+    }
+
+    @Test
+    void Watchdog는_작업이_길어져도_락을_유지한다() throws Exception {
+        String lockKey = "test:lock:watchdog";
+
+        // 이전 테스트에서 같은 이름의 락이 남아 있다면 제거합니다.
+        redissonClient.getLock(lockKey).forceUnlock();
+
+        // 두 요청을 서로 다른 스레드에서 실행합니다.
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+
+        // 첫 번째 요청이 락을 획득할 때까지 두 번째 요청의 제출을 기다립니다.
+        CountDownLatch firstLockAcquired = new CountDownLatch(1);
+
+        // 현재 임계영역 안에서 실행 중인 요청 수입니다.
+        AtomicInteger concurrentCount = new AtomicInteger();
+
+        // 테스트 중 동시에 실행된 요청의 최댓값입니다.
+        AtomicInteger maxConcurrentCount = new AtomicInteger();
+
+        try {
+            Future<?> firstRequest = executorService.submit(() -> {
+                RLock lock = redissonClient.getLock(lockKey);
+                boolean acquired = false;
+                boolean entered = false;
+
+                try {
+                    /*
+                     * 최대 1초 동안 락 획득을 기다립니다.
+                     *
+                     * leaseTime을 지정하지 않았으므로
+                     * Redisson Watchdog가 락 만료 시간을 자동으로 연장합니다.
+                     */
+                    acquired = lock.tryLock(1, TimeUnit.SECONDS);
+
+                    if (!acquired) {
+                        throw new IllegalStateException(
+                                "첫 번째 요청이 락을 획득하지 못했습니다."
+                        );
+                    }
+
+                    // 첫 번째 요청이 락을 획득했다고 알립니다.
+                    firstLockAcquired.countDown();
+
+                    // 임계영역에 진입한 요청 수를 증가시킵니다.
+                    int current = concurrentCount.incrementAndGet();
+                    entered = true;
+
+                    // 지금까지의 최대 동시 실행 수를 갱신합니다.
+                    maxConcurrentCount.accumulateAndGet(current, Math::max);
+
+                    /*
+                     * 첫 번째 작업을 15초 동안 실행합니다.
+                     *
+                     * 고정 leaseTime 테스트에서는 락이 10초 후 만료됐지만,
+                     * 이번에는 Watchdog가 락 만료 시간을 자동 연장합니다.
+                     */
+                    Thread.sleep(15_000);
+
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(exception);
+
+                } finally {
+                    if (entered) {
+                        concurrentCount.decrementAndGet();
+                    }
+
+                    // 현재 스레드가 락을 보유하고 있을 때만 해제합니다.
+                    if (acquired && lock.isHeldByCurrentThread()) {
+                        lock.unlock();
+                    }
+                }
+            });
+
+            /*
+             * 첫 번째 요청이 락을 획득할 때까지 기다립니다.
+             *
+             * 이 과정이 없으면 두 번째 요청이 먼저 락을 획득할 수도 있습니다.
+             */
+            assertTrue(
+                    firstLockAcquired.await(5, TimeUnit.SECONDS),
+                    "첫 번째 요청이 락을 획득해야 합니다."
+            );
+
+            Future<?> secondRequest = executorService.submit(() -> {
+                RLock lock = redissonClient.getLock(lockKey);
+                boolean acquired = false;
+                boolean entered = false;
+
+                try {
+                    /*
+                     * 최대 20초 동안 락 획득을 기다립니다.
+                     *
+                     * 첫 번째 요청이 약 15초 후 락을 반납하면
+                     * 두 번째 요청이 이어서 락을 획득합니다.
+                     */
+                    acquired = lock.tryLock(20, TimeUnit.SECONDS);
+
+                    if (!acquired) {
+                        throw new IllegalStateException(
+                                "두 번째 요청이 락을 획득하지 못했습니다."
+                        );
+                    }
+
+                    int current = concurrentCount.incrementAndGet();
+                    entered = true;
+
+                    maxConcurrentCount.accumulateAndGet(current, Math::max);
+
+                    // 두 번째 요청이 임계영역에서 작업하는 상황을 표현합니다.
+                    Thread.sleep(3_000);
+
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(exception);
+
+                } finally {
+                    if (entered) {
+                        concurrentCount.decrementAndGet();
+                    }
+
+                    if (acquired && lock.isHeldByCurrentThread()) {
+                        lock.unlock();
+                    }
+                }
+            });
+
+            /*
+             * Future.get()은 각 작업이 끝날 때까지 기다립니다.
+             *
+             * 작업 스레드에서 예외가 발생했다면
+             * get()을 호출할 때 테스트 스레드로 전달됩니다.
+             */
+            firstRequest.get();
+            secondRequest.get();
+
+        } finally {
+            // 테스트가 실패해도 스레드 풀과 Redis 락을 정리합니다.
+            executorService.shutdownNow();
+            redissonClient.getLock(lockKey).forceUnlock();
+        }
+
+        System.out.printf(
+                "Watchdog 적용 후 동시에 실행된 최대 요청 수=%d%n",
+                maxConcurrentCount.get()
+        );
+
+        /*
+         * Watchdog가 첫 번째 요청의 락을 계속 연장하므로
+         * 두 요청이 임계영역에 동시에 들어가면 안 됩니다.
+         */
+        assertEquals(
+                1,
+                maxConcurrentCount.get(),
+                "Watchdog가 동작하면 한 번에 한 요청만 실행되어야 합니다."
         );
     }
 }

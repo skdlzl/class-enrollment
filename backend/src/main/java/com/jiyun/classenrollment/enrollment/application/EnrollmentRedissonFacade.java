@@ -54,9 +54,11 @@ public class EnrollmentRedissonFacade {
              * 락을 획득하면 최대 10초 동안 유지합니다.
              *
              * waitTime = 5초
-             * leaseTime = 10초
+             * leaseTime = 10초 => 생략
+             *
+             * leaseTime을 직접 지정하지 않았기 때문에 락을 보유하는 동안 Redisson Watchdog가 락 만료 시간을 자동으로 연장합니다.
              */
-            acquired = lock.tryLock(5, 10, TimeUnit.SECONDS);
+            acquired = lock.tryLock(5, TimeUnit.SECONDS);
 
             /*
              * 5초 안에 락을 획득하지 못한 경우입니다.
