@@ -1,9 +1,8 @@
 package com.jiyun.classenrollment.enrollment.application;
 
+import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Component;
-
-import org.redisson.api.RLock;
 
 import java.util.concurrent.TimeUnit;
 
@@ -28,9 +27,7 @@ public class EnrollmentRedissonFacade {
         this.redissonClient = redissonClient;
     }
 
-    public Long enroll(Long studentId, Long courseId)
-            throws InterruptedException {
-
+    public Long enroll(Long studentId, Long courseId) {
         /*
          * 과목별 Redis 락을 가져옵니다.
          *
@@ -51,12 +48,10 @@ public class EnrollmentRedissonFacade {
         try {
             /*
              * 최대 5초 동안 락 획득을 기다립니다.
-             * 락을 획득하면 최대 10초 동안 유지합니다.
              *
-             * waitTime = 5초
-             * leaseTime = 10초 => 생략
-             *
-             * leaseTime을 직접 지정하지 않았기 때문에 락을 보유하는 동안 Redisson Watchdog가 락 만료 시간을 자동으로 연장합니다.
+             * leaseTime을 직접 지정하지 않았기 때문에
+             * 락을 보유하는 동안 Redisson Watchdog가
+             * 락 만료 시간을 자동으로 연장합니다.
              */
             acquired = lock.tryLock(5, TimeUnit.SECONDS);
 
@@ -71,14 +66,19 @@ public class EnrollmentRedissonFacade {
              * Redis 락을 획득한 요청만
              * 실제 수강신청 로직을 실행합니다.
              */
-            return enrollmentService.enroll(studentId,courseId);
+            return enrollmentService.enroll(studentId, courseId);
+
+        } catch (InterruptedException exception) {
+            /*
+             * 락을 기다리던 스레드에 중단 요청이 들어오면
+             * 중단 상태를 복원한 뒤 애플리케이션 예외로 변환합니다.
+             */
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("수강신청 락 대기 중 요청이 중단되었습니다.", exception);
 
         } finally {
             /*
              * 현재 스레드가 락을 실제로 획득한 경우에만 해제합니다.
-             *
-             * 락을 획득하지 못한 스레드가 unlock()을 실행하면
-             * 예외가 발생할 수 있으므로 반드시 확인합니다.
              */
             if (acquired && lock.isHeldByCurrentThread()) {
                 lock.unlock();
