@@ -1,7 +1,9 @@
 package com.jiyun.classenrollment.enrollment.application;
 
+import com.jiyun.classenrollment.common.error.EnrollmentException;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
@@ -56,10 +58,15 @@ public class EnrollmentRedissonFacade {
             acquired = lock.tryLock(5, TimeUnit.SECONDS);
 
             /*
-             * 5초 안에 락을 획득하지 못한 경우입니다.
+             * 5초 안에 락을 획득하지 못했다면 서버 내부 오류가 아니라
+             * 일시적인 과부하임을 나타내는 HTTP 503을 반환합니다.
              */
             if (!acquired) {
-                throw new IllegalStateException("수강신청 락을 획득하지 못했습니다.");
+                throw new EnrollmentException(
+                        "LOCK_ACQUISITION_TIMEOUT",
+                        "요청이 몰려 수강신청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+                        HttpStatus.SERVICE_UNAVAILABLE
+                );
             }
 
             /*
