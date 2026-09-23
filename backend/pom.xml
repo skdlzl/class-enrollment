@@ -61,6 +61,13 @@
             <artifactId>mysql</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- Redis를 이용한 분산락 기능을 제공하는 자바 라이브러리 -->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson</artifactId>
+            <version>4.6.1</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
