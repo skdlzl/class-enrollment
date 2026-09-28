@@ -9,12 +9,22 @@ import com.jiyun.classenrollment.enrollment.domain.EnrollmentRepository;
 import com.jiyun.classenrollment.student.domain.Student;
 import com.jiyun.classenrollment.student.domain.StudentRepository;
 import com.jiyun.classenrollment.student.domain.StudentStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+
 @Service
 public class EnrollmentService {
+
+    private static final Logger log = LoggerFactory.getLogger(EnrollmentService.class);
+    private static final long TIMING_LOG_INTERVAL = 10L;
+    private static final AtomicLong requestCount = new AtomicLong();
+
     private final StudentRepository studentRepository;
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
@@ -26,21 +36,86 @@ public class EnrollmentService {
         this.enrollmentRepository = enrollmentRepository;
     }
 
-    /*
-     * 분산 락 적용 전 동작과 기존 단위 테스트를 유지하기 위한 전체 수강신청 메서드입니다.
-     */
     @Transactional
     public Long enroll(Long studentId, Long courseId) {
-        Student student = findStudent(studentId);
-        Course course = findCourse(courseId);
+        long methodStartedAt = System.nanoTime();
+        long studentFindMillis = -1L;
+        long courseFindMillis = -1L;
+        long studentStatusMillis = -1L;
+        long duplicateCheckMillis = -1L;
+        long creditCheckMillis = -1L;
+        long scheduleCheckMillis = -1L;
+        long capacityCheckMillis = -1L;
+        long saveMillis = -1L;
+        String outcome = "SUCCESS";
 
-        validateStudent(student);
-        validateDuplicate(studentId, courseId);
-        validateCreditLimit(student, course);
-        validateSchedule(studentId, courseId);
-        validateCapacity(course);
+        try {
+            long phaseStartedAt = System.nanoTime();
+            Student student = findStudent(studentId);
+            studentFindMillis = elapsedMillis(phaseStartedAt);
 
-        return saveEnrollment(student, course);
+            phaseStartedAt = System.nanoTime();
+            Course course = findCourse(courseId);
+            courseFindMillis = elapsedMillis(phaseStartedAt);
+
+            phaseStartedAt = System.nanoTime();
+            validateStudent(student);
+            studentStatusMillis = elapsedMillis(phaseStartedAt);
+
+            phaseStartedAt = System.nanoTime();
+            validateDuplicate(studentId, courseId);
+            duplicateCheckMillis = elapsedMillis(phaseStartedAt);
+
+            phaseStartedAt = System.nanoTime();
+            validateCreditLimit(student, course);
+            creditCheckMillis = elapsedMillis(phaseStartedAt);
+
+            phaseStartedAt = System.nanoTime();
+            validateSchedule(studentId, courseId);
+            scheduleCheckMillis = elapsedMillis(phaseStartedAt);
+
+            phaseStartedAt = System.nanoTime();
+            validateCapacity(course);
+            capacityCheckMillis = elapsedMillis(phaseStartedAt);
+
+            phaseStartedAt = System.nanoTime();
+            Long enrollmentId = saveEnrollment(student, course);
+            saveMillis = elapsedMillis(phaseStartedAt);
+
+            return enrollmentId;
+
+        } catch (EnrollmentException exception) {
+            outcome = exception.getCode();
+            throw exception;
+
+        } finally {
+            long currentRequestCount = requestCount.incrementAndGet();
+
+            if (currentRequestCount % TIMING_LOG_INTERVAL == 0) {
+                log.info(
+                        "ENROLLMENT_SERVICE_TIMING requestCount={} outcome={} studentId={} courseId={} "
+                                + "studentFindMs={} courseFindMs={} studentStatusMs={} duplicateCheckMs={} "
+                                + "creditCheckMs={} scheduleCheckMs={} capacityCheckMs={} saveMs={} methodBodyMs={}",
+                        currentRequestCount,
+                        outcome,
+                        studentId,
+                        courseId,
+                        studentFindMillis,
+                        courseFindMillis,
+                        studentStatusMillis,
+                        duplicateCheckMillis,
+                        creditCheckMillis,
+                        scheduleCheckMillis,
+                        capacityCheckMillis,
+                        saveMillis,
+                        elapsedMillis(methodStartedAt)
+                );
+            }
+        }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
     }
 
     private Student findStudent(Long studentId) {
