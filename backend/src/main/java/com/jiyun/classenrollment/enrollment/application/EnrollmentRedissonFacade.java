@@ -11,19 +11,11 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class EnrollmentRedissonFacade {
 
-    /*
-     * 실제 수강신청과 DB 트랜잭션을 처리하는 서비스
-     */
-    private final EnrollmentService enrollmentService;
+    private static final long LOCK_WAIT_SECONDS = 5L;
 
-    /*
-     * Redis에 저장되는 분산 락을 사용하기 위한 Redisson 객체
-     */
+    private final EnrollmentService enrollmentService;
     private final RedissonClient redissonClient;
 
-    /*
-     * Spring이 두 객체를 주입합니다.
-     */
     public EnrollmentRedissonFacade(EnrollmentService enrollmentService, RedissonClient redissonClient) {
         this.enrollmentService = enrollmentService;
         this.redissonClient = redissonClient;
@@ -31,65 +23,74 @@ public class EnrollmentRedissonFacade {
 
     public Long enroll(Long studentId, Long courseId) {
         /*
-         * 과목별 Redis 락을 가져옵니다.
-         *
-         * 예:
-         * courseId = 2
-         * Redis 락 이름 = lock:course:2
-         *
-         * 여러 서버에서 호출해도 같은 courseId이면
-         * 동일한 Redis 락을 사용합니다.
+         * 학생 락은 같은 학생이 서로 다른 과목을 동시에 신청할 때 발생할 수 있는
+         * 중복, 최대 학점, 시간표 경합을 막습니다.
          */
-        RLock lock = redissonClient.getLock("lock:course:" + courseId);
+        RLock studentLock = redissonClient.getLock("lock:student:" + studentId);
 
         /*
-         * Redis 락 획득 성공 여부를 저장합니다.
+         * 과목 락은 여러 서버에서 같은 과목의 정원을 동시에 변경하지 못하게 합니다.
          */
-        boolean acquired = false;
+        RLock courseLock = redissonClient.getLock("lock:course:" + courseId);
+
+        boolean studentLockAcquired = false;
+        boolean courseLockAcquired = false;
 
         try {
             /*
-             * 최대 5초 동안 락 획득을 기다립니다.
-             *
-             * leaseTime을 직접 지정하지 않았기 때문에
-             * 락을 보유하는 동안 Redisson Watchdog가
-             * 락 만료 시간을 자동으로 연장합니다.
+             * 모든 요청이 학생 락을 먼저 획득하도록 순서를 통일합니다.
+             * 락 획득 순서가 요청마다 달라질 때 발생할 수 있는 교착 상태를 예방합니다.
              */
-            acquired = lock.tryLock(5, TimeUnit.SECONDS);
+            studentLockAcquired = studentLock.tryLock(LOCK_WAIT_SECONDS, TimeUnit.SECONDS);
 
-            /*
-             * 5초 안에 락을 획득하지 못했다면 서버 내부 오류가 아니라
-             * 일시적인 과부하임을 나타내는 HTTP 503을 반환합니다.
-             */
-            if (!acquired) {
-                throw new EnrollmentException(
-                        "LOCK_ACQUISITION_TIMEOUT",
-                        "요청이 몰려 수강신청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-                        HttpStatus.SERVICE_UNAVAILABLE
-                );
+            if (!studentLockAcquired) {
+                throw lockTimeout("학생의 다른 수강신청 요청이 처리 중입니다. 잠시 후 다시 시도해 주세요.");
             }
 
             /*
-             * Redis 락을 획득한 요청만
-             * 실제 수강신청 로직을 실행합니다.
+             * 학생 락을 보유한 상태에서 중복 신청, 최대 학점, 시간표를 검증합니다.
+             * 이 과정은 과목 락 밖에서 실행되므로 같은 과목을 신청하는 다른 학생과 병렬로 처리됩니다.
              */
-            return enrollmentService.enroll(studentId, courseId);
+            enrollmentService.validateStudentConditions(studentId, courseId);
+
+            /*
+             * 학생 검증이 끝난 뒤 과목 락을 획득합니다.
+             */
+            courseLockAcquired = courseLock.tryLock(LOCK_WAIT_SECONDS, TimeUnit.SECONDS);
+
+            if (!courseLockAcquired) {
+                throw lockTimeout("요청이 몰려 수강신청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+            }
+
+            /*
+             * 과목 락 안에서는 최신 정원 확인, 신청 저장, 인원 증가만 처리합니다.
+             */
+            return enrollmentService.enrollAfterStudentValidation(studentId, courseId);
 
         } catch (InterruptedException exception) {
-            /*
-             * 락을 기다리던 스레드에 중단 요청이 들어오면
-             * 중단 상태를 복원한 뒤 애플리케이션 예외로 변환합니다.
-             */
             Thread.currentThread().interrupt();
             throw new IllegalStateException("수강신청 락 대기 중 요청이 중단되었습니다.", exception);
 
         } finally {
             /*
-             * 현재 스레드가 락을 실제로 획득한 경우에만 해제합니다.
+             * 획득 순서의 반대인 과목 락, 학생 락 순서로 해제합니다.
              */
-            if (acquired && lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
+            unlockIfHeld(courseLock, courseLockAcquired);
+            unlockIfHeld(studentLock, studentLockAcquired);
         }
+    }
+
+    private void unlockIfHeld(RLock lock, boolean acquired) {
+        if (acquired && lock.isHeldByCurrentThread()) {
+            lock.unlock();
+        }
+    }
+
+    private EnrollmentException lockTimeout(String message) {
+        return new EnrollmentException(
+                "LOCK_ACQUISITION_TIMEOUT",
+                message,
+                HttpStatus.SERVICE_UNAVAILABLE
+        );
     }
 }
