@@ -39,7 +39,6 @@ public class EnrollmentRedissonFacade {
         try {
             /*
              * 모든 요청이 학생 락을 먼저 획득하도록 순서를 통일합니다.
-             * 락 획득 순서가 요청마다 달라질 때 발생할 수 있는 교착 상태를 예방합니다.
              */
             studentLockAcquired = studentLock.tryLock(LOCK_WAIT_SECONDS, TimeUnit.SECONDS);
 
@@ -48,13 +47,8 @@ public class EnrollmentRedissonFacade {
             }
 
             /*
-             * 학생 락을 보유한 상태에서 중복 신청, 최대 학점, 시간표를 검증합니다.
-             * 이 과정은 과목 락 밖에서 실행되므로 같은 과목을 신청하는 다른 학생과 병렬로 처리됩니다.
-             */
-            enrollmentService.validateStudentConditions(studentId, courseId);
-
-            /*
-             * 학생 검증이 끝난 뒤 과목 락을 획득합니다.
+             * 학생 락을 획득한 뒤 과목 락을 획득합니다.
+             * 모든 요청이 학생 락, 과목 락 순서로 획득하여 락 순서를 통일합니다.
              */
             courseLockAcquired = courseLock.tryLock(LOCK_WAIT_SECONDS, TimeUnit.SECONDS);
 
@@ -63,9 +57,10 @@ public class EnrollmentRedissonFacade {
             }
 
             /*
-             * 과목 락 안에서는 최신 정원 확인, 신청 저장, 인원 증가만 처리합니다.
+             * 두 락을 모두 보유한 상태에서 학생 검증, 정원 확인, 저장을 한 트랜잭션으로 처리합니다.
+             * 검증 쿼리가 락 밖에서 동시에 실행되어 DB에 몰리는 현상을 방지합니다.
              */
-            return enrollmentService.enrollAfterStudentValidation(studentId, courseId);
+            return enrollmentService.enroll(studentId, courseId);
 
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();

@@ -45,29 +45,28 @@ class EnrollmentRedissonFacadeTest {
     }
 
     @Test
-    void 학생검증후_과목락을_획득하고_수강신청한다() throws InterruptedException {
+    void 학생락과_과목락을_획득한후_전체_수강신청을_실행한다() throws InterruptedException {
         when(studentLock.tryLock(5L, TimeUnit.SECONDS)).thenReturn(true);
         when(courseLock.tryLock(5L, TimeUnit.SECONDS)).thenReturn(true);
         when(studentLock.isHeldByCurrentThread()).thenReturn(true);
         when(courseLock.isHeldByCurrentThread()).thenReturn(true);
-        when(enrollmentService.enrollAfterStudentValidation(1L, 10L)).thenReturn(100L);
+        when(enrollmentService.enroll(1L, 10L)).thenReturn(100L);
 
         Long enrollmentId = enrollmentRedissonFacade.enroll(1L, 10L);
 
         assertEquals(100L, enrollmentId);
 
-        InOrder inOrder = inOrder(studentLock, enrollmentService, courseLock);
+        InOrder inOrder = inOrder(studentLock, courseLock, enrollmentService);
         inOrder.verify(studentLock).tryLock(5L, TimeUnit.SECONDS);
-        inOrder.verify(enrollmentService).validateStudentConditions(1L, 10L);
         inOrder.verify(courseLock).tryLock(5L, TimeUnit.SECONDS);
-        inOrder.verify(enrollmentService).enrollAfterStudentValidation(1L, 10L);
+        inOrder.verify(enrollmentService).enroll(1L, 10L);
 
         verify(courseLock).unlock();
         verify(studentLock).unlock();
     }
 
     @Test
-    void 과목락을_획득하지_못하면_저장하지_않고_학생락을_해제한다() throws InterruptedException {
+    void 과목락을_획득하지_못하면_신청하지_않고_학생락을_해제한다() throws InterruptedException {
         when(studentLock.tryLock(5L, TimeUnit.SECONDS)).thenReturn(true);
         when(courseLock.tryLock(5L, TimeUnit.SECONDS)).thenReturn(false);
         when(studentLock.isHeldByCurrentThread()).thenReturn(true);
@@ -78,14 +77,13 @@ class EnrollmentRedissonFacadeTest {
         );
 
         assertEquals("LOCK_ACQUISITION_TIMEOUT", exception.getCode());
-        verify(enrollmentService).validateStudentConditions(1L, 10L);
-        verify(enrollmentService, never()).enrollAfterStudentValidation(1L, 10L);
+        verify(enrollmentService, never()).enroll(1L, 10L);
         verify(courseLock, never()).unlock();
         verify(studentLock).unlock();
     }
 
     @Test
-    void 학생락을_획득하지_못하면_검증과_저장을_실행하지_않는다() throws InterruptedException {
+    void 학생락을_획득하지_못하면_과목락과_수강신청을_실행하지_않는다() throws InterruptedException {
         when(studentLock.tryLock(5L, TimeUnit.SECONDS)).thenReturn(false);
 
         EnrollmentException exception = assertThrows(
@@ -94,8 +92,7 @@ class EnrollmentRedissonFacadeTest {
         );
 
         assertEquals("LOCK_ACQUISITION_TIMEOUT", exception.getCode());
-        verify(enrollmentService, never()).validateStudentConditions(1L, 10L);
         verify(courseLock, never()).tryLock(5L, TimeUnit.SECONDS);
-        verify(enrollmentService, never()).enrollAfterStudentValidation(1L, 10L);
+        verify(enrollmentService, never()).enroll(1L, 10L);
     }
 }

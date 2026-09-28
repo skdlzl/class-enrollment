@@ -43,40 +43,6 @@ public class EnrollmentService {
         return saveEnrollment(student, course);
     }
 
-    /*
-     * 학생별 락을 획득한 상태에서 실행합니다.
-     *
-     * 중복 신청, 최대 학점, 시간표 충돌은 같은 학생의 서로 다른 과목 요청 사이에서도
-     * 경합할 수 있으므로 과목 락이 아니라 학생 락으로 보호합니다.
-     */
-    @Transactional(readOnly = true)
-    public void validateStudentConditions(Long studentId, Long courseId) {
-        Student student = findStudent(studentId);
-        Course course = findCourse(courseId);
-
-        validateStudent(student);
-        validateDuplicate(studentId, courseId);
-        validateCreditLimit(student, course);
-        validateSchedule(studentId, courseId);
-    }
-
-    /*
-     * 학생 검증이 끝나고 과목별 락까지 획득한 상태에서 실행합니다.
-     *
-     * 과목 락 안에는 정원 정합성에 직접 영향을 주는 작업만 남깁니다.
-     * 이 메서드의 트랜잭션이 커밋된 뒤 Facade로 반환되므로,
-     * 커밋이 끝나기 전에 과목 락이 해제되지 않습니다.
-     */
-    @Transactional
-    public Long enrollAfterStudentValidation(Long studentId, Long courseId) {
-        Student student = findStudent(studentId);
-        Course course = findCourse(courseId);
-
-        validateCapacity(course);
-
-        return saveEnrollment(student, course);
-    }
-
     private Student findStudent(Long studentId) {
         return studentRepository.findById(studentId)
                 .orElseThrow(() -> error(
