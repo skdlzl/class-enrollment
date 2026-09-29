@@ -3,9 +3,9 @@ package com.jiyun.classenrollment.enrollment.application;
 import com.jiyun.classenrollment.common.error.EnrollmentException;
 import com.jiyun.classenrollment.course.domain.Course;
 import com.jiyun.classenrollment.course.domain.CourseRepository;
-import com.jiyun.classenrollment.course.domain.CourseSchedule;
 import com.jiyun.classenrollment.enrollment.domain.Enrollment;
 import com.jiyun.classenrollment.enrollment.domain.EnrollmentRepository;
+import com.jiyun.classenrollment.enrollment.domain.EnrollmentValidationSummary;
 import com.jiyun.classenrollment.student.domain.Student;
 import com.jiyun.classenrollment.student.domain.StudentRepository;
 import com.jiyun.classenrollment.student.domain.StudentStatus;
@@ -42,9 +42,7 @@ public class EnrollmentService {
         long studentFindMillis = -1L;
         long courseFindMillis = -1L;
         long studentStatusMillis = -1L;
-        long duplicateCheckMillis = -1L;
-        long creditCheckMillis = -1L;
-        long scheduleCheckMillis = -1L;
+        long validationQueryMillis = -1L;
         long capacityCheckMillis = -1L;
         long saveMillis = -1L;
         String outcome = "SUCCESS";
@@ -63,16 +61,13 @@ public class EnrollmentService {
             studentStatusMillis = elapsedMillis(phaseStartedAt);
 
             phaseStartedAt = System.nanoTime();
-            validateDuplicate(studentId, courseId);
-            duplicateCheckMillis = elapsedMillis(phaseStartedAt);
+            EnrollmentValidationSummary validation =
+                    enrollmentRepository.findValidationSummary(studentId, courseId);
+            validationQueryMillis = elapsedMillis(phaseStartedAt);
 
-            phaseStartedAt = System.nanoTime();
-            validateCreditLimit(student, course);
-            creditCheckMillis = elapsedMillis(phaseStartedAt);
-
-            phaseStartedAt = System.nanoTime();
-            validateSchedule(studentId, courseId);
-            scheduleCheckMillis = elapsedMillis(phaseStartedAt);
+            validateDuplicate(validation);
+            validateCreditLimit(student, course, validation);
+            validateSchedule(validation);
 
             phaseStartedAt = System.nanoTime();
             validateCapacity(course);
@@ -94,8 +89,8 @@ public class EnrollmentService {
             if (currentRequestCount % TIMING_LOG_INTERVAL == 0) {
                 log.info(
                         "ENROLLMENT_SERVICE_TIMING requestCount={} outcome={} studentId={} courseId={} "
-                                + "studentFindMs={} courseFindMs={} studentStatusMs={} duplicateCheckMs={} "
-                                + "creditCheckMs={} scheduleCheckMs={} capacityCheckMs={} saveMs={} methodBodyMs={}",
+                                + "studentFindMs={} courseFindMs={} studentStatusMs={} validationQueryMs={} "
+                                + "capacityCheckMs={} saveMs={} methodBodyMs={}",
                         currentRequestCount,
                         outcome,
                         studentId,
@@ -103,9 +98,7 @@ public class EnrollmentService {
                         studentFindMillis,
                         courseFindMillis,
                         studentStatusMillis,
-                        duplicateCheckMillis,
-                        creditCheckMillis,
-                        scheduleCheckMillis,
+                        validationQueryMillis,
                         capacityCheckMillis,
                         saveMillis,
                         elapsedMillis(methodStartedAt)
@@ -148,30 +141,25 @@ public class EnrollmentService {
         }
     }
 
-    private void validateDuplicate(Long studentId, Long courseId) {
-        if (enrollmentRepository.existsByStudentIdAndCourseId(studentId, courseId)) {
+    private void validateDuplicate(EnrollmentValidationSummary validation) {
+        if (validation.getDuplicateEnrollment()) {
             throw error("DUPLICATE_ENROLLMENT", "이미 신청한 과목입니다.", HttpStatus.CONFLICT);
         }
     }
 
-    private void validateCreditLimit(Student student, Course course) {
-        int currentCredits = enrollmentRepository.sumCreditsByStudentId(student.getId());
-        if (currentCredits + course.getCredits() > student.getMaxCredits()) {
+    private void validateCreditLimit(
+            Student student,
+            Course course,
+            EnrollmentValidationSummary validation
+    ) {
+        if (validation.getCurrentCredits() + course.getCredits() > student.getMaxCredits()) {
             throw error("CREDIT_LIMIT_EXCEEDED", "최대 신청 학점을 초과합니다.", HttpStatus.CONFLICT);
         }
     }
 
-    private void validateSchedule(Long studentId, Long courseId) {
-        for (CourseSchedule schedule : courseRepository.findSchedulesByCourseId(courseId)) {
-            long conflicts = enrollmentRepository.countScheduleConflicts(
-                    studentId,
-                    schedule.getDayOfWeek(),
-                    schedule.getStartTime(),
-                    schedule.getEndTime()
-            );
-            if (conflicts > 0) {
-                throw error("SCHEDULE_CONFLICT", "기존 신청 과목과 강의 시간이 겹칩니다.", HttpStatus.CONFLICT);
-            }
+    private void validateSchedule(EnrollmentValidationSummary validation) {
+        if (validation.getScheduleConflict()) {
+            throw error("SCHEDULE_CONFLICT", "기존 신청 과목과 강의 시간이 겹칩니다.", HttpStatus.CONFLICT);
         }
     }
 
