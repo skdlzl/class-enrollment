@@ -36,8 +36,24 @@ public class EnrollmentService {
         this.enrollmentRepository = enrollmentRepository;
     }
 
+    /*
+     * 기존 분산락 비교 테스트에서 사용하는 수강신청 로직입니다.
+     */
     @Transactional
     public Long enroll(Long studentId, Long courseId) {
+        return enrollInternal(studentId, courseId, false);
+    }
+
+    /*
+     * Redis에서 좌석을 먼저 예약한 요청이 사용하는 로직입니다.
+     * DB 신청 인원은 읽고 수정하지 않고 조건부 UPDATE 한 번으로 증가시킵니다.
+     */
+    @Transactional
+    public Long enrollWithReservedSeat(Long studentId, Long courseId) {
+        return enrollInternal(studentId, courseId, true);
+    }
+
+    private Long enrollInternal(Long studentId, Long courseId, boolean seatReserved) {
         long methodStartedAt = System.nanoTime();
         long studentFindMillis = -1L;
         long courseFindMillis = -1L;
@@ -69,12 +85,16 @@ public class EnrollmentService {
             validateCreditLimit(student, course, validation);
             validateSchedule(validation);
 
-            phaseStartedAt = System.nanoTime();
-            validateCapacity(course);
-            capacityCheckMillis = elapsedMillis(phaseStartedAt);
+            if (!seatReserved) {
+                phaseStartedAt = System.nanoTime();
+                validateCapacity(course);
+                capacityCheckMillis = elapsedMillis(phaseStartedAt);
+            }
 
             phaseStartedAt = System.nanoTime();
-            Long enrollmentId = saveEnrollment(student, course);
+            Long enrollmentId = seatReserved
+                    ? saveReservedEnrollment(student, course)
+                    : saveEnrollment(student, course);
             saveMillis = elapsedMillis(phaseStartedAt);
 
             return enrollmentId;
@@ -88,10 +108,11 @@ public class EnrollmentService {
 
             if (currentRequestCount % TIMING_LOG_INTERVAL == 0) {
                 log.info(
-                        "ENROLLMENT_SERVICE_TIMING requestCount={} outcome={} studentId={} courseId={} "
+                        "ENROLLMENT_SERVICE_TIMING requestCount={} mode={} outcome={} studentId={} courseId={} "
                                 + "studentFindMs={} courseFindMs={} studentStatusMs={} validationQueryMs={} "
                                 + "capacityCheckMs={} saveMs={} methodBodyMs={}",
                         currentRequestCount,
+                        seatReserved ? "ATOMIC_RESERVATION" : "DISTRIBUTED_LOCK",
                         outcome,
                         studentId,
                         courseId,
@@ -133,6 +154,23 @@ public class EnrollmentService {
         Enrollment enrollment = enrollmentRepository.save(Enrollment.create(student, course));
         course.increaseEnrolledCount();
         return enrollment.getId();
+    }
+
+    private Long saveReservedEnrollment(Student student, Course course) {
+        Enrollment enrollment = enrollmentRepository.save(Enrollment.create(student, course));
+        Long enrollmentId = enrollment.getId();
+
+        int updatedRows = courseRepository.incrementEnrolledCountIfAvailable(course.getId());
+
+        if (updatedRows != 1) {
+            throw error(
+                    "COURSE_FULL",
+                    "수강 정원이 마감되었습니다.",
+                    HttpStatus.CONFLICT
+            );
+        }
+
+        return enrollmentId;
     }
 
     private void validateStudent(Student student) {
