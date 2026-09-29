@@ -45,11 +45,19 @@ public class EnrollmentService {
     }
 
     /*
-     * Redis에서 좌석을 먼저 예약한 요청이 사용하는 로직입니다.
-     * DB 신청 인원은 읽고 수정하지 않고 조건부 UPDATE 한 번으로 증가시킵니다.
+     * Redis permit 방식 비교 실험에서 사용하는 로직입니다.
      */
     @Transactional
     public Long enrollWithReservedSeat(Long studentId, Long courseId) {
+        return enrollInternal(studentId, courseId, true);
+    }
+
+    /*
+     * 최종 설계에서 사용하는 로직입니다.
+     * 좌석 수를 Redis에 저장하지 않고 MySQL 조건부 UPDATE로 정원을 보장합니다.
+     */
+    @Transactional
+    public Long enrollWithAtomicCapacity(Long studentId, Long courseId) {
         return enrollInternal(studentId, courseId, true);
     }
 
