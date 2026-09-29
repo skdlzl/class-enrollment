@@ -9,10 +9,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.redisson.client.RedisException;
+import org.springframework.http.HttpStatus;
 
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -77,6 +80,7 @@ class EnrollmentRedissonFacadeTest {
         );
 
         assertEquals("LOCK_ACQUISITION_TIMEOUT", exception.getCode());
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, exception.getStatus());
         verify(enrollmentService, never()).enroll(1L, 10L);
         verify(courseLock, never()).unlock();
         verify(studentLock).unlock();
@@ -92,7 +96,28 @@ class EnrollmentRedissonFacadeTest {
         );
 
         assertEquals("LOCK_ACQUISITION_TIMEOUT", exception.getCode());
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, exception.getStatus());
         verify(courseLock, never()).tryLock(10L, TimeUnit.SECONDS);
         verify(enrollmentService, never()).enroll(1L, 10L);
+    }
+
+    @Test
+    void Redis_연결이_끊기면_503_예외로_변환하고_수강신청을_실행하지_않는다()
+            throws InterruptedException {
+        RedisException redisException = new RedisException("Redis connection refused");
+
+        when(studentLock.tryLock(10L, TimeUnit.SECONDS)).thenThrow(redisException);
+
+        EnrollmentException exception = assertThrows(
+                EnrollmentException.class,
+                () -> enrollmentRedissonFacade.enroll(1L, 10L)
+        );
+
+        assertEquals("REDIS_UNAVAILABLE", exception.getCode());
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, exception.getStatus());
+        assertInstanceOf(RedisException.class, exception.getCause());
+        verify(enrollmentService, never()).enroll(1L, 10L);
+        verify(studentLock, never()).unlock();
+        verify(courseLock, never()).unlock();
     }
 }

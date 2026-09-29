@@ -3,21 +3,19 @@ package com.jiyun.classenrollment.enrollment.application;
 import com.jiyun.classenrollment.common.error.EnrollmentException;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.redisson.client.RedisException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Component
 public class EnrollmentRedissonFacade {
 
     private static final Logger log = LoggerFactory.getLogger(EnrollmentRedissonFacade.class);
     private static final long LOCK_WAIT_SECONDS = 10L;
-    private static final long TIMEOUT_LOG_INTERVAL = 100L;
-    private static final AtomicLong timeoutCount = new AtomicLong();
 
     private final EnrollmentService enrollmentService;
     private final RedissonClient redissonClient;
@@ -30,8 +28,8 @@ public class EnrollmentRedissonFacade {
     public Long enroll(Long studentId, Long courseId) {
         long facadeStartedAt = System.nanoTime();
 
-        RLock studentLock = redissonClient.getLock("lock:student:" + studentId);
-        RLock courseLock = redissonClient.getLock("lock:course:" + courseId);
+        RLock studentLock = null;
+        RLock courseLock = null;
 
         boolean studentLockAcquired = false;
         boolean courseLockAcquired = false;
@@ -39,16 +37,20 @@ public class EnrollmentRedissonFacade {
         long courseLockWaitMillis = 0L;
 
         try {
+            studentLock = redissonClient.getLock("lock:student:" + studentId);
+            courseLock = redissonClient.getLock("lock:course:" + courseId);
+
             long studentLockStartedAt = System.nanoTime();
             studentLockAcquired = studentLock.tryLock(LOCK_WAIT_SECONDS, TimeUnit.SECONDS);
             studentLockWaitMillis = elapsedMillis(studentLockStartedAt);
 
             if (!studentLockAcquired) {
-                logTimeoutIfNeeded(
+                logTiming(
                         "STUDENT_LOCK_TIMEOUT",
                         studentId,
                         courseId,
                         studentLockWaitMillis,
+                        0L,
                         0L,
                         facadeStartedAt
                 );
@@ -60,12 +62,13 @@ public class EnrollmentRedissonFacade {
             courseLockWaitMillis = elapsedMillis(courseLockStartedAt);
 
             if (!courseLockAcquired) {
-                logTimeoutIfNeeded(
+                logTiming(
                         "COURSE_LOCK_TIMEOUT",
                         studentId,
                         courseId,
                         studentLockWaitMillis,
                         courseLockWaitMillis,
+                        0L,
                         facadeStartedAt
                 );
                 throw lockTimeout("요청이 몰려 수강신청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");
@@ -76,30 +79,27 @@ public class EnrollmentRedissonFacade {
             try {
                 Long enrollmentId = enrollmentService.enroll(studentId, courseId);
 
-                log.info(
-                        "ENROLLMENT_TIMING outcome=SUCCESS studentId={} courseId={} "
-                                + "studentLockWaitMs={} courseLockWaitMs={} serviceMs={} facadeTotalMs={}",
+                logTiming(
+                        "SUCCESS",
                         studentId,
                         courseId,
                         studentLockWaitMillis,
                         courseLockWaitMillis,
                         elapsedMillis(serviceStartedAt),
-                        elapsedMillis(facadeStartedAt)
+                        facadeStartedAt
                 );
 
                 return enrollmentId;
 
             } catch (EnrollmentException exception) {
-                log.info(
-                        "ENROLLMENT_TIMING outcome=BUSINESS_REJECTED code={} studentId={} courseId={} "
-                                + "studentLockWaitMs={} courseLockWaitMs={} serviceMs={} facadeTotalMs={}",
-                        exception.getCode(),
+                logTiming(
+                        "BUSINESS_REJECTED_" + exception.getCode(),
                         studentId,
                         courseId,
                         studentLockWaitMillis,
                         courseLockWaitMillis,
                         elapsedMillis(serviceStartedAt),
-                        elapsedMillis(facadeStartedAt)
+                        facadeStartedAt
                 );
                 throw exception;
             }
@@ -108,35 +108,42 @@ public class EnrollmentRedissonFacade {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("수강신청 락 대기 중 요청이 중단되었습니다.", exception);
 
+        } catch (RedisException exception) {
+            logTiming(
+                    "REDIS_UNAVAILABLE",
+                    studentId,
+                    courseId,
+                    studentLockWaitMillis,
+                    courseLockWaitMillis,
+                    0L,
+                    facadeStartedAt
+            );
+            throw redisUnavailable(exception);
+
         } finally {
             unlockIfHeld(courseLock, courseLockAcquired);
             unlockIfHeld(studentLock, studentLockAcquired);
         }
     }
 
-    private void logTimeoutIfNeeded(
+    private void logTiming(
             String outcome,
             Long studentId,
             Long courseId,
             long studentLockWaitMillis,
             long courseLockWaitMillis,
+            long serviceMillis,
             long facadeStartedAt
     ) {
-        long currentTimeoutCount = timeoutCount.incrementAndGet();
-
-        if (currentTimeoutCount % TIMEOUT_LOG_INTERVAL != 0) {
-            return;
-        }
-
         log.info(
-                "ENROLLMENT_TIMING outcome={} timeoutCount={} studentId={} courseId={} "
-                        + "studentLockWaitMs={} courseLockWaitMs={} serviceMs=0 facadeTotalMs={}",
+                "ENROLLMENT_TIMING outcome={} studentId={} courseId={} "
+                        + "studentLockWaitMs={} courseLockWaitMs={} serviceMs={} facadeTotalMs={}",
                 outcome,
-                currentTimeoutCount,
                 studentId,
                 courseId,
                 studentLockWaitMillis,
                 courseLockWaitMillis,
+                serviceMillis,
                 elapsedMillis(facadeStartedAt)
         );
     }
@@ -146,8 +153,16 @@ public class EnrollmentRedissonFacade {
     }
 
     private void unlockIfHeld(RLock lock, boolean acquired) {
-        if (acquired && lock.isHeldByCurrentThread()) {
-            lock.unlock();
+        if (!acquired || lock == null) {
+            return;
+        }
+
+        try {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        } catch (RedisException exception) {
+            log.warn("Redis 연결 문제로 수강신청 락을 즉시 해제하지 못했습니다.", exception);
         }
     }
 
@@ -157,5 +172,15 @@ public class EnrollmentRedissonFacade {
                 message,
                 HttpStatus.SERVICE_UNAVAILABLE
         );
+    }
+
+    private EnrollmentException redisUnavailable(RedisException cause) {
+        EnrollmentException exception = new EnrollmentException(
+                "REDIS_UNAVAILABLE",
+                "수강신청 동시성 제어 시스템에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+                HttpStatus.SERVICE_UNAVAILABLE
+        );
+        exception.initCause(cause);
+        return exception;
     }
 }
