@@ -142,7 +142,7 @@ public class EnrollmentService {
     }
 
     private void validateDuplicate(EnrollmentValidationSummary validation) {
-        if (validation.getDuplicateEnrollment()) {
+        if (validation.getDuplicateEnrollment() > 0) {
             throw error("DUPLICATE_ENROLLMENT", "이미 신청한 과목입니다.", HttpStatus.CONFLICT);
         }
     }
@@ -158,7 +158,7 @@ public class EnrollmentService {
     }
 
     private void validateSchedule(EnrollmentValidationSummary validation) {
-        if (validation.getScheduleConflict()) {
+        if (validation.getScheduleConflict() > 0) {
             throw error("SCHEDULE_CONFLICT", "기존 신청 과목과 강의 시간이 겹칩니다.", HttpStatus.CONFLICT);
         }
     }

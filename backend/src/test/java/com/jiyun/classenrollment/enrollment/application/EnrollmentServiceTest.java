@@ -253,9 +253,9 @@ class EnrollmentServiceTest {
             boolean scheduleConflict
     ) {
         EnrollmentValidationSummary validation = mock(EnrollmentValidationSummary.class);
-        lenient().when(validation.getDuplicateEnrollment()).thenReturn(duplicate);
+        lenient().when(validation.getDuplicateEnrollment()).thenReturn(duplicate ? 1L : 0L);
         lenient().when(validation.getCurrentCredits()).thenReturn(currentCredits);
-        lenient().when(validation.getScheduleConflict()).thenReturn(scheduleConflict);
+        lenient().when(validation.getScheduleConflict()).thenReturn(scheduleConflict ? 1L : 0L);
         return validation;
     }
 }

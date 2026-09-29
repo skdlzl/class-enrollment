@@ -2,9 +2,9 @@ package com.jiyun.classenrollment.enrollment.domain;
 
 public interface EnrollmentValidationSummary {
 
-    boolean getDuplicateEnrollment();
+    Long getDuplicateEnrollment();
 
     int getCurrentCredits();
 
-    boolean getScheduleConflict();
+    Long getScheduleConflict();
 }
