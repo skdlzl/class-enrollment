@@ -157,9 +157,12 @@ public class EnrollmentService {
     }
 
     private Long saveReservedEnrollment(Student student, Course course) {
-        Enrollment enrollment = enrollmentRepository.save(Enrollment.create(student, course));
-        Long enrollmentId = enrollment.getId();
-
+        /*
+         * 과목 행을 먼저 UPDATE하여 배타 락 획득 순서를 통일합니다.
+         *
+         * INSERT를 먼저 하면 외래키 검사로 여러 트랜잭션이 courses 행의 공유 락을
+         * 동시에 보유한 뒤 배타 락으로 전환하려 하면서 데드락이 발생할 수 있습니다.
+         */
         int updatedRows = courseRepository.incrementEnrolledCountIfAvailable(course.getId());
 
         if (updatedRows != 1) {
@@ -170,7 +173,10 @@ public class EnrollmentService {
             );
         }
 
-        return enrollmentId;
+        Enrollment enrollment =
+                enrollmentRepository.save(Enrollment.create(student, course));
+
+        return enrollment.getId();
     }
 
     private void validateStudent(Student student) {
