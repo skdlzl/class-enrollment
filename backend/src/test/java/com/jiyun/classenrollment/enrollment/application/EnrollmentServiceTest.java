@@ -22,6 +22,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -235,14 +236,14 @@ class EnrollmentServiceTest {
     private Student activeStudent(Long studentId, int maxCredits) {
         Student student = mock(Student.class);
         when(student.getStatus()).thenReturn(StudentStatus.ACTIVE);
-        when(student.getId()).thenReturn(studentId);
-        when(student.getMaxCredits()).thenReturn(maxCredits);
+        lenient().when(student.getId()).thenReturn(studentId);
+        lenient().when(student.getMaxCredits()).thenReturn(maxCredits);
         return student;
     }
 
     private Course courseWithCredits(int credits) {
         Course course = mock(Course.class);
-        when(course.getCredits()).thenReturn(credits);
+        lenient().when(course.getCredits()).thenReturn(credits);
         return course;
     }
 
@@ -252,9 +253,9 @@ class EnrollmentServiceTest {
             boolean scheduleConflict
     ) {
         EnrollmentValidationSummary validation = mock(EnrollmentValidationSummary.class);
-        when(validation.getDuplicateEnrollment()).thenReturn(duplicate);
-        when(validation.getCurrentCredits()).thenReturn(currentCredits);
-        when(validation.getScheduleConflict()).thenReturn(scheduleConflict);
+        lenient().when(validation.getDuplicateEnrollment()).thenReturn(duplicate);
+        lenient().when(validation.getCurrentCredits()).thenReturn(currentCredits);
+        lenient().when(validation.getScheduleConflict()).thenReturn(scheduleConflict);
         return validation;
     }
 }
