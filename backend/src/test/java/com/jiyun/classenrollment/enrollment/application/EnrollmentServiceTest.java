@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -22,6 +23,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -221,6 +223,32 @@ class EnrollmentServiceTest {
 
         assertEquals("COURSE_FULL", exception.getCode());
         verify(enrollmentRepository, never()).save(any(Enrollment.class));
+    }
+
+    @Test
+    void 예약좌석_신청은_과목인원을_먼저_증가시킨후_신청을_저장한다() {
+        Long studentId = 1L;
+        Long courseId = 10L;
+        Student student = activeStudent(studentId, 18);
+        Course course = courseWithCredits(3);
+        Enrollment savedEnrollment = mock(Enrollment.class);
+        EnrollmentValidationSummary validation = validation(false, 12, false);
+
+        givenStudentAndCourse(studentId, courseId, student, course);
+        when(course.getId()).thenReturn(courseId);
+        when(enrollmentRepository.findValidationSummary(studentId, courseId)).thenReturn(validation);
+        when(courseRepository.incrementEnrolledCountIfAvailable(courseId)).thenReturn(1);
+        when(enrollmentRepository.save(any(Enrollment.class))).thenReturn(savedEnrollment);
+        when(savedEnrollment.getId()).thenReturn(100L);
+
+        Long enrollmentId =
+                enrollmentService.enrollWithReservedSeat(studentId, courseId);
+
+        assertEquals(100L, enrollmentId);
+
+        InOrder inOrder = inOrder(courseRepository, enrollmentRepository);
+        inOrder.verify(courseRepository).incrementEnrolledCountIfAvailable(courseId);
+        inOrder.verify(enrollmentRepository).save(any(Enrollment.class));
     }
 
     private void givenStudentAndCourse(
