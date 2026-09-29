@@ -46,8 +46,8 @@ class EnrollmentRedissonFacadeTest {
 
     @Test
     void 학생락과_과목락을_획득한후_전체_수강신청을_실행한다() throws InterruptedException {
-        when(studentLock.tryLock(5L, TimeUnit.SECONDS)).thenReturn(true);
-        when(courseLock.tryLock(5L, TimeUnit.SECONDS)).thenReturn(true);
+        when(studentLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(true);
+        when(courseLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(true);
         when(studentLock.isHeldByCurrentThread()).thenReturn(true);
         when(courseLock.isHeldByCurrentThread()).thenReturn(true);
         when(enrollmentService.enroll(1L, 10L)).thenReturn(100L);
@@ -57,8 +57,8 @@ class EnrollmentRedissonFacadeTest {
         assertEquals(100L, enrollmentId);
 
         InOrder inOrder = inOrder(studentLock, courseLock, enrollmentService);
-        inOrder.verify(studentLock).tryLock(5L, TimeUnit.SECONDS);
-        inOrder.verify(courseLock).tryLock(5L, TimeUnit.SECONDS);
+        inOrder.verify(studentLock).tryLock(10L, TimeUnit.SECONDS);
+        inOrder.verify(courseLock).tryLock(10L, TimeUnit.SECONDS);
         inOrder.verify(enrollmentService).enroll(1L, 10L);
 
         verify(courseLock).unlock();
@@ -67,8 +67,8 @@ class EnrollmentRedissonFacadeTest {
 
     @Test
     void 과목락을_획득하지_못하면_신청하지_않고_학생락을_해제한다() throws InterruptedException {
-        when(studentLock.tryLock(5L, TimeUnit.SECONDS)).thenReturn(true);
-        when(courseLock.tryLock(5L, TimeUnit.SECONDS)).thenReturn(false);
+        when(studentLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(true);
+        when(courseLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(false);
         when(studentLock.isHeldByCurrentThread()).thenReturn(true);
 
         EnrollmentException exception = assertThrows(
@@ -84,7 +84,7 @@ class EnrollmentRedissonFacadeTest {
 
     @Test
     void 학생락을_획득하지_못하면_과목락과_수강신청을_실행하지_않는다() throws InterruptedException {
-        when(studentLock.tryLock(5L, TimeUnit.SECONDS)).thenReturn(false);
+        when(studentLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(false);
 
         EnrollmentException exception = assertThrows(
                 EnrollmentException.class,
@@ -92,7 +92,7 @@ class EnrollmentRedissonFacadeTest {
         );
 
         assertEquals("LOCK_ACQUISITION_TIMEOUT", exception.getCode());
-        verify(courseLock, never()).tryLock(5L, TimeUnit.SECONDS);
+        verify(courseLock, never()).tryLock(10L, TimeUnit.SECONDS);
         verify(enrollmentService, never()).enroll(1L, 10L);
     }
 }

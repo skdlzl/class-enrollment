@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class EnrollmentRedissonFacade {
 
     private static final Logger log = LoggerFactory.getLogger(EnrollmentRedissonFacade.class);
-    private static final long LOCK_WAIT_SECONDS = 5L;
+    private static final long LOCK_WAIT_SECONDS = 10L;
     private static final long TIMEOUT_LOG_INTERVAL = 100L;
     private static final AtomicLong timeoutCount = new AtomicLong();
 
