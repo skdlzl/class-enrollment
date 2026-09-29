@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feat/portfolio-depth-experiments
+  pull_request:
+    branches:
+      - feat/redisson-lock
   workflow_dispatch:
 
 jobs:
