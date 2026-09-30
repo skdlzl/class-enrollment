@@ -533,7 +533,7 @@ class EnrollmentConcurrencyIntegrationTest {
     }
 
     @Test
-    void 서버가_두대여도_Redisson으로_정원을_정확히_보장한다() throws InterruptedException {
+    void 서버가_두대여도_학생락과_원자적_UPDATE로_정원을_정확히_보장한다() throws InterruptedException {
 
         Long courseId = 2L;
         int requestCount = 5;
@@ -567,8 +567,8 @@ class EnrollmentConcurrencyIntegrationTest {
                          * 짝수 학생은 서버 A,
                          * 홀수 학생은 서버 B로 요청합니다.
                          *
-                         * 두 객체 모두 Redis의
-                         * lock:course:2를 사용합니다.
+                         * 학생별 Redisson 락은 동일 학생의 요청을 보호하고,
+                         * 과목 정원은 DB의 조건부 UPDATE가 원자적으로 확보합니다.
                          */
                         if (requestStudentId % 2 == 0) {
                             redissonServerA.enroll(
@@ -615,7 +615,7 @@ class EnrollmentConcurrencyIntegrationTest {
         Integer enrolledCount = findEnrolledCount(courseId);
 
         System.out.printf(
-                "Redisson 결과: 성공=%d, 실패=%d, 신청 내역=%d, enrolled_count=%d%n",
+                "원자적 좌석 확보 결과: 성공=%d, 실패=%d, 신청 내역=%d, enrolled_count=%d%n",
                 successCount.get(),
                 failures.size(),
                 enrollmentCount,
