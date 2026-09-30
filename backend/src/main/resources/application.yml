@@ -5,6 +5,12 @@ spring:
     url: ${DB_URL:jdbc:mysql://localhost:3306/class_enrollment?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
     username: ${DB_USERNAME:class_user}
     password: ${DB_PASSWORD:class_password}
+    hikari:
+      # 부하 테스트에서 기본 10개 커넥션의 대기 병목을 줄이기 위한 실험값입니다.
+      # 서버 2대 기준 최대 100개를 사용하며 환경변수로 조정할 수 있습니다.
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:50}
+      minimum-idle: ${DB_POOL_MIN_IDLE:10}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:30000}
   jpa:
     hibernate:
       ddl-auto: validate
