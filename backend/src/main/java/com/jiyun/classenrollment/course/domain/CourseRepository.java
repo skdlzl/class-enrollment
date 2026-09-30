@@ -22,7 +22,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
      * 1 -> 좌석 확보 성공
      * 0 -> 이미 정원이 가득 참
      */
-    @Modifying(flushAutomatically = true)
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(value = """
             UPDATE courses
             SET enrolled_count = enrolled_count + 1
