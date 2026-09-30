@@ -29,8 +29,11 @@ public class EnrollmentService {
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
 
-    public EnrollmentService(StudentRepository studentRepository, CourseRepository courseRepository,
-                             EnrollmentRepository enrollmentRepository) {
+    public EnrollmentService(
+            StudentRepository studentRepository,
+            CourseRepository courseRepository,
+            EnrollmentRepository enrollmentRepository
+    ) {
         this.studentRepository = studentRepository;
         this.courseRepository = courseRepository;
         this.enrollmentRepository = enrollmentRepository;
@@ -43,7 +46,7 @@ public class EnrollmentService {
         long courseFindMillis = -1L;
         long studentStatusMillis = -1L;
         long validationQueryMillis = -1L;
-        long capacityCheckMillis = -1L;
+        long seatReservationMillis = -1L;
         long saveMillis = -1L;
         String outcome = "SUCCESS";
 
@@ -69,9 +72,17 @@ public class EnrollmentService {
             validateCreditLimit(student, course, validation);
             validateSchedule(validation);
 
+            /*
+             * 정원 확인과 신청 인원 증가를 DB의 조건부 UPDATE 한 번으로 처리합니다.
+             *
+             * UPDATE 결과가 1이면 이 트랜잭션이 좌석을 확보한 것이고,
+             * 0이면 다른 요청이 먼저 마지막 좌석을 확보해 정원이 마감된 것입니다.
+             *
+             * 아래 신청 저장이 실패하면 @Transactional에 의해 이 UPDATE도 함께 롤백됩니다.
+             */
             phaseStartedAt = System.nanoTime();
-            validateCapacity(course);
-            capacityCheckMillis = elapsedMillis(phaseStartedAt);
+            reserveSeat(courseId);
+            seatReservationMillis = elapsedMillis(phaseStartedAt);
 
             phaseStartedAt = System.nanoTime();
             Long enrollmentId = saveEnrollment(student, course);
@@ -90,7 +101,7 @@ public class EnrollmentService {
                 log.info(
                         "ENROLLMENT_SERVICE_TIMING requestCount={} outcome={} studentId={} courseId={} "
                                 + "studentFindMs={} courseFindMs={} studentStatusMs={} validationQueryMs={} "
-                                + "capacityCheckMs={} saveMs={} methodBodyMs={}",
+                                + "seatReservationMs={} saveMs={} methodBodyMs={}",
                         currentRequestCount,
                         outcome,
                         studentId,
@@ -99,7 +110,7 @@ public class EnrollmentService {
                         courseFindMillis,
                         studentStatusMillis,
                         validationQueryMillis,
-                        capacityCheckMillis,
+                        seatReservationMillis,
                         saveMillis,
                         elapsedMillis(methodStartedAt)
                 );
@@ -129,21 +140,40 @@ public class EnrollmentService {
                 ));
     }
 
+    private void reserveSeat(Long courseId) {
+        int updatedRows = courseRepository.increaseEnrolledCountIfAvailable(courseId);
+
+        if (updatedRows == 0) {
+            throw error(
+                    "COURSE_FULL",
+                    "수강 정원이 마감되었습니다.",
+                    HttpStatus.CONFLICT
+            );
+        }
+    }
+
     private Long saveEnrollment(Student student, Course course) {
         Enrollment enrollment = enrollmentRepository.save(Enrollment.create(student, course));
-        course.increaseEnrolledCount();
         return enrollment.getId();
     }
 
     private void validateStudent(Student student) {
         if (student.getStatus() != StudentStatus.ACTIVE) {
-            throw error("STUDENT_NOT_ACTIVE", "재학 상태인 학생만 수강신청할 수 있습니다.", HttpStatus.CONFLICT);
+            throw error(
+                    "STUDENT_NOT_ACTIVE",
+                    "재학 상태인 학생만 수강신청할 수 있습니다.",
+                    HttpStatus.CONFLICT
+            );
         }
     }
 
     private void validateDuplicate(EnrollmentValidationSummary validation) {
         if (validation.getDuplicateEnrollment() > 0) {
-            throw error("DUPLICATE_ENROLLMENT", "이미 신청한 과목입니다.", HttpStatus.CONFLICT);
+            throw error(
+                    "DUPLICATE_ENROLLMENT",
+                    "이미 신청한 과목입니다.",
+                    HttpStatus.CONFLICT
+            );
         }
     }
 
@@ -153,19 +183,21 @@ public class EnrollmentService {
             EnrollmentValidationSummary validation
     ) {
         if (validation.getCurrentCredits() + course.getCredits() > student.getMaxCredits()) {
-            throw error("CREDIT_LIMIT_EXCEEDED", "최대 신청 학점을 초과합니다.", HttpStatus.CONFLICT);
+            throw error(
+                    "CREDIT_LIMIT_EXCEEDED",
+                    "최대 신청 학점을 초과합니다.",
+                    HttpStatus.CONFLICT
+            );
         }
     }
 
     private void validateSchedule(EnrollmentValidationSummary validation) {
         if (validation.getScheduleConflict() > 0) {
-            throw error("SCHEDULE_CONFLICT", "기존 신청 과목과 강의 시간이 겹칩니다.", HttpStatus.CONFLICT);
-        }
-    }
-
-    private void validateCapacity(Course course) {
-        if (course.isFull()) {
-            throw error("COURSE_FULL", "수강 정원이 마감되었습니다.", HttpStatus.CONFLICT);
+            throw error(
+                    "SCHEDULE_CONFLICT",
+                    "기존 신청 과목과 강의 시간이 겹칩니다.",
+                    HttpStatus.CONFLICT
+            );
         }
     }
 
