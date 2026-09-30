@@ -44,7 +44,7 @@ class EnrollmentServiceTest {
     private EnrollmentService enrollmentService;
 
     @Test
-    void 최대학점을_초과하면_신청하지_않는다() {
+    void 최대학점을_초과하면_좌석을_확보하지_않는다() {
         Long studentId = 1L;
         Long courseId = 10L;
         Student student = activeStudent(studentId, 18);
@@ -52,7 +52,8 @@ class EnrollmentServiceTest {
         EnrollmentValidationSummary validation = validation(false, 18, false);
 
         givenStudentAndCourse(studentId, courseId, student, course);
-        when(enrollmentRepository.findValidationSummary(studentId, courseId)).thenReturn(validation);
+        when(enrollmentRepository.findValidationSummary(studentId, courseId))
+                .thenReturn(validation);
 
         EnrollmentException exception = assertThrows(
                 EnrollmentException.class,
@@ -60,11 +61,12 @@ class EnrollmentServiceTest {
         );
 
         assertEquals("CREDIT_LIMIT_EXCEEDED", exception.getCode());
+        verify(courseRepository, never()).increaseEnrolledCountIfAvailable(courseId);
         verify(enrollmentRepository, never()).save(any(Enrollment.class));
     }
 
     @Test
-    void 동일과목을_중복신청하면_실패한다() {
+    void 동일과목을_중복신청하면_좌석을_확보하지_않는다() {
         Long studentId = 1L;
         Long courseId = 10L;
         Student student = activeStudent(studentId, 18);
@@ -72,7 +74,8 @@ class EnrollmentServiceTest {
         EnrollmentValidationSummary validation = validation(true, 0, false);
 
         givenStudentAndCourse(studentId, courseId, student, course);
-        when(enrollmentRepository.findValidationSummary(studentId, courseId)).thenReturn(validation);
+        when(enrollmentRepository.findValidationSummary(studentId, courseId))
+                .thenReturn(validation);
 
         EnrollmentException exception = assertThrows(
                 EnrollmentException.class,
@@ -80,12 +83,13 @@ class EnrollmentServiceTest {
         );
 
         assertEquals("DUPLICATE_ENROLLMENT", exception.getCode());
+        verify(courseRepository, never()).increaseEnrolledCountIfAvailable(courseId);
         verify(enrollmentRepository, never()).save(any(Enrollment.class));
     }
 
     @ParameterizedTest
     @EnumSource(value = StudentStatus.class, names = "ACTIVE", mode = EnumSource.Mode.EXCLUDE)
-    void 재학상태가_아니면_수강신청에_실패한다(StudentStatus status) {
+    void 재학상태가_아니면_좌석을_확보하지_않는다(StudentStatus status) {
         Long studentId = 1L;
         Long courseId = 10L;
         Student student = mock(Student.class);
@@ -102,6 +106,7 @@ class EnrollmentServiceTest {
 
         assertEquals("STUDENT_NOT_ACTIVE", exception.getCode());
         verify(enrollmentRepository, never()).findValidationSummary(studentId, courseId);
+        verify(courseRepository, never()).increaseEnrolledCountIfAvailable(courseId);
         verify(enrollmentRepository, never()).save(any(Enrollment.class));
     }
 
@@ -117,6 +122,7 @@ class EnrollmentServiceTest {
         );
 
         assertEquals("STUDENT_NOT_FOUND", exception.getCode());
+        verify(courseRepository, never()).increaseEnrolledCountIfAvailable(courseId);
         verify(enrollmentRepository, never()).save(any(Enrollment.class));
     }
 
@@ -135,11 +141,12 @@ class EnrollmentServiceTest {
         );
 
         assertEquals("COURSE_NOT_FOUND", exception.getCode());
+        verify(courseRepository, never()).increaseEnrolledCountIfAvailable(courseId);
         verify(enrollmentRepository, never()).save(any(Enrollment.class));
     }
 
     @Test
-    void 신청후_학점이_최대학점과_같으면_성공한다() {
+    void 신청후_학점이_최대학점과_같으면_좌석을_확보하고_저장한다() {
         Long studentId = 1L;
         Long courseId = 10L;
         Student student = activeStudent(studentId, 18);
@@ -148,20 +155,21 @@ class EnrollmentServiceTest {
         EnrollmentValidationSummary validation = validation(false, 15, false);
 
         givenStudentAndCourse(studentId, courseId, student, course);
-        when(enrollmentRepository.findValidationSummary(studentId, courseId)).thenReturn(validation);
-        when(course.isFull()).thenReturn(false);
+        when(enrollmentRepository.findValidationSummary(studentId, courseId))
+                .thenReturn(validation);
+        when(courseRepository.increaseEnrolledCountIfAvailable(courseId)).thenReturn(1);
         when(enrollmentRepository.save(any(Enrollment.class))).thenReturn(savedEnrollment);
         when(savedEnrollment.getId()).thenReturn(100L);
 
         Long enrollmentId = enrollmentService.enroll(studentId, courseId);
 
         assertEquals(100L, enrollmentId);
+        verify(courseRepository).increaseEnrolledCountIfAvailable(courseId);
         verify(enrollmentRepository).save(any(Enrollment.class));
-        verify(course).increaseEnrolledCount();
     }
 
     @Test
-    void 기존과목과_시간이_겹치면_수강신청에_실패한다() {
+    void 기존과목과_시간이_겹치면_좌석을_확보하지_않는다() {
         Long studentId = 1L;
         Long courseId = 10L;
         Student student = activeStudent(studentId, 18);
@@ -169,7 +177,8 @@ class EnrollmentServiceTest {
         EnrollmentValidationSummary validation = validation(false, 12, true);
 
         givenStudentAndCourse(studentId, courseId, student, course);
-        when(enrollmentRepository.findValidationSummary(studentId, courseId)).thenReturn(validation);
+        when(enrollmentRepository.findValidationSummary(studentId, courseId))
+                .thenReturn(validation);
 
         EnrollmentException exception = assertThrows(
                 EnrollmentException.class,
@@ -177,11 +186,12 @@ class EnrollmentServiceTest {
         );
 
         assertEquals("SCHEDULE_CONFLICT", exception.getCode());
+        verify(courseRepository, never()).increaseEnrolledCountIfAvailable(courseId);
         verify(enrollmentRepository, never()).save(any(Enrollment.class));
     }
 
     @Test
-    void 시간표_충돌이_없으면_수강신청에_성공한다() {
+    void 시간표_충돌이_없으면_좌석을_확보하고_저장한다() {
         Long studentId = 1L;
         Long courseId = 10L;
         Student student = activeStudent(studentId, 18);
@@ -190,20 +200,21 @@ class EnrollmentServiceTest {
         EnrollmentValidationSummary validation = validation(false, 12, false);
 
         givenStudentAndCourse(studentId, courseId, student, course);
-        when(enrollmentRepository.findValidationSummary(studentId, courseId)).thenReturn(validation);
-        when(course.isFull()).thenReturn(false);
+        when(enrollmentRepository.findValidationSummary(studentId, courseId))
+                .thenReturn(validation);
+        when(courseRepository.increaseEnrolledCountIfAvailable(courseId)).thenReturn(1);
         when(enrollmentRepository.save(any(Enrollment.class))).thenReturn(savedEnrollment);
         when(savedEnrollment.getId()).thenReturn(100L);
 
         Long enrollmentId = enrollmentService.enroll(studentId, courseId);
 
         assertEquals(100L, enrollmentId);
+        verify(courseRepository).increaseEnrolledCountIfAvailable(courseId);
         verify(enrollmentRepository).save(any(Enrollment.class));
-        verify(course).increaseEnrolledCount();
     }
 
     @Test
-    void 수강정원이_가득차면_수강신청에_실패한다() {
+    void 조건부_UPDATE가_0건이면_정원마감으로_처리한다() {
         Long studentId = 1L;
         Long courseId = 10L;
         Student student = activeStudent(studentId, 18);
@@ -211,8 +222,9 @@ class EnrollmentServiceTest {
         EnrollmentValidationSummary validation = validation(false, 15, false);
 
         givenStudentAndCourse(studentId, courseId, student, course);
-        when(enrollmentRepository.findValidationSummary(studentId, courseId)).thenReturn(validation);
-        when(course.isFull()).thenReturn(true);
+        when(enrollmentRepository.findValidationSummary(studentId, courseId))
+                .thenReturn(validation);
+        when(courseRepository.increaseEnrolledCountIfAvailable(courseId)).thenReturn(0);
 
         EnrollmentException exception = assertThrows(
                 EnrollmentException.class,
@@ -220,6 +232,7 @@ class EnrollmentServiceTest {
         );
 
         assertEquals("COURSE_FULL", exception.getCode());
+        verify(courseRepository).increaseEnrolledCountIfAvailable(courseId);
         verify(enrollmentRepository, never()).save(any(Enrollment.class));
     }
 
@@ -253,9 +266,11 @@ class EnrollmentServiceTest {
             boolean scheduleConflict
     ) {
         EnrollmentValidationSummary validation = mock(EnrollmentValidationSummary.class);
-        lenient().when(validation.getDuplicateEnrollment()).thenReturn(duplicate ? 1L : 0L);
+        lenient().when(validation.getDuplicateEnrollment())
+                .thenReturn(duplicate ? 1L : 0L);
         lenient().when(validation.getCurrentCredits()).thenReturn(currentCredits);
-        lenient().when(validation.getScheduleConflict()).thenReturn(scheduleConflict ? 1L : 0L);
+        lenient().when(validation.getScheduleConflict())
+                .thenReturn(scheduleConflict ? 1L : 0L);
         return validation;
     }
 }

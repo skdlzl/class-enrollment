@@ -34,60 +34,38 @@ class EnrollmentRedissonFacadeTest {
     @Mock
     private RLock studentLock;
 
-    @Mock
-    private RLock courseLock;
-
     private EnrollmentRedissonFacade enrollmentRedissonFacade;
 
     @BeforeEach
     void setUp() {
-        enrollmentRedissonFacade = new EnrollmentRedissonFacade(enrollmentService, redissonClient);
+        enrollmentRedissonFacade = new EnrollmentRedissonFacade(
+                enrollmentService,
+                redissonClient
+        );
 
         when(redissonClient.getLock("lock:student:1")).thenReturn(studentLock);
-        when(redissonClient.getLock("lock:course:10")).thenReturn(courseLock);
     }
 
     @Test
-    void 학생락과_과목락을_획득한후_전체_수강신청을_실행한다() throws InterruptedException {
+    void 학생락을_획득한후_수강신청을_실행한다() throws InterruptedException {
         when(studentLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(true);
-        when(courseLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(true);
         when(studentLock.isHeldByCurrentThread()).thenReturn(true);
-        when(courseLock.isHeldByCurrentThread()).thenReturn(true);
         when(enrollmentService.enroll(1L, 10L)).thenReturn(100L);
 
         Long enrollmentId = enrollmentRedissonFacade.enroll(1L, 10L);
 
         assertEquals(100L, enrollmentId);
 
-        InOrder inOrder = inOrder(studentLock, courseLock, enrollmentService);
+        InOrder inOrder = inOrder(studentLock, enrollmentService);
         inOrder.verify(studentLock).tryLock(10L, TimeUnit.SECONDS);
-        inOrder.verify(courseLock).tryLock(10L, TimeUnit.SECONDS);
         inOrder.verify(enrollmentService).enroll(1L, 10L);
-
-        verify(courseLock).unlock();
-        verify(studentLock).unlock();
+        inOrder.verify(studentLock).isHeldByCurrentThread();
+        inOrder.verify(studentLock).unlock();
     }
 
     @Test
-    void 과목락을_획득하지_못하면_신청하지_않고_학생락을_해제한다() throws InterruptedException {
-        when(studentLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(true);
-        when(courseLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(false);
-        when(studentLock.isHeldByCurrentThread()).thenReturn(true);
-
-        EnrollmentException exception = assertThrows(
-                EnrollmentException.class,
-                () -> enrollmentRedissonFacade.enroll(1L, 10L)
-        );
-
-        assertEquals("LOCK_ACQUISITION_TIMEOUT", exception.getCode());
-        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, exception.getStatus());
-        verify(enrollmentService, never()).enroll(1L, 10L);
-        verify(courseLock, never()).unlock();
-        verify(studentLock).unlock();
-    }
-
-    @Test
-    void 학생락을_획득하지_못하면_과목락과_수강신청을_실행하지_않는다() throws InterruptedException {
+    void 학생락을_획득하지_못하면_수강신청을_실행하지_않는다()
+            throws InterruptedException {
         when(studentLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(false);
 
         EnrollmentException exception = assertThrows(
@@ -97,16 +75,41 @@ class EnrollmentRedissonFacadeTest {
 
         assertEquals("LOCK_ACQUISITION_TIMEOUT", exception.getCode());
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, exception.getStatus());
-        verify(courseLock, never()).tryLock(10L, TimeUnit.SECONDS);
         verify(enrollmentService, never()).enroll(1L, 10L);
+        verify(studentLock, never()).unlock();
+    }
+
+    @Test
+    void 서비스에서_업무예외가_발생해도_학생락을_해제한다()
+            throws InterruptedException {
+        EnrollmentException courseFull = new EnrollmentException(
+                "COURSE_FULL",
+                "수강 정원이 마감되었습니다.",
+                HttpStatus.CONFLICT
+        );
+
+        when(studentLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(true);
+        when(studentLock.isHeldByCurrentThread()).thenReturn(true);
+        when(enrollmentService.enroll(1L, 10L)).thenThrow(courseFull);
+
+        EnrollmentException exception = assertThrows(
+                EnrollmentException.class,
+                () -> enrollmentRedissonFacade.enroll(1L, 10L)
+        );
+
+        assertEquals("COURSE_FULL", exception.getCode());
+        verify(studentLock).unlock();
     }
 
     @Test
     void Redis_연결이_끊기면_503_예외로_변환하고_수강신청을_실행하지_않는다()
             throws InterruptedException {
-        RedisException redisException = new RedisException("Redis connection refused");
+        RedisException redisException = new RedisException(
+                "Redis connection refused"
+        );
 
-        when(studentLock.tryLock(10L, TimeUnit.SECONDS)).thenThrow(redisException);
+        when(studentLock.tryLock(10L, TimeUnit.SECONDS))
+                .thenThrow(redisException);
 
         EnrollmentException exception = assertThrows(
                 EnrollmentException.class,
@@ -118,6 +121,5 @@ class EnrollmentRedissonFacadeTest {
         assertInstanceOf(RedisException.class, exception.getCause());
         verify(enrollmentService, never()).enroll(1L, 10L);
         verify(studentLock, never()).unlock();
-        verify(courseLock, never()).unlock();
     }
 }

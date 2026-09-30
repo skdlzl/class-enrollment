@@ -28,4 +28,4 @@ jobs:
         working-directory: backend
         run: |
           chmod +x mvnw
-          ./mvnw -Dtest=EnrollmentRedissonFacadeTest,EnrollmentLockScopeExperimentTest test
+          ./mvnw -Dtest=EnrollmentServiceTest,EnrollmentRedissonFacadeTest,EnrollmentLockScopeExperimentTest test
