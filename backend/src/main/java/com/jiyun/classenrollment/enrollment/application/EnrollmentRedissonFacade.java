@@ -10,12 +10,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Component
 public class EnrollmentRedissonFacade {
 
     private static final Logger log = LoggerFactory.getLogger(EnrollmentRedissonFacade.class);
     private static final long LOCK_WAIT_SECONDS = 10L;
+    private static final long TIMING_LOG_INTERVAL = 100L;
+    private static final AtomicLong timingLogCount = new AtomicLong();
 
     private final EnrollmentService enrollmentService;
     private final RedissonClient redissonClient;
@@ -125,9 +128,21 @@ public class EnrollmentRedissonFacade {
             long serviceMillis,
             long facadeStartedAt
     ) {
+        long currentCount = timingLogCount.incrementAndGet();
+
+        /*
+         * 부하 테스트 중 모든 요청을 콘솔에 출력하면
+         * Windows 콘솔 I/O가 응답시간 측정을 왜곡할 수 있습니다.
+         * 운영 흐름은 유지하면서 100건마다 한 번만 표본 로그를 남깁니다.
+         */
+        if (currentCount % TIMING_LOG_INTERVAL != 0) {
+            return;
+        }
+
         log.info(
-                "ENROLLMENT_TIMING outcome={} studentId={} courseId={} "
+                "ENROLLMENT_TIMING requestCount={} outcome={} studentId={} courseId={} "
                         + "studentLockWaitMs={} serviceMs={} facadeTotalMs={}",
+                currentCount,
                 outcome,
                 studentId,
                 courseId,
