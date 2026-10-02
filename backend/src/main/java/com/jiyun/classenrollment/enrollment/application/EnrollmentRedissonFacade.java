@@ -220,11 +220,17 @@ public class EnrollmentRedissonFacade {
             throw redisUnavailable(exception);
 
         } finally {
-            unlockIfHeld(courseLock, courseLockAcquired);
-            if (courseTicket != null) {
-                courseTicket.close();
+            try {
+                unlockIfHeld(courseLock, courseLockAcquired);
+            } finally {
+                try {
+                    if (courseTicket != null) {
+                        courseTicket.close();
+                    }
+                } finally {
+                    unlockIfHeld(studentLock, studentLockAcquired);
+                }
             }
-            unlockIfHeld(studentLock, studentLockAcquired);
         }
     }
 
