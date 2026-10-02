@@ -92,7 +92,7 @@ try {
     [IO.File]::WriteAllText((Join-Path $out 'conditions.json'), (@{
         Rounds=$Rounds; Threads=500; RampSeconds=5; Loops=1; Capacity=100
         Ports=@(8080,8081); TimingLogInterval=1; WarmupRequests=20
-        Java=(& java -version 2>&1 | Out-String); GitCommit=(& git rev-parse HEAD | Out-String).Trim()
+        Java=(& java --version | Out-String); GitCommit=(& git rev-parse HEAD | Out-String).Trim()
     } | ConvertTo-Json), $utf8)
     for ($round=1; $round -le $Rounds; $round++) {
         $modes = if ($round % 2 -eq 1) { @('false','true') } else { @('true','false') }
