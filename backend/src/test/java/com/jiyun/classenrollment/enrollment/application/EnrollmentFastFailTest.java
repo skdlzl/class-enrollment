@@ -18,6 +18,8 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -106,7 +108,7 @@ class EnrollmentFastFailTest {
         );
 
         assertEquals("COURSE_FULL", exception.getCode());
-        verify(courseLock, never()).tryLock(10L, TimeUnit.SECONDS);
+        verify(courseLock, never()).tryLock(anyLong(), eq(TimeUnit.NANOSECONDS));
         verify(mockedService, never()).completeEnrollment(1L, 10L);
         verify(courseLock, never()).unlock();
         verify(studentLock).unlock();
