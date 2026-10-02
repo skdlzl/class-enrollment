@@ -1,6 +1,8 @@
 package com.jiyun.classenrollment.enrollment.application;
 
 import com.jiyun.classenrollment.common.error.EnrollmentException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.redisson.client.RedisException;
@@ -18,18 +20,30 @@ public class EnrollmentRedissonFacade {
     private static final Logger log =
             LoggerFactory.getLogger(EnrollmentRedissonFacade.class);
     private static final long LOCK_WAIT_SECONDS = 10L;
-    private static final long TIMING_LOG_INTERVAL = 100L;
+    @Value("${enrollment.timing-log-interval:100}")
+    private long timingLogInterval = 100L;
     private static final AtomicLong timingLogCount = new AtomicLong();
 
     private final EnrollmentService enrollmentService;
     private final RedissonClient redissonClient;
+    private final boolean localCourseGateEnabled;
+    private final CourseAdmissionGate courseAdmissionGate = new CourseAdmissionGate();
 
+    // Direct construction used by existing baseline tests.
+    public EnrollmentRedissonFacade(EnrollmentService enrollmentService,
+                                    RedissonClient redissonClient) {
+        this(enrollmentService, redissonClient, false);
+    }
+
+    @Autowired
     public EnrollmentRedissonFacade(
             EnrollmentService enrollmentService,
-            RedissonClient redissonClient
+            RedissonClient redissonClient,
+            @Value("${enrollment.local-course-gate.enabled:false}") boolean enabled
     ) {
         this.enrollmentService = enrollmentService;
         this.redissonClient = redissonClient;
+        this.localCourseGateEnabled = enabled;
     }
 
     public Long enroll(Long studentId, Long courseId) {
@@ -37,6 +51,7 @@ public class EnrollmentRedissonFacade {
 
         RLock studentLock = null;
         RLock courseLock = null;
+        CourseAdmissionGate.Ticket courseTicket = null;
 
         boolean studentLockAcquired = false;
         boolean courseLockAcquired = false;
@@ -44,6 +59,8 @@ public class EnrollmentRedissonFacade {
         long studentLockWaitMillis = 0L;
         long validationMillis = 0L;
         long courseLockWaitMillis = 0L;
+        long localCourseWaitMillis = 0L;
+        long capacityReadMillis = 0L;
         long writeMillis = 0L;
 
         try {
@@ -69,6 +86,8 @@ public class EnrollmentRedissonFacade {
                         studentLockWaitMillis,
                         validationMillis,
                         courseLockWaitMillis,
+                        localCourseWaitMillis,
+                        capacityReadMillis,
                         writeMillis,
                         facadeStartedAt
                 );
@@ -86,11 +105,39 @@ public class EnrollmentRedissonFacade {
             validationMillis = elapsedMillis(phaseStartedAt);
 
             phaseStartedAt = System.nanoTime();
-            courseLockAcquired = courseLock.tryLock(
-                    LOCK_WAIT_SECONDS,
-                    TimeUnit.SECONDS
-            );
-            courseLockWaitMillis = elapsedMillis(phaseStartedAt);
+            if (localCourseGateEnabled) {
+                // Only one request per course in this JVM may contend for Redis.
+                // The distributed lock still protects against the other JVM.
+                courseTicket = courseAdmissionGate.register(courseId);
+                long localStartedAt = System.nanoTime();
+                try {
+                    if (!courseTicket.tryAcquire(remainingCourseBudget(phaseStartedAt),
+                            TimeUnit.NANOSECONDS)) {
+                        throw lockTimeout("요청이 몰려 수강신청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+                    }
+                } finally {
+                    localCourseWaitMillis = elapsedMillis(localStartedAt);
+                }
+                // Once per admitted request, never polling while queued.
+                long readStartedAt = System.nanoTime();
+                try {
+                    enrollmentService.validateCourseCapacity(courseId);
+                } finally {
+                    capacityReadMillis = elapsedMillis(readStartedAt);
+                }
+                long remaining = remainingCourseBudget(phaseStartedAt);
+                if (remaining > 0L) {
+                    long redisStartedAt = System.nanoTime();
+                    try {
+                        courseLockAcquired = courseLock.tryLock(remaining, TimeUnit.NANOSECONDS);
+                    } finally {
+                        courseLockWaitMillis = elapsedMillis(redisStartedAt);
+                    }
+                }
+            } else {
+                courseLockAcquired = courseLock.tryLock(LOCK_WAIT_SECONDS, TimeUnit.SECONDS);
+                courseLockWaitMillis = elapsedMillis(phaseStartedAt);
+            }
 
             if (!courseLockAcquired) {
                 logTiming(
@@ -100,6 +147,8 @@ public class EnrollmentRedissonFacade {
                         studentLockWaitMillis,
                         validationMillis,
                         courseLockWaitMillis,
+                        localCourseWaitMillis,
+                        capacityReadMillis,
                         writeMillis,
                         facadeStartedAt
                 );
@@ -125,6 +174,8 @@ public class EnrollmentRedissonFacade {
                     studentLockWaitMillis,
                     validationMillis,
                     courseLockWaitMillis,
+                    localCourseWaitMillis,
+                    capacityReadMillis,
                     writeMillis,
                     facadeStartedAt
             );
@@ -139,6 +190,8 @@ public class EnrollmentRedissonFacade {
                     studentLockWaitMillis,
                     validationMillis,
                     courseLockWaitMillis,
+                    localCourseWaitMillis,
+                    capacityReadMillis,
                     writeMillis,
                     facadeStartedAt
             );
@@ -159,6 +212,8 @@ public class EnrollmentRedissonFacade {
                     studentLockWaitMillis,
                     validationMillis,
                     courseLockWaitMillis,
+                    localCourseWaitMillis,
+                    capacityReadMillis,
                     writeMillis,
                     facadeStartedAt
             );
@@ -166,8 +221,17 @@ public class EnrollmentRedissonFacade {
 
         } finally {
             unlockIfHeld(courseLock, courseLockAcquired);
+            if (courseTicket != null) {
+                courseTicket.close();
+            }
             unlockIfHeld(studentLock, studentLockAcquired);
         }
+    }
+
+    private long remainingCourseBudget(long startedAt) {
+        // DB/Redis commands themselves are not forcibly interrupted by this budget.
+        return Math.max(0L, TimeUnit.SECONDS.toNanos(LOCK_WAIT_SECONDS)
+                - (System.nanoTime() - startedAt));
     }
 
     private void logTiming(
@@ -177,19 +241,21 @@ public class EnrollmentRedissonFacade {
             long studentLockWaitMillis,
             long validationMillis,
             long courseLockWaitMillis,
+            long localCourseWaitMillis,
+            long capacityReadMillis,
             long writeMillis,
             long facadeStartedAt
     ) {
         long currentCount = timingLogCount.incrementAndGet();
 
-        if (currentCount % TIMING_LOG_INTERVAL != 0) {
+        if (currentCount % Math.max(1L, timingLogInterval) != 0) {
             return;
         }
 
         log.info(
                 "ENROLLMENT_TIMING requestCount={} outcome={} studentId={} courseId={} "
                         + "studentLockWaitMs={} validationMs={} courseLockWaitMs={} "
-                        + "writeMs={} facadeTotalMs={}",
+                        + "localCourseWaitMs={} capacityReadMs={} writeMs={} facadeTotalMs={}",
                 currentCount,
                 outcome,
                 studentId,
@@ -197,6 +263,8 @@ public class EnrollmentRedissonFacade {
                 studentLockWaitMillis,
                 validationMillis,
                 courseLockWaitMillis,
+                localCourseWaitMillis,
+                capacityReadMillis,
                 writeMillis,
                 elapsedMillis(facadeStartedAt)
         );
@@ -243,3 +311,4 @@ public class EnrollmentRedissonFacade {
         return exception;
     }
 }
+
