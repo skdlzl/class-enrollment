@@ -1,0 +1,73 @@
+name: Course admission verification
+on:
+  push:
+    branches: [feat/course-local-admission]
+    paths: ['backend/**', 'scripts/**', 'jmeter/course-admission-500.jmx', '.github/workflows/course-admission.yml']
+  workflow_dispatch:
+concurrency:
+  group: course-admission-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify-and-measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Unit and MySQL Redis integration tests
+        working-directory: backend
+        run: |
+          chmod +x mvnw
+          ./mvnw -Dtest=CourseAdmissionGateTest,EnrollmentCourseAdmissionTest,EnrollmentCourseAdmissionIntegrationTest,EnrollmentRedissonFacadeTest,EnrollmentServiceTest,EnrollmentLockScopeExperimentTest,EnrollmentRepositoryIntegrationTest,HealthControllerTest package
+      - name: Prepare repeatable measurement data
+        run: |
+          docker compose up -d --wait
+          java -jar backend/target/class-enrollment-backend-0.0.1-SNAPSHOT.jar --server.port=18080 > /tmp/bootstrap.log 2>&1 &
+          bootstrap_pid=$!
+          trap 'kill "$bootstrap_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://localhost:18080/api/health > /dev/null; then ready=true; break; fi
+            if ! kill -0 "$bootstrap_pid" 2>/dev/null; then cat /tmp/bootstrap.log; exit 1; fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then cat /tmp/bootstrap.log; exit 1; fi
+          kill "$bootstrap_pid"
+          wait "$bootstrap_pid" || true
+          trap - EXIT
+          python3 - <<'PYDATA' > /tmp/admission-students.sql
+          print("INSERT INTO students(id,student_number,name,status,max_credits) VALUES " + ','.join(f"({i},'LOAD{i}','load{i}','ACTIVE',18)" for i in range(10000,10500)) + ';')
+          PYDATA
+          docker exec -i class-enrollment-mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot class_enrollment' < /tmp/admission-students.sql
+          (cd backend && ./mvnw -f ../scripts/jmeter-runtime-pom.xml org.apache.maven.plugins:maven-dependency-plugin:3.8.1:copy-dependencies -DoutputDirectory=/tmp/admission-jmeter/lib -q)
+          python3 scripts/prepare-ci-jmeter.py
+          /tmp/admission-jmeter/bin/jmeter --version
+      - name: Compare P95 with two JVMs and capture error bodies
+        shell: pwsh
+        run: ./scripts/measure-course-admission.ps1 -JMeter /tmp/admission-jmeter/bin/jmeter -Rounds 1 -SkipBuild
+      - name: Summarize results
+        if: always()
+        run: |
+          python3 - <<'PYREPORT'
+          import glob,json,os,statistics
+          for path in glob.glob('jmeter/results/admission-*/summary.json'):
+              rows=json.load(open(path)); print(json.dumps(rows,ensure_ascii=False,indent=2))
+              with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as out:
+                  out.write('## CI measurement (not the Windows portfolio benchmark)\n\n|Run|Mean ms|P95 ms|201|409|503|DB count|Consistent|\n|---|---:|---:|---:|---:|---:|---:|---|\n')
+                  for r in rows:
+                      c=r['Responses']; out.write(f"|{r['Run']}|{r['AvgMs']}|{r['P95Ms']}|{c.get('201',0)}|{c.get('409',0)}|{c.get('503',0)}|{r['DbCount']}|{r['Consistent']}|\n")
+          PYREPORT
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-admission-evidence
+          path: |
+            backend/target/surefire-reports/
+            jmeter/results/admission-*/
+      - name: Stop benchmark containers
+        if: always()
+        run: docker compose down
