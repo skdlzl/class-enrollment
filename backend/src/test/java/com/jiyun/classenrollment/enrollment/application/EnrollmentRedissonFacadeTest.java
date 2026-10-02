@@ -17,6 +17,8 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -57,7 +59,7 @@ class EnrollmentRedissonFacadeTest {
     void 학생검증을_마친후_과목락을_획득하고_저장한다()
             throws InterruptedException {
         when(studentLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(true);
-        when(courseLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(true);
+        when(courseLock.tryLock(anyLong(), eq(TimeUnit.NANOSECONDS))).thenReturn(true);
         when(studentLock.isHeldByCurrentThread()).thenReturn(true);
         when(courseLock.isHeldByCurrentThread()).thenReturn(true);
         when(enrollmentService.completeEnrollment(1L, 10L)).thenReturn(100L);
@@ -73,7 +75,7 @@ class EnrollmentRedissonFacadeTest {
         );
         inOrder.verify(studentLock).tryLock(10L, TimeUnit.SECONDS);
         inOrder.verify(enrollmentService).validateForEnrollment(1L, 10L);
-        inOrder.verify(courseLock).tryLock(10L, TimeUnit.SECONDS);
+        inOrder.verify(courseLock).tryLock(anyLong(), eq(TimeUnit.NANOSECONDS));
         inOrder.verify(enrollmentService).completeEnrollment(1L, 10L);
 
         verify(courseLock).unlock();
@@ -84,7 +86,10 @@ class EnrollmentRedissonFacadeTest {
     void 과목락을_얻지_못해도_학생검증은_과목락_밖에서_완료된다()
             throws InterruptedException {
         when(studentLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(true);
-        when(courseLock.tryLock(10L, TimeUnit.SECONDS)).thenReturn(false);
+        when(courseLock.tryLock(anyLong(), eq(TimeUnit.NANOSECONDS))).thenAnswer(invocation -> {
+            Thread.sleep(500L);
+            return false;
+        });
         when(studentLock.isHeldByCurrentThread()).thenReturn(true);
 
         EnrollmentException exception = assertThrows(
@@ -120,7 +125,7 @@ class EnrollmentRedissonFacadeTest {
         );
 
         assertEquals("DUPLICATE_ENROLLMENT", exception.getCode());
-        verify(courseLock, never()).tryLock(10L, TimeUnit.SECONDS);
+        verify(courseLock, never()).tryLock(anyLong(), eq(TimeUnit.NANOSECONDS));
         verify(enrollmentService, never()).completeEnrollment(1L, 10L);
         verify(studentLock).unlock();
     }
@@ -137,7 +142,7 @@ class EnrollmentRedissonFacadeTest {
 
         assertEquals("LOCK_ACQUISITION_TIMEOUT", exception.getCode());
         verify(enrollmentService, never()).validateForEnrollment(1L, 10L);
-        verify(courseLock, never()).tryLock(10L, TimeUnit.SECONDS);
+        verify(courseLock, never()).tryLock(anyLong(), eq(TimeUnit.NANOSECONDS));
         verify(enrollmentService, never()).completeEnrollment(1L, 10L);
     }
 
@@ -162,3 +167,4 @@ class EnrollmentRedissonFacadeTest {
         verify(enrollmentService, never()).completeEnrollment(1L, 10L);
     }
 }
+
