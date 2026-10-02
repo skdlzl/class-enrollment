@@ -87,4 +87,24 @@ class EnrollmentCourseAdmissionTest {
         assertEquals(9L, facade.enroll(1L, 10L));
         verify(student, times(2)).unlock();
     }
+    @Test
+    void unexpectedUnlockFailureStillReleasesLocalPermitAndStudentLock() throws Exception {
+        EnrollmentService service = mock(EnrollmentService.class);
+        RedissonClient redis = mock(RedissonClient.class);
+        RLock student = mock(RLock.class), course = mock(RLock.class);
+        when(redis.getLock("lock:student:1")).thenReturn(student);
+        when(redis.getLock("lock:course:10")).thenReturn(course);
+        when(student.tryLock(10, TimeUnit.SECONDS)).thenReturn(true);
+        when(student.isHeldByCurrentThread()).thenReturn(true);
+        when(course.tryLock(anyLong(), eq(TimeUnit.NANOSECONDS))).thenReturn(true);
+        when(course.isHeldByCurrentThread()).thenReturn(true);
+        when(service.completeEnrollment(1L, 10L)).thenReturn(9L);
+        doThrow(new IllegalMonitorStateException("ownership lost"))
+                .doNothing().when(course).unlock();
+        var facade = new EnrollmentRedissonFacade(service, redis, true);
+        assertThrows(IllegalMonitorStateException.class, () -> facade.enroll(1L, 10L));
+        assertEquals(9L, facade.enroll(1L, 10L));
+        verify(student, times(2)).unlock();
+    }
+
 }
