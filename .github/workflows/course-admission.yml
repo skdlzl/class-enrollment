@@ -43,11 +43,12 @@ jobs:
           print("INSERT INTO students(id,student_number,name,status,max_credits) VALUES " + ','.join(f"({i},'LOAD{i}','load{i}','ACTIVE',18)" for i in range(10000,10500)) + ';')
           PYDATA
           docker exec -i class-enrollment-mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot class_enrollment' < /tmp/admission-students.sql
-          curl -fsSL --retry 3 https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz -o /tmp/jmeter.tgz
-          tar -xzf /tmp/jmeter.tgz -C /tmp
+          bash backend/mvnw -f scripts/jmeter-runtime-pom.xml org.apache.maven.plugins:maven-dependency-plugin:3.8.1:copy-dependencies -DoutputDirectory=/tmp/admission-jmeter/lib -q
+          python3 scripts/prepare-ci-jmeter.py
+          /tmp/admission-jmeter/bin/jmeter --version
       - name: Compare P95 with two JVMs and capture error bodies
         shell: pwsh
-        run: ./scripts/measure-course-admission.ps1 -JMeter /tmp/apache-jmeter-5.6.3/bin/jmeter -Rounds 3 -SkipBuild
+        run: ./scripts/measure-course-admission.ps1 -JMeter /tmp/admission-jmeter/bin/jmeter -Rounds 3 -SkipBuild
       - name: Summarize results
         if: always()
         run: |
