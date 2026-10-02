@@ -120,13 +120,13 @@ try {
             if ($LASTEXITCODE -ne 0) { throw "JMeter 실패: $name" }
             $rows = @(Import-Csv $jtl | Where-Object { $_.label -eq 'Enrollment' })
             if ($rows.Count -ne 500) { throw "$name 요청 수 오류: $($rows.Count)" }
-            $db = (Sql 'SELECT c.capacity,c.enrolled_count,(SELECT COUNT(*) FROM enrollments WHERE course_id=1) FROM courses c WHERE c.id=1;')[0].Split("`t")
+            $db = @(Sql 'SELECT c.capacity,c.enrolled_count,(SELECT COUNT(*) FROM enrollments WHERE course_id=1) FROM courses c WHERE c.id=1;')[0].Split("`t")
             $counts = @{}
             foreach ($g in ($rows | Group-Object responseCode)) { $counts[$g.Name] = $g.Count }
             $successes = if ($counts.ContainsKey('201')) { $counts['201'] } else { 0 }
             $consistent = ([int]$db[1] -eq [int]$db[2] -and [int]$db[2] -eq $successes -and $successes -le 100)
             $stats = Stats $rows
-            $record = [pscustomobject]@{Run=$name; Enabled=$mode; Count=$stats.Count; AvgMs=$stats.AvgMs; P95Ms=$stats.P95Ms; MaxMs=$stats.MaxMs; Responses=$counts; DbCount=[int]$db[2]; EnrolledCount=[int]$db[1]; Consistent=$consistent; Started=$started.ToString('o')}
+            $record = [pscustomobject]@{Run=$name; Enabled=$mode; Count=$stats['Count']; AvgMs=$stats.AvgMs; P95Ms=$stats.P95Ms; MaxMs=$stats.MaxMs; Responses=$counts; DbCount=[int]$db[2]; EnrolledCount=[int]$db[1]; Consistent=$consistent; Started=$started.ToString('o')}
             $summary += $record
             Write-Host ($record | ConvertTo-Json -Compress)
             [IO.File]::WriteAllText((Join-Path $out 'summary.json'), (ConvertTo-Json -InputObject @($summary) -Depth 6), $utf8)
