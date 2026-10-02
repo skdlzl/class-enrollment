@@ -12,6 +12,7 @@ New-Item -ItemType Directory -Force $out | Out-Null
 $servers = @()
 $restore = $null
 $summary = @()
+$restoreFailure = $null
 function Sql([string]$query) {
     $result = @($query | & docker exec -i class-enrollment-mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot --batch --skip-column-names class_enrollment' 2>&1)
     if ($LASTEXITCODE -ne 0) { throw "DB 명령 실패: $($result -join [Environment]::NewLine)" }
@@ -139,10 +140,12 @@ try {
     Stop-Servers
     if ($null -ne $restore) {
         try { Sql $restore | Out-Null; Write-Host '과목 1의 기존 신청 내역과 정원을 복원했습니다.' }
-        catch { Write-Warning "DB 복원 실패. $out/restore-course-1.sql을 사용하세요. $($_.Exception.Message)" }
+        catch { $restoreFailure = $_; Write-Warning "DB 복원 실패. $out/restore-course-1.sql을 사용하세요. $($_.Exception.Message)" }
     }
     if (Test-Path $out) {
         Compress-Archive -Path (Join-Path $out '*') -DestinationPath ($out + '.zip') -Force
         Write-Host "결과와 오류 응답, 서버 로그: $out.zip"
     }
 }
+
+if ($null -ne $restoreFailure) { throw $restoreFailure }
