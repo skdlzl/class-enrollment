@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$JMeter = 'C:\tools\apache-jmeter-5.6.3\bin\jmeter.bat',
     [ValidateRange(1,5)][int]$Rounds = 3,
     [switch]$SkipBuild
