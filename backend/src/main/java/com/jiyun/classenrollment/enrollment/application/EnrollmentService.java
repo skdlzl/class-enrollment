@@ -125,6 +125,8 @@ public class EnrollmentService {
         validateDuplicate(validation);
         validateCreditLimit(student, course, validation);
         validateSchedule(validation);
+
+        validateCapacity(course);
     }
 
     /*
