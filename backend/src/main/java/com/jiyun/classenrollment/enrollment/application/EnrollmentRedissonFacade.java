@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 
 @Component
 public class EnrollmentRedissonFacade {
@@ -18,6 +19,7 @@ public class EnrollmentRedissonFacade {
     private static final Logger log =
             LoggerFactory.getLogger(EnrollmentRedissonFacade.class);
     private static final long LOCK_WAIT_SECONDS = 10L;
+    private static final long COURSE_LOCK_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(500L);
     private static final long TIMING_LOG_INTERVAL = 100L;
     private static final AtomicLong timingLogCount = new AtomicLong();
 
@@ -86,11 +88,11 @@ public class EnrollmentRedissonFacade {
             validationMillis = elapsedMillis(phaseStartedAt);
 
             phaseStartedAt = System.nanoTime();
-            courseLockAcquired = courseLock.tryLock(
-                    LOCK_WAIT_SECONDS,
-                    TimeUnit.SECONDS
-            );
-            courseLockWaitMillis = elapsedMillis(phaseStartedAt);
+            try {
+                courseLockAcquired = acquireCourseLock(courseLock, courseId, System::nanoTime);
+            } finally {
+                courseLockWaitMillis = elapsedMillis(phaseStartedAt);
+            }
 
             if (!courseLockAcquired) {
                 logTiming(
@@ -170,6 +172,27 @@ public class EnrollmentRedissonFacade {
         }
     }
 
+    /* Student lock stays held. DB polling time also consumes the retry budget.
+     * This is a retry deadline, not a hard timeout for an in-flight DB/Redis call.
+     * No lease time is supplied: the existing watchdog behavior is preserved.
+     */
+    boolean acquireCourseLock(RLock courseLock, Long courseId, LongSupplier nanoTime)
+            throws InterruptedException {
+        long startedAt = nanoTime.getAsLong();
+        long budget = TimeUnit.SECONDS.toNanos(LOCK_WAIT_SECONDS);
+        while (true) {
+            long remaining = budget - (nanoTime.getAsLong() - startedAt);
+            if (remaining <= 0L) {
+                return false;
+            }
+            if (courseLock.tryLock(Math.min(COURSE_LOCK_POLL_NANOS, remaining),
+                    TimeUnit.NANOSECONDS)) {
+                return true;
+            }
+            enrollmentService.validateCourseCapacity(courseId);
+        }
+    }
+
     private void logTiming(
             String outcome,
             Long studentId,
@@ -243,3 +266,4 @@ public class EnrollmentRedissonFacade {
         return exception;
     }
 }
+
