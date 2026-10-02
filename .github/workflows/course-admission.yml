@@ -26,6 +26,19 @@ jobs:
       - name: Prepare repeatable measurement data
         run: |
           docker compose up -d --wait
+          java -jar backend/target/class-enrollment-backend-0.0.1-SNAPSHOT.jar --server.port=18080 > /tmp/bootstrap.log 2>&1 &
+          bootstrap_pid=$!
+          trap 'kill "$bootstrap_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://localhost:18080/api/health > /dev/null; then ready=true; break; fi
+            if ! kill -0 "$bootstrap_pid" 2>/dev/null; then cat /tmp/bootstrap.log; exit 1; fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then cat /tmp/bootstrap.log; exit 1; fi
+          kill "$bootstrap_pid"
+          wait "$bootstrap_pid" || true
+          trap - EXIT
           python3 - <<'PYDATA' > /tmp/admission-students.sql
           print("INSERT INTO students(id,student_number,name,status,max_credits) VALUES " + ','.join(f"({i},'LOAD{i}','load{i}','ACTIVE',18)" for i in range(10000,10500)) + ';')
           PYDATA
