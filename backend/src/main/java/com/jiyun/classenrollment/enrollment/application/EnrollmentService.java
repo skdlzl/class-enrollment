@@ -145,6 +145,18 @@ public class EnrollmentService {
         return saveEnrollment(student, course);
     }
 
+    /* Each polling call uses a separate read-only transaction and a scalar DB query. */
+    @Transactional(readOnly = true)
+    public void validateCourseCapacity(Long courseId) {
+        boolean full = courseRepository.findFullStatusById(courseId)
+                .orElseThrow(() -> error(
+                        "COURSE_NOT_FOUND", "과목 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND
+                ));
+        if (full) {
+            throw error("COURSE_FULL", "수강 정원이 마감되었습니다.", HttpStatus.CONFLICT);
+        }
+    }
+
     private void logTiming(
             String outcome,
             Long studentId,
@@ -273,3 +285,4 @@ public class EnrollmentService {
         return new EnrollmentException(code, message, status);
     }
 }
+
