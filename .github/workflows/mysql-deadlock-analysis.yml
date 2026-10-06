@@ -36,8 +36,7 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: analysis-test-password
         run: |
-          chmod +x mvnw
-          ./mvnw -B -Dtest=EnrollmentDeadlockAnalysisTest test
+          mvn -B -Dtest=EnrollmentDeadlockAnalysisTest test
       - name: Preserve SQL and InnoDB evidence
         if: always()
         uses: actions/upload-artifact@v4
