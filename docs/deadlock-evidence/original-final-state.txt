@@ -1,0 +1,1 @@
+[{capacity=2, enrolled_count=1, enrollment_count=1}]
