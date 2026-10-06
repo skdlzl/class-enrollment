@@ -1,0 +1,45 @@
+deadlock-worker-3 | select s1_0.id,s1_0.created_at,s1_0.max_credits,s1_0.name,s1_0.status,s1_0.student_number from students s1_0 where s1_0.id=?
+deadlock-worker-1 | select s1_0.id,s1_0.created_at,s1_0.max_credits,s1_0.name,s1_0.status,s1_0.student_number from students s1_0 where s1_0.id=?
+deadlock-worker-2 | select s1_0.id,s1_0.created_at,s1_0.max_credits,s1_0.name,s1_0.status,s1_0.student_number from students s1_0 where s1_0.id=?
+deadlock-worker-4 | select s1_0.id,s1_0.created_at,s1_0.max_credits,s1_0.name,s1_0.status,s1_0.student_number from students s1_0 where s1_0.id=?
+deadlock-worker-5 | select s1_0.id,s1_0.created_at,s1_0.max_credits,s1_0.name,s1_0.status,s1_0.student_number from students s1_0 where s1_0.id=?
+deadlock-worker-1 | select c1_0.id,c1_0.academic_year,c1_0.capacity,c1_0.course_code,c1_0.created_at,c1_0.credits,c1_0.department,c1_0.enrolled_count,c1_0.name,c1_0.professor,c1_0.semester from courses c1_0 where c1_0.id=?
+deadlock-worker-3 | select c1_0.id,c1_0.academic_year,c1_0.capacity,c1_0.course_code,c1_0.created_at,c1_0.credits,c1_0.department,c1_0.enrolled_count,c1_0.name,c1_0.professor,c1_0.semester from courses c1_0 where c1_0.id=?
+deadlock-worker-4 | select c1_0.id,c1_0.academic_year,c1_0.capacity,c1_0.course_code,c1_0.created_at,c1_0.credits,c1_0.department,c1_0.enrolled_count,c1_0.name,c1_0.professor,c1_0.semester from courses c1_0 where c1_0.id=?
+deadlock-worker-2 | select c1_0.id,c1_0.academic_year,c1_0.capacity,c1_0.course_code,c1_0.created_at,c1_0.credits,c1_0.department,c1_0.enrolled_count,c1_0.name,c1_0.professor,c1_0.semester from courses c1_0 where c1_0.id=?
+deadlock-worker-5 | select c1_0.id,c1_0.academic_year,c1_0.capacity,c1_0.course_code,c1_0.created_at,c1_0.credits,c1_0.department,c1_0.enrolled_count,c1_0.name,c1_0.professor,c1_0.semester from courses c1_0 where c1_0.id=?
+deadlock-worker-3 | select e1_0.id from enrollments e1_0 join students s1_0 on s1_0.id=e1_0.student_id join courses c1_0 on c1_0.id=e1_0.course_id where s1_0.id=? and c1_0.id=? limit ?
+deadlock-worker-4 | select e1_0.id from enrollments e1_0 join students s1_0 on s1_0.id=e1_0.student_id join courses c1_0 on c1_0.id=e1_0.course_id where s1_0.id=? and c1_0.id=? limit ?
+deadlock-worker-1 | select e1_0.id from enrollments e1_0 join students s1_0 on s1_0.id=e1_0.student_id join courses c1_0 on c1_0.id=e1_0.course_id where s1_0.id=? and c1_0.id=? limit ?
+deadlock-worker-2 | select e1_0.id from enrollments e1_0 join students s1_0 on s1_0.id=e1_0.student_id join courses c1_0 on c1_0.id=e1_0.course_id where s1_0.id=? and c1_0.id=? limit ?
+deadlock-worker-5 | select e1_0.id from enrollments e1_0 join students s1_0 on s1_0.id=e1_0.student_id join courses c1_0 on c1_0.id=e1_0.course_id where s1_0.id=? and c1_0.id=? limit ?
+deadlock-worker-3 | select coalesce(sum(c1_0.credits),0) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id where e1_0.student_id=?
+deadlock-worker-5 | select coalesce(sum(c1_0.credits),0) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id where e1_0.student_id=?
+deadlock-worker-4 | select coalesce(sum(c1_0.credits),0) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id where e1_0.student_id=?
+deadlock-worker-2 | select coalesce(sum(c1_0.credits),0) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id where e1_0.student_id=?
+deadlock-worker-1 | select coalesce(sum(c1_0.credits),0) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id where e1_0.student_id=?
+deadlock-worker-4 | select cs1_0.id,cs1_0.course_id,cs1_0.day_of_week,cs1_0.end_time,cs1_0.start_time from course_schedules cs1_0 where cs1_0.course_id=?
+deadlock-worker-5 | select cs1_0.id,cs1_0.course_id,cs1_0.day_of_week,cs1_0.end_time,cs1_0.start_time from course_schedules cs1_0 where cs1_0.course_id=?
+deadlock-worker-2 | select cs1_0.id,cs1_0.course_id,cs1_0.day_of_week,cs1_0.end_time,cs1_0.start_time from course_schedules cs1_0 where cs1_0.course_id=?
+deadlock-worker-1 | select cs1_0.id,cs1_0.course_id,cs1_0.day_of_week,cs1_0.end_time,cs1_0.start_time from course_schedules cs1_0 where cs1_0.course_id=?
+deadlock-worker-3 | select cs1_0.id,cs1_0.course_id,cs1_0.day_of_week,cs1_0.end_time,cs1_0.start_time from course_schedules cs1_0 where cs1_0.course_id=?
+deadlock-worker-5 | select count(cs1_0.id) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id join course_schedules cs1_0 on cs1_0.course_id=c1_0.id where e1_0.student_id=? and cs1_0.day_of_week=? and cs1_0.start_time<? and cs1_0.end_time>?
+deadlock-worker-1 | select count(cs1_0.id) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id join course_schedules cs1_0 on cs1_0.course_id=c1_0.id where e1_0.student_id=? and cs1_0.day_of_week=? and cs1_0.start_time<? and cs1_0.end_time>?
+deadlock-worker-4 | select count(cs1_0.id) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id join course_schedules cs1_0 on cs1_0.course_id=c1_0.id where e1_0.student_id=? and cs1_0.day_of_week=? and cs1_0.start_time<? and cs1_0.end_time>?
+deadlock-worker-2 | select count(cs1_0.id) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id join course_schedules cs1_0 on cs1_0.course_id=c1_0.id where e1_0.student_id=? and cs1_0.day_of_week=? and cs1_0.start_time<? and cs1_0.end_time>?
+deadlock-worker-3 | select count(cs1_0.id) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id join course_schedules cs1_0 on cs1_0.course_id=c1_0.id where e1_0.student_id=? and cs1_0.day_of_week=? and cs1_0.start_time<? and cs1_0.end_time>?
+deadlock-worker-5 | select count(cs1_0.id) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id join course_schedules cs1_0 on cs1_0.course_id=c1_0.id where e1_0.student_id=? and cs1_0.day_of_week=? and cs1_0.start_time<? and cs1_0.end_time>?
+deadlock-worker-4 | select count(cs1_0.id) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id join course_schedules cs1_0 on cs1_0.course_id=c1_0.id where e1_0.student_id=? and cs1_0.day_of_week=? and cs1_0.start_time<? and cs1_0.end_time>?
+deadlock-worker-3 | select count(cs1_0.id) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id join course_schedules cs1_0 on cs1_0.course_id=c1_0.id where e1_0.student_id=? and cs1_0.day_of_week=? and cs1_0.start_time<? and cs1_0.end_time>?
+deadlock-worker-2 | select count(cs1_0.id) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id join course_schedules cs1_0 on cs1_0.course_id=c1_0.id where e1_0.student_id=? and cs1_0.day_of_week=? and cs1_0.start_time<? and cs1_0.end_time>?
+deadlock-worker-1 | select count(cs1_0.id) from enrollments e1_0 join courses c1_0 on c1_0.id=e1_0.course_id join course_schedules cs1_0 on cs1_0.course_id=c1_0.id where e1_0.student_id=? and cs1_0.day_of_week=? and cs1_0.start_time<? and cs1_0.end_time>?
+deadlock-worker-4 | insert into enrollments (course_id,student_id) values (?,?)
+deadlock-worker-3 | insert into enrollments (course_id,student_id) values (?,?)
+deadlock-worker-1 | insert into enrollments (course_id,student_id) values (?,?)
+deadlock-worker-2 | insert into enrollments (course_id,student_id) values (?,?)
+deadlock-worker-5 | insert into enrollments (course_id,student_id) values (?,?)
+deadlock-worker-4 | update courses set academic_year=?,capacity=?,course_code=?,credits=?,department=?,enrolled_count=?,name=?,professor=?,semester=? where id=?
+deadlock-worker-5 | update courses set academic_year=?,capacity=?,course_code=?,credits=?,department=?,enrolled_count=?,name=?,professor=?,semester=? where id=?
+deadlock-worker-3 | update courses set academic_year=?,capacity=?,course_code=?,credits=?,department=?,enrolled_count=?,name=?,professor=?,semester=? where id=?
+deadlock-worker-1 | update courses set academic_year=?,capacity=?,course_code=?,credits=?,department=?,enrolled_count=?,name=?,professor=?,semester=? where id=?
+deadlock-worker-2 | update courses set academic_year=?,capacity=?,course_code=?,credits=?,department=?,enrolled_count=?,name=?,professor=?,semester=? where id=?
