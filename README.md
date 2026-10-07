@@ -2,6 +2,19 @@
 
 수강신청 동시성 문제를 단계적으로 재현하고 Redis Redisson 분산 락의 선택 근거를 검증하기 위한 프로젝트입니다.
 
+## 기술 스택과 검증 환경
+
+| 구분 | 구성 |
+| --- | --- |
+| 백엔드 | Java 17 · Spring Boot 3.5 · Spring Data JPA |
+| 저장소 / 동시성 제어 | MySQL 8.4 · Redis 7.4 · Redisson |
+| 검증 | JUnit 5 · Mockito · Testcontainers · JMeter 5.6.3 |
+| 실행 / 자동화 | Docker Compose · GitHub Actions |
+| Windows 부하 측정 | 동일 PC의 JVM 2개(8080·8081), MySQL·Redis·JMeter |
+| 후속 후보 검증 | GitHub-hosted Ubuntu에서 JVM 2개와 동일 부하 절차 |
+
+락 설계와 부하 검증은 단계별 실험 브랜치에서 진행했습니다.
+
 ## 현재 구현
 
 - React + TypeScript + Vite 기반 수강신청 프론트엔드
