@@ -1,0 +1,59 @@
+name: Atomic UPDATE latency analysis
+on:
+  push:
+    branches: [test/atomic-update-latency-analysis]
+    paths: ['analysis/**', '.github/workflows/atomic-update-analysis.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: analysis-test-password
+          MYSQL_DATABASE: atomic_analysis
+          MYSQL_ROOT_HOST: '%'
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -panalysis-test-password"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+      redis:
+        image: redis:7.4-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: atomic
+      - uses: actions/checkout@v4
+        with:
+          ref: 6ebba4d65808e947bc67a0e39afacfec66e51443
+          path: redisson
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: '**/pom.xml'
+      - name: Build unchanged business implementations with the same observer
+        run: |
+          for variant in atomic redisson; do
+            cp atomic/analysis/LatencyDiagnostics.java "$variant/backend/src/main/java/com/jiyun/classenrollment/common/config/LatencyDiagnostics.java"
+            (cd "$variant/backend" && mvn -B -DskipTests package)
+          done
+          python -m pip install PyMySQL==1.1.2 cryptography
+      - name: Measure HTTP, SQL, connection pool and MySQL lock waits
+        run: python atomic/analysis/measure.py
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atomic-update-latency-evidence
+          path: evidence/
+          retention-days: 30
