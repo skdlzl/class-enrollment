@@ -5,6 +5,8 @@ from pathlib import Path
 import pymysql
 
 ROOT=Path.cwd(); OUT=ROOT/'evidence'; OUT.mkdir(exist_ok=True)
+RAMP=float(os.environ.get('ANALYSIS_RAMP_SECONDS','5'))
+ROUNDS=int(os.environ.get('ANALYSIS_ROUNDS','3'))
 DB=dict(host='127.0.0.1', user='root', password='analysis-test-password', database='atomic_analysis', autocommit=True)
 def connect(): return pymysql.connect(**DB, cursorclass=pymysql.cursors.DictCursor)
 def execute(db, sql, args=None):
@@ -81,11 +83,11 @@ def stat(values): return dict(count=len(values),avgMs=round(statistics.mean(valu
 def read(path):
     with path.open() as f:return list(csv.DictReader(f))
 db=connect()
-environment=dict(cpuCount=os.cpu_count(),platform=platform.platform(),java=subprocess.check_output(['java','-version'],stderr=subprocess.STDOUT,text=True),baselineCommit='6ebba4d65808e947bc67a0e39afacfec66e51443',atomicBusinessCommit='d2c9aec979ec1aca7e23b4e935dcd2a0edd32007',requests=500,rampSeconds=5,rounds=3,jvms=2,logging='root WARN identical',client='Python urllib 500 workers',observer='JDBC proxy in both variants; pool and MySQL wait sampling every 50ms')
+environment=dict(cpuCount=os.cpu_count(),platform=platform.platform(),java=subprocess.check_output(['java','-version'],stderr=subprocess.STDOUT,text=True),baselineCommit='6ebba4d65808e947bc67a0e39afacfec66e51443',atomicBusinessCommit='d2c9aec979ec1aca7e23b4e935dcd2a0edd32007',requests=500,rampSeconds=RAMP,rounds=ROUNDS,jvms=2,logging='root WARN identical',client='Python urllib 500 workers',observer='JDBC proxy in both variants; pool and MySQL wait sampling every 50ms')
 environment['mysql']=execute(db,'SELECT VERSION() AS version,@@transaction_isolation AS isolation_level,@@innodb_flush_log_at_trx_commit AS flush_log,@@sync_binlog AS sync_binlog')
 (OUT/'environment.json').write_text(json.dumps(environment,indent=2))
 summary=[]
-for round_no in (1,2,3):
+for round_no in range(1,ROUNDS+1):
     cases=[('redisson',10),('atomic',10),('atomic',50)]
     if round_no==2: cases.reverse()
     for variant,pool in cases:
@@ -102,7 +104,7 @@ for round_no in (1,2,3):
             watcher=threading.Thread(target=monitor,args=(stop,folder,samples));watcher.start()
             release=threading.Event(); origin=[0.0]
             def send(i):
-                release.wait(); delay=origin[0]+i*.01-time.monotonic()
+                release.wait(); delay=origin[0]+i*(RAMP/500)-time.monotonic()
                 if delay>0:time.sleep(delay)
                 return post(i)
             with concurrent.futures.ThreadPoolExecutor(max_workers=500) as executor:
@@ -130,7 +132,7 @@ for round_no in (1,2,3):
         for r in events:
             key=r['sqlKind'] if r['phase']=='sql' else r['phase']
             phases.setdefault(key,[]).append(float(r['durationMs']))
-        report=dict(variant=variant,pool=pool,round=round_no,http=stat([r['elapsedMs'] for r in results]),codes=counts,byCode={code:stat([r['elapsedMs'] for r in results if r['code']==code]) for code in counts},jdbc={k:stat(v) for k,v in phases.items()},maxPoolPendingPerJvm=max([int(r['pending']) for r in pools],default=0),maxPoolActivePerJvm=max([int(r['active']) for r in pools],default=0),maxMySqlWaitingTransactions=max([r['waitingTransactions'] for r in samples],default=0),mysqlSamplesWithWaits=sum(r['waitingTransactions']>0 for r in samples),finalState=final)
+        report=dict(variant=variant,pool=pool,round=round_no,rampSeconds=RAMP,http=stat([r['elapsedMs'] for r in results]),codes=counts,byCode={code:stat([r['elapsedMs'] for r in results if r['code']==code]) for code in counts},jdbc={k:stat(v) for k,v in phases.items()},maxPoolPendingPerJvm=max([int(r['pending']) for r in pools],default=0),maxPoolActivePerJvm=max([int(r['active']) for r in pools],default=0),maxMySqlWaitingTransactions=max([r['waitingTransactions'] for r in samples],default=0),mysqlSamplesWithWaits=sum(r['waitingTransactions']>0 for r in samples),finalState=final)
         summary.append(report)
         (OUT/'summary.json').write_text(json.dumps(summary,indent=2))
         print(json.dumps(report),flush=True)

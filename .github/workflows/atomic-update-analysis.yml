@@ -49,6 +49,9 @@ jobs:
           done
           python -m pip install PyMySQL==1.1.2 cryptography
       - name: Measure HTTP, SQL, connection pool and MySQL lock waits
+        env:
+          ANALYSIS_RAMP_SECONDS: '0'
+          ANALYSIS_ROUNDS: '1'
         run: python atomic/analysis/measure.py
       - name: Preserve evidence
         if: always()
