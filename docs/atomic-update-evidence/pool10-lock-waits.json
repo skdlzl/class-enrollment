@@ -1,0 +1,10 @@
+[
+  {
+    "waiting_tx": 3168,
+    "blocking_tx": 3167,
+    "object_name": "courses",
+    "index_name": "PRIMARY",
+    "lock_mode": "X,REC_NOT_GAP",
+    "lock_data": "1"
+  }
+]
