@@ -1,0 +1,50 @@
+[
+  {
+    "waiting_tx": 4320,
+    "blocking_tx": 4319,
+    "object_name": "courses",
+    "index_name": "PRIMARY",
+    "lock_mode": "X,REC_NOT_GAP",
+    "lock_data": "1"
+  },
+  {
+    "waiting_tx": 4321,
+    "blocking_tx": 4319,
+    "object_name": "courses",
+    "index_name": "PRIMARY",
+    "lock_mode": "X,REC_NOT_GAP",
+    "lock_data": "1"
+  },
+  {
+    "waiting_tx": 4321,
+    "blocking_tx": 4320,
+    "object_name": "courses",
+    "index_name": "PRIMARY",
+    "lock_mode": "X,REC_NOT_GAP",
+    "lock_data": "1"
+  },
+  {
+    "waiting_tx": 4322,
+    "blocking_tx": 4319,
+    "object_name": "courses",
+    "index_name": "PRIMARY",
+    "lock_mode": "X,REC_NOT_GAP",
+    "lock_data": "1"
+  },
+  {
+    "waiting_tx": 4322,
+    "blocking_tx": 4320,
+    "object_name": "courses",
+    "index_name": "PRIMARY",
+    "lock_mode": "X,REC_NOT_GAP",
+    "lock_data": "1"
+  },
+  {
+    "waiting_tx": 4322,
+    "blocking_tx": 4321,
+    "object_name": "courses",
+    "index_name": "PRIMARY",
+    "lock_mode": "X,REC_NOT_GAP",
+    "lock_data": "1"
+  }
+]
