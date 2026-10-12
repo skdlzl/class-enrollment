@@ -14,7 +14,7 @@ $project="ce-atomic-$stamp"
 $compose=Join-Path $PSScriptRoot 'atomic-diagnostics/compose.yml'
 $worktrees=@();$servers=@();$monitor=$null;$containersCreated=$false;$summary=@()
 $savedEnv=@{}
-foreach($name in 'DB_URL','DB_USERNAME','DB_PASSWORD','REDIS_ADDRESS') {
+foreach($name in 'DB_URL','DB_USERNAME','DB_PASSWORD','REDIS_ADDRESS','JAVA_HOME','Path') {
     $savedEnv[$name]=[Environment]::GetEnvironmentVariable($name,'Process')
 }
 function Check-Exit([string]$Operation) {
@@ -32,9 +32,21 @@ function Reset-Course {
 }
 function Stop-Servers {
     foreach($server in $script:servers) {
+        if($null -ne $server.ActualProcess -and -not $server.ActualProcess.HasExited) {
+            Stop-Process -Id $server.ActualProcess.Id -Force
+            $server.ActualProcess.WaitForExit()
+        }
         if(-not $server.Process.HasExited) {
             Stop-Process -Id $server.Process.Id -Force
             $server.Process.WaitForExit()
+        }
+        # Catch a child of a Windows Java launcher that started before identity was registered.
+        $owned=@(Get-CimInstance Win32_Process -Filter "Name='java.exe'" | Where-Object {
+            $_.CommandLine -and $_.CommandLine.Contains($server.Folder) -and
+            $_.CommandLine.Contains('--analysis.enabled=true')
+        })
+        foreach($processInfo in $owned) {
+            Stop-Process -Id $processInfo.ProcessId -Force -ErrorAction SilentlyContinue
         }
     }
     $script:servers=@()
@@ -42,11 +54,12 @@ function Stop-Servers {
 function Flush-Evidence {
     # Windows Stop-Process does not run Java shutdown hooks. Flush before terminating our JVMs.
     foreach($server in $script:servers) {
-        if($server.Process.HasExited) { throw "Server stopped: port $($server.Port)" }
+        if($null -eq $server.ActualProcess -or $server.ActualProcess.HasExited) { throw "Server stopped: port $($server.Port)" }
         Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:$($server.Port)/internal/analysis/flush" -TimeoutSec 5 | Out-Null
     }
 }
 function Wait-Ready([int]$Port) {
+    $target=@($script:servers | Where-Object { $_.Port -eq $Port })[0]
     $deadline=(Get-Date).AddSeconds(100)
     while((Get-Date) -lt $deadline) {
         foreach($server in $script:servers) {
@@ -54,7 +67,16 @@ function Wait-Ready([int]$Port) {
         }
         try {
             $health=Invoke-RestMethod -Uri "http://127.0.0.1:$Port/api/health" -TimeoutSec 2
-            if($health.status -eq 'UP') { return }
+            if($health.status -eq 'UP') {
+                $identity=Invoke-RestMethod -Uri "http://127.0.0.1:$Port/internal/analysis/identity" -TimeoutSec 2
+                $listener=@(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction Stop)
+                if($identity.folder -eq $target.Folder -and
+                    @($listener | Where-Object { $_.OwningProcess -eq [int]$identity.pid }).Count -gt 0) {
+                    $target.ActualProcess=Get-Process -Id ([int]$identity.pid) -ErrorAction Stop
+                    [IO.File]::WriteAllText((Join-Path $target.Folder 'identity.json'),($identity | ConvertTo-Json),$utf8)
+                    return
+                }
+            }
         } catch { }
         Start-Sleep -Milliseconds 400
     }
@@ -80,6 +102,12 @@ try {
     $javaText=(& java --version | Out-String)
     Check-Exit 'Java version'
     if($javaText -notmatch '(openjdk |java |version "?)(17|21)\.') { throw 'Use Java 17 or Java 21 for this comparison' }
+    $javaHome=(& java (Join-Path $PSScriptRoot 'atomic-diagnostics/JavaRuntimeHome.java') | Out-String).Trim()
+    Check-Exit 'Resolve Java runtime home'
+    $actualJava=Join-Path $javaHome 'bin/java.exe'
+    if(-not (Test-Path $actualJava)) { throw "Actual Java executable not found: $actualJava" }
+    $env:JAVA_HOME=$javaHome
+    $env:Path="$javaHome\bin;$env:Path"
     foreach($port in 13306,16379,18080,18081) {
         if(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue) { throw "Experiment port is occupied: $port" }
     }
@@ -92,7 +120,7 @@ try {
         Cpu=@($cpu | Select-Object Name,NumberOfCores,NumberOfLogicalProcessors)
         RamBytes=$computer.TotalPhysicalMemory
         DockerCpu=$dockerInfo.NCPU;DockerMemoryBytes=$dockerInfo.MemTotal
-        Java=$javaText;JMeter=$JMeter;Rounds=$Rounds;RampSeconds=$RampSeconds
+        Java=$javaText;JavaExecutable=$actualJava;JMeter=$JMeter;Rounds=$Rounds;RampSeconds=$RampSeconds
         RequestsPerRun=500;JvmPorts=@(18080,18081)
         JvmArguments='-Xms256m -Xmx512m, root WARN, GC file log'
         AtomicCommit='d2c9aec979ec1aca7e23b4e935dcd2a0edd32007'
@@ -146,8 +174,8 @@ try {
                 $portFolder=Join-Path $folder "$port";New-Item -ItemType Directory $portFolder | Out-Null
                 $jar=Join-Path $scratch "$($case.Variant)/backend/target/class-enrollment-backend-0.0.1-SNAPSHOT.jar"
                 $javaArguments=@('-Xms256m','-Xmx512m','-Xlog:gc*:file=gc.log:time,uptime,level,tags','-jar',('"'+$jar+'"'),"--server.port=$port",'--server.address=127.0.0.1',"--spring.datasource.hikari.maximum-pool-size=$($case.Pool)","--spring.datasource.hikari.minimum-idle=$($case.Pool)",'--logging.level.root=WARN','--analysis.enabled=true',('--analysis.folder="'+$portFolder+'"'))
-                $process=Start-Process java -ArgumentList $javaArguments -WorkingDirectory $portFolder -PassThru -RedirectStandardOutput (Join-Path $portFolder 'server.log') -RedirectStandardError (Join-Path $portFolder 'stderr.log')
-                $script:servers+=@([pscustomobject]@{Process=$process;Port=$port})
+                $process=Start-Process -FilePath $actualJava -ArgumentList $javaArguments -WorkingDirectory $portFolder -PassThru -RedirectStandardOutput (Join-Path $portFolder 'server.log') -RedirectStandardError (Join-Path $portFolder 'stderr.log')
+                $script:servers+=@([pscustomobject]@{Process=$process;ActualProcess=$null;Port=$port;Folder=$portFolder})
             }
             Wait-Ready 18080;Wait-Ready 18081
             $values=@();for($i=0;$i -lt 500;$i++) { $values+=('({0},''ANA{1}'',''Analysis {1}'',''ACTIVE'',18)' -f (10000+$i),$i) }
@@ -188,7 +216,7 @@ try {
             $state=@(Sql 'SELECT capacity,enrolled_count,(SELECT COUNT(*) FROM enrollments WHERE course_id=1) FROM courses WHERE id=1;')[0].Split("`t")
             $final=[ordered]@{capacity=[int]$state[0];enrolled_count=[int]$state[1];enrollment_count=[int]$state[2]}
             [IO.File]::WriteAllText((Join-Path $folder 'final-state.json'),($final | ConvertTo-Json),$utf8)
-            $usage=@($script:servers | ForEach-Object { $_.Process.Refresh();[pscustomobject]@{Port=$_.Port;CpuMs=$_.Process.TotalProcessorTime.TotalMilliseconds;PeakWorkingSetBytes=$_.Process.PeakWorkingSet64} })
+            $usage=@($script:servers | ForEach-Object { $_.ActualProcess.Refresh();[pscustomobject]@{Port=$_.Port;Pid=$_.ActualProcess.Id;CpuMs=$_.ActualProcess.TotalProcessorTime.TotalMilliseconds;PeakWorkingSetBytes=$_.ActualProcess.PeakWorkingSet64} })
             [IO.File]::WriteAllText((Join-Path $folder 'jvm-resource-use.json'),(ConvertTo-Json -InputObject $usage),$utf8)
             Flush-Evidence
             Stop-Servers
@@ -198,6 +226,11 @@ try {
             $record | Select-Object Variant,PoolPerJvm,Round,@{Name='AvgSeconds';Expression={[Math]::Round($_.Http.AvgMs/1000,3)}},@{Name='P95Seconds';Expression={[Math]::Round($_.Http.P95Ms/1000,3)}},@{Name='ConnectionWaitSeconds';Expression={[Math]::Round($_.Jdbc['acquire'].AvgMs/1000,3)}},@{Name='UpdateSeconds';Expression={[Math]::Round($_.Jdbc['COURSE_UPDATE'].AvgMs/1000,3)}},MaxPoolPendingPerJvm,MaxMySqlWaitingTransactions,Consistent | Format-List
             # Unexpected HTTP errors are diagnostic results; retain bodies and continue comparisons.
             if(-not $record.Consistent -or -not $record.ObservationComplete) { throw "Incomplete measurement; evidence kept: $folder" }
+            foreach($port in 18080,18081) {
+                if(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue) {
+                    throw "Diagnostic server did not stop: port $port. Evidence kept: $folder"
+                }
+            }
         }
     }
     Write-Host 'Windows 측정 완료. summary.json과 연결 대기 및 UPDATE 시간을 함께 확인하세요.'
@@ -206,15 +239,20 @@ try {
         try { Stop-Monitor } catch { Write-Warning $_.Exception.Message;Stop-Job $script:monitor -ErrorAction SilentlyContinue }
     }
     try { if($script:servers.Count -gt 0) { Flush-Evidence } } catch { Write-Warning $_.Exception.Message }
-    Stop-Servers
+    try { Stop-Servers } catch { Write-Warning $_.Exception.Message }
     if($containersCreated) {
         & docker compose -p $project -f $compose logs --no-color 2>&1 | Out-File (Join-Path $out 'containers.log') -Encoding utf8
         & docker compose -p $project -f $compose down -v
     }
-    foreach($source in $worktrees) { & git -C $root worktree remove --force $source }
+    # Preserve source worktrees instead of an interactive Git deletion retry on Windows.
+    # The unique temporary paths are recorded for optional cleanup after evidence review.
+    if(Test-Path $out) {
+        [IO.File]::WriteAllText((Join-Path $out 'source-worktrees.json'),(ConvertTo-Json -InputObject $worktrees),$utf8)
+    }
     foreach($name in $savedEnv.Keys) { [Environment]::SetEnvironmentVariable($name,$savedEnv[$name],'Process') }
     if(Test-Path $out) {
         Compress-Archive -Path (Join-Path $out '*') -DestinationPath ($out+'.zip') -Force
         Write-Host "결과 파일: $out.zip"
     }
 }
+

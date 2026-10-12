@@ -29,7 +29,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:\portfolio\class-enrollmen
 
 - 원본 두 커밋의 코드를 임시 worktree에서 빌드하고 동일한 JDBC 관찰 코드 추가
 - 별도 MySQL과 Redis 생성. 기존 프로젝트 DB와 Redis는 사용하지 않음
-- JVM 2개를 18080/18081에서 실행. MySQL 13306과 Redis 16379 포트 사용
+- JVM 2개를 18080/18081에서 실행. 각 서버의 프로세스 ID와 고유 측정 폴더가 일치하는지 확인. MySQL 13306과 Redis 16379 포트 사용
 - 같은 JVM 메모리 설정과 root WARN 로그 수준 사용. 실제 JVM/DB 버전과 PC 및 Docker 자원 설정 기록
 - 실행마다 JVM을 재시작해 동일한 성공 요청 20건으로 준비한 뒤 실험 DB 초기화
 - JMeter에서 500건 실행. CSV는 따옴표 없이 생성하고 URL 포트를 `${port}`로 지정
@@ -37,7 +37,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:\portfolio\class-enrollmen
 - HikariCP 풀 상태 0.05초 간격 기록. MySQL 잠금 대기는 0.25초의 조회 간격을 두고 관찰. Docker 명령 실행 시간이 더해지므로 실제 간격은 결과의 타임스탬프로 확인
 - JVM별 CPU 사용량과 최대 메모리 및 GC 로그 저장
 - 성공 건수와 DB 신청 내역 및 인원수 일치 여부 검사
-- 측정 파일 저장 후 스크립트가 만든 JVM과 컨테이너 및 임시 소스만 정리
+- 측정 파일 저장 후 스크립트가 만든 실제 JVM 프로세스와 컨테이너 정리
 
 연결 대기와 SQL 실행 시간은 요청 전체 시간과 각각 비교한다. UPDATE 실행 시간에는 DB 행 잠금 대기와 쿼리 처리 및 통신 시간이 포함된다. 관찰된 대기자 최대값은 조회 시점의 최대값이며 모든 순간의 정확한 최대값과 구분한다.
 
@@ -55,3 +55,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:\portfolio\class-enrollmen
 과거 Windows 22.3초를 이번 측정의 기본 조건으로 간주하지 않는다. 실행 도구는 JMeter로 맞췄지만 JVM 메모리와 로그 수준 및 별도 DB 사용을 명시했다. 느린 현상이 재현되면 연결 대기, UPDATE 시간, 잠금 대기 기록과 GC를 함께 확인한다.
 
 사용자 PC의 기존 Java 21을 그대로 사용할 수 있다. 같은 실행에서 두 구현은 동일한 `java` 명령으로 실행되며 실제 버전을 `environment.json`에 기록한다. Ubuntu Java 17 결과와 Windows Java 21 결과는 각 환경 안에서 비교한다.
+
+## Windows 프로세스와 파일 저장
+
+Oracle `javapath`를 통해 실행해도 실제 Java 설치 경로를 확인한 뒤 그 경로의 java.exe를 직접 사용한다. 서버 응답에서 실제 프로세스 ID와 고유 측정 폴더를 읽고 해당 PID가 포트를 사용하는지 확인한다. 매 회차 종료 시 이 실제 PID를 종료하고 포트가 해제됐는지 확인한다.
+
+임시 소스 worktree는 자동 삭제하지 않는다. Windows에서 잠긴 JAR에 대한 Git 삭제 재시도가 결과 압축을 막지 않도록 경로를 `source-worktrees.json`에 기록해 보존한다. 측정 결과 확인 후 해당 worktree를 별도로 정리할 수 있다.
+
+진단 CSV가 없는 회차는 `ObservationComplete=false`로 기록되며 분석 대상으로 사용하지 않는다. Windows CI는 Java 17과 21에서 실제 HTTP JVM을 실행하고 PID/폴더/포트 일치, 종료 후 포트 해제와 JAR 삭제를 검증한다.

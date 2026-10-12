@@ -61,3 +61,41 @@ jobs:
           Set-Location backend
           & mvn -B -DskipTests package
           if($LASTEXITCODE -ne 0) { throw 'Diagnostic Java compilation failed' }
+      - name: Verify actual Java PID, port identity, termination and JAR release
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $utf8=New-Object System.Text.UTF8Encoding($false)
+          $javaHome=(& java scripts/atomic-diagnostics/JavaRuntimeHome.java | Out-String).Trim()
+          if($LASTEXITCODE -ne 0) { throw 'Java runtime resolution failed' }
+          $actualJava=Join-Path $javaHome 'bin/java.exe'
+          if(-not (Test-Path $actualJava)) { throw 'Actual JVM executable is missing' }
+          $probeFolder=Join-Path $env:RUNNER_TEMP 'probe evidence'
+          $classes=Join-Path $probeFolder 'classes'
+          New-Item -ItemType Directory -Force $classes | Out-Null
+          & (Join-Path $javaHome 'bin/javac.exe') -d $classes scripts/atomic-diagnostics/WindowsDiagnosticProbe.java
+          if($LASTEXITCODE -ne 0) { throw 'HTTP probe compilation failed' }
+          $jar=Join-Path $probeFolder 'probe.jar'
+          & (Join-Path $javaHome 'bin/jar.exe') --create --file $jar --main-class WindowsDiagnosticProbe -C $classes .
+          if($LASTEXITCODE -ne 0) { throw 'HTTP probe JAR creation failed' }
+          $tokens=$null;$errors=$null
+          $ast=[System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'scripts/measure-atomic-update-windows.ps1'),[ref]$tokens,[ref]$errors)
+          foreach($name in 'Wait-Ready','Stop-Servers') {
+            $definition=$ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$true)
+            Invoke-Expression $definition.Extent.Text
+          }
+          $out=$probeFolder
+          $process=Start-Process -FilePath $actualJava -ArgumentList @('--add-modules','jdk.httpserver','-jar',('"'+$jar+'"'),'18089',('"'+$probeFolder+'"'),'--analysis.enabled=true') -PassThru -RedirectStandardOutput (Join-Path $probeFolder 'stdout.log') -RedirectStandardError (Join-Path $probeFolder 'stderr.log')
+          $script:servers=@([pscustomobject]@{Process=$process;ActualProcess=$null;Port=18089;Folder=$probeFolder})
+          try {
+            Wait-Ready 18089
+            if($null -eq $script:servers[0].ActualProcess -or $script:servers[0].ActualProcess.Id -ne $process.Id) { throw 'Wrong Java PID registered' }
+            $identity=Get-Content (Join-Path $probeFolder 'identity.json') -Raw | ConvertFrom-Json
+            if($identity.folder -ne $probeFolder -or $identity.pid -ne $process.Id) { throw 'Wrong HTTP server identity accepted' }
+          } finally { Stop-Servers }
+          if(Get-NetTCPConnection -State Listen -LocalPort 18089 -ErrorAction SilentlyContinue) { throw 'Diagnostic JVM still owns port after stop' }
+          $exclusive=[IO.File]::Open($jar,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+          $exclusive.Close()
+          Remove-Item $jar -Force
+          Write-Host 'Actual JVM identity, process termination and JAR deletion passed'
+
