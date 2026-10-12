@@ -79,7 +79,7 @@ try {
     Check-Exit 'Docker Desktop engine'
     $javaText=(& java --version | Out-String)
     Check-Exit 'Java version'
-    if($javaText -notmatch '(openjdk |java |version "?)17\.') { throw 'Use Java 17 for this matched comparison' }
+    if($javaText -notmatch '(openjdk |java |version "?)(17|21)\.') { throw 'Use Java 17 or Java 21 for this comparison' }
     foreach($port in 13306,16379,18080,18081) {
         if(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue) { throw "Experiment port is occupied: $port" }
     }

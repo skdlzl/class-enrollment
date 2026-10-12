@@ -4,7 +4,7 @@
 
 ## 실행
 
-Java 17, Docker Desktop Linux 엔진, 기존 JMeter 5.6.3 경로가 필요하다. 기존 8080/8081 서버는 종료해 불필요한 자원 경쟁을 줄인다. 기존 프로젝트의 작업 브랜치는 그대로 유지한다.
+Java 17 또는 Java 21, Docker Desktop Linux 엔진, 기존 JMeter 5.6.3 경로가 필요하다. 기존 8080/8081 서버는 종료해 불필요한 자원 경쟁을 줄인다. 기존 프로젝트의 작업 브랜치는 그대로 유지한다.
 
 ```powershell
 cd C:\portfolio\class-enrollment
@@ -53,3 +53,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:\portfolio\class-enrollmen
 오류가 생겨도 가능한 측정 파일을 압축해 보존한다. HTTP 500 등 예상 외 응답은 진단 대상으로 보관하고 다음 비교를 진행한다. 정합성이 어긋나거나 측정 자료가 누락되면 중단한다. 성공이 100건 미만이면 503/500 응답과 실제 DB 인원수를 함께 확인한다.
 
 과거 Windows 22.3초를 이번 측정의 기본 조건으로 간주하지 않는다. 실행 도구는 JMeter로 맞췄지만 JVM 메모리와 로그 수준 및 별도 DB 사용을 명시했다. 느린 현상이 재현되면 연결 대기, UPDATE 시간, 잠금 대기 기록과 GC를 함께 확인한다.
+
+사용자 PC의 기존 Java 21을 그대로 사용할 수 있다. 같은 실행에서 두 구현은 동일한 `java` 명령으로 실행되며 실제 버전을 `environment.json`에 기록한다. Ubuntu Java 17 결과와 Windows Java 21 결과는 각 환경 안에서 비교한다.
