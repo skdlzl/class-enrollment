@@ -1,0 +1,22 @@
+{
+  "cpuCount": 4,
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "java": "openjdk version \"17.0.20.1\" 2026-08-18\nOpenJDK Runtime Environment Temurin-17.0.20.1+1 (build 17.0.20.1+1)\nOpenJDK 64-Bit Server VM Temurin-17.0.20.1+1 (build 17.0.20.1+1, mixed mode, sharing)\n",
+  "baselineCommit": "6ebba4d65808e947bc67a0e39afacfec66e51443",
+  "atomicBusinessCommit": "d2c9aec979ec1aca7e23b4e935dcd2a0edd32007",
+  "requests": 500,
+  "rampSeconds": 5,
+  "rounds": 3,
+  "jvms": 2,
+  "logging": "root WARN identical",
+  "client": "Python urllib 500 workers",
+  "observer": "JDBC proxy in both variants; pool and MySQL wait sampling every 50ms",
+  "mysql": [
+    {
+      "version": "8.4.11",
+      "isolation_level": "REPEATABLE-READ",
+      "flush_log": 1,
+      "sync_binlog": 1
+    }
+  ]
+}

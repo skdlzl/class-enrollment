@@ -1,0 +1,26 @@
+{
+  "Windows": "Microsoft Windows 11 Home",
+  "Cpu": [
+    {
+      "Name": "Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz",
+      "NumberOfCores": 4,
+      "NumberOfLogicalProcessors": 8
+    }
+  ],
+  "RamBytes": 8497991680,
+  "DockerCpu": 8,
+  "DockerMemoryBytes": 4059688960,
+  "Java": "java 21.0.2 2024-01-16 LTS\r\nJava(TM) SE Runtime Environment (build 21.0.2+13-LTS-58)\r\nJava HotSpot(TM) 64-Bit Server VM (build 21.0.2+13-LTS-58, mixed mode, sharing)\r\n",
+  "Rounds": 3,
+  "RampSeconds": 5,
+  "RequestsPerRun": 500,
+  "JvmArguments": "-Xms256m -Xmx512m, root WARN, GC file log",
+  "AtomicCommit": "d2c9aec979ec1aca7e23b4e935dcd2a0edd32007",
+  "RedissonCommit": "6ebba4d65808e947bc67a0e39afacfec66e51443",
+  "PoolSampleIntervalMs": 50,
+  "MySqlObserverDelayMs": 250,
+  "sourceFile": "windows-atomic-20261012-154602.zip",
+  "sha256": "b172a91d6e99814040ba042bdb39ac42976a90ed22873c1fe6d7e799ad8c907b",
+  "allNineConsistent": true,
+  "allNineObservationComplete": true
+}

@@ -1,0 +1,35 @@
+[
+  {
+    "variant": "redisson",
+    "poolPerJvm": 10,
+    "rounds": 3,
+    "meanMs": 7936.772666666667,
+    "meanOfRoundP95Ms": 10266,
+    "pooledP95Ms": 10201,
+    "connectionWaitMeanMs": 0.354,
+    "updateMeanMs": 4.772666666666667,
+    "connectionHoldMeanMs": 34.821
+  },
+  {
+    "variant": "atomic",
+    "poolPerJvm": 10,
+    "rounds": 3,
+    "meanMs": 6088.909333333333,
+    "meanOfRoundP95Ms": 7463.333333333333,
+    "pooledP95Ms": 8390,
+    "connectionWaitMeanMs": 5388.9766666666665,
+    "updateMeanMs": 325.646,
+    "connectionHoldMeanMs": 439.7846666666667
+  },
+  {
+    "variant": "atomic",
+    "poolPerJvm": 50,
+    "rounds": 3,
+    "meanMs": 6284.916666666667,
+    "meanOfRoundP95Ms": 7328.333333333333,
+    "pooledP95Ms": 7847,
+    "connectionWaitMeanMs": 3836.7433333333333,
+    "updateMeanMs": 1902.874,
+    "connectionHoldMeanMs": 2082.715
+  }
+]

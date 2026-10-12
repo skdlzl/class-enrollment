@@ -1,0 +1,287 @@
+[
+  {
+    "variant": "redisson",
+    "pool": 10,
+    "round": 1,
+    "rampSeconds": 0.0,
+    "http": {
+      "count": 500,
+      "avgMs": 3605.01,
+      "p95Ms": 5515.871,
+      "maxMs": 5932.322
+    },
+    "codes": {
+      "201": 100,
+      "409": 400
+    },
+    "byCode": {
+      "201": {
+        "count": 100,
+        "avgMs": 1472.38,
+        "p95Ms": 2250.099,
+        "maxMs": 2494.058
+      },
+      "409": {
+        "count": 400,
+        "avgMs": 4138.167,
+        "p95Ms": 5525.462,
+        "maxMs": 5932.322
+      }
+    },
+    "jdbc": {
+      "acquire": {
+        "count": 500,
+        "avgMs": 0.038,
+        "p95Ms": 0.058,
+        "maxMs": 2.15
+      },
+      "STUDENT_SELECT": {
+        "count": 500,
+        "avgMs": 0.871,
+        "p95Ms": 2.257,
+        "maxMs": 19.92
+      },
+      "COURSE_SELECT": {
+        "count": 500,
+        "avgMs": 0.813,
+        "p95Ms": 2.573,
+        "maxMs": 20.362
+      },
+      "VALIDATION_SELECT": {
+        "count": 500,
+        "avgMs": 0.888,
+        "p95Ms": 2.291,
+        "maxMs": 23.215
+      },
+      "ENROLLMENT_INSERT": {
+        "count": 100,
+        "avgMs": 1.414,
+        "p95Ms": 2.964,
+        "maxMs": 17.667
+      },
+      "COURSE_UPDATE": {
+        "count": 100,
+        "avgMs": 0.994,
+        "p95Ms": 2.298,
+        "maxMs": 14.782
+      },
+      "commit": {
+        "count": 100,
+        "avgMs": 1.209,
+        "p95Ms": 2.255,
+        "maxMs": 6.139
+      },
+      "hold": {
+        "count": 500,
+        "avgMs": 9.114,
+        "p95Ms": 19.263,
+        "maxMs": 169.976
+      },
+      "rollback": {
+        "count": 400,
+        "avgMs": 0.417,
+        "p95Ms": 1.36,
+        "maxMs": 3.181
+      }
+    },
+    "maxPoolPendingPerJvm": 0,
+    "maxPoolActivePerJvm": 1,
+    "maxMySqlWaitingTransactions": 0,
+    "mysqlSamplesWithWaits": 0,
+    "finalState": {
+      "capacity": 100,
+      "enrolled_count": 100,
+      "enrollment_count": 100
+    }
+  },
+  {
+    "variant": "atomic",
+    "pool": 10,
+    "round": 1,
+    "rampSeconds": 0.0,
+    "http": {
+      "count": 500,
+      "avgMs": 1823.99,
+      "p95Ms": 2620.707,
+      "maxMs": 3259.945
+    },
+    "codes": {
+      "201": 100,
+      "409": 400
+    },
+    "byCode": {
+      "201": {
+        "count": 100,
+        "avgMs": 933.729,
+        "p95Ms": 1369.995,
+        "maxMs": 1459.373
+      },
+      "409": {
+        "count": 400,
+        "avgMs": 2046.555,
+        "p95Ms": 2677.205,
+        "maxMs": 3259.945
+      }
+    },
+    "jdbc": {
+      "acquire": {
+        "count": 500,
+        "avgMs": 1492.203,
+        "p95Ms": 2128.024,
+        "maxMs": 2883.16
+      },
+      "STUDENT_SELECT": {
+        "count": 500,
+        "avgMs": 4.16,
+        "p95Ms": 9.147,
+        "maxMs": 75.332
+      },
+      "COURSE_SELECT": {
+        "count": 500,
+        "avgMs": 4.45,
+        "p95Ms": 10.63,
+        "maxMs": 32.844
+      },
+      "VALIDATION_SELECT": {
+        "count": 500,
+        "avgMs": 4.743,
+        "p95Ms": 12.52,
+        "maxMs": 27.137
+      },
+      "COURSE_UPDATE": {
+        "count": 500,
+        "avgMs": 80.077,
+        "p95Ms": 187.02,
+        "maxMs": 480.317
+      },
+      "ENROLLMENT_INSERT": {
+        "count": 100,
+        "avgMs": 3.845,
+        "p95Ms": 13.08,
+        "maxMs": 30.013
+      },
+      "commit": {
+        "count": 100,
+        "avgMs": 3.195,
+        "p95Ms": 5.78,
+        "maxMs": 31.932
+      },
+      "hold": {
+        "count": 500,
+        "avgMs": 124.69,
+        "p95Ms": 245.303,
+        "maxMs": 640.065
+      },
+      "rollback": {
+        "count": 400,
+        "avgMs": 2.432,
+        "p95Ms": 6.509,
+        "maxMs": 24.915
+      }
+    },
+    "maxPoolPendingPerJvm": 190,
+    "maxPoolActivePerJvm": 10,
+    "maxMySqlWaitingTransactions": 17,
+    "mysqlSamplesWithWaits": 41,
+    "finalState": {
+      "capacity": 100,
+      "enrolled_count": 100,
+      "enrollment_count": 100
+    }
+  },
+  {
+    "variant": "atomic",
+    "pool": 50,
+    "round": 1,
+    "rampSeconds": 0.0,
+    "http": {
+      "count": 500,
+      "avgMs": 1911.263,
+      "p95Ms": 2927.825,
+      "maxMs": 3421.157
+    },
+    "codes": {
+      "201": 100,
+      "409": 400
+    },
+    "byCode": {
+      "201": {
+        "count": 100,
+        "avgMs": 1127.348,
+        "p95Ms": 1628.943,
+        "maxMs": 1755.101
+      },
+      "409": {
+        "count": 400,
+        "avgMs": 2107.242,
+        "p95Ms": 2995.078,
+        "maxMs": 3421.157
+      }
+    },
+    "jdbc": {
+      "acquire": {
+        "count": 500,
+        "avgMs": 1051.426,
+        "p95Ms": 1821.524,
+        "maxMs": 2549.366
+      },
+      "STUDENT_SELECT": {
+        "count": 500,
+        "avgMs": 3.641,
+        "p95Ms": 9.492,
+        "maxMs": 46.631
+      },
+      "COURSE_SELECT": {
+        "count": 500,
+        "avgMs": 5.483,
+        "p95Ms": 14.899,
+        "maxMs": 52.552
+      },
+      "VALIDATION_SELECT": {
+        "count": 500,
+        "avgMs": 5.574,
+        "p95Ms": 16.55,
+        "maxMs": 47.224
+      },
+      "COURSE_UPDATE": {
+        "count": 500,
+        "avgMs": 557.102,
+        "p95Ms": 1164.339,
+        "maxMs": 1262.167
+      },
+      "ENROLLMENT_INSERT": {
+        "count": 100,
+        "avgMs": 3.026,
+        "p95Ms": 7.807,
+        "maxMs": 15.594
+      },
+      "commit": {
+        "count": 100,
+        "avgMs": 5.413,
+        "p95Ms": 14.154,
+        "maxMs": 41.085
+      },
+      "hold": {
+        "count": 500,
+        "avgMs": 626.572,
+        "p95Ms": 1316.893,
+        "maxMs": 1601.754
+      },
+      "rollback": {
+        "count": 400,
+        "avgMs": 2.406,
+        "p95Ms": 6.272,
+        "maxMs": 47.641
+      }
+    },
+    "maxPoolPendingPerJvm": 150,
+    "maxPoolActivePerJvm": 50,
+    "maxMySqlWaitingTransactions": 98,
+    "mysqlSamplesWithWaits": 13,
+    "finalState": {
+      "capacity": 100,
+      "enrolled_count": 100,
+      "enrollment_count": 100
+    }
+  }
+]
