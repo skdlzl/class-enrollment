@@ -223,6 +223,38 @@ class EnrollmentServiceTest {
         verify(enrollmentRepository, never()).save(any(Enrollment.class));
     }
 
+    @Test
+    void fullCourseIsRejectedBeforeCourseLockWithoutExtraQuery() {
+        var student = activeStudent(1L, 18);
+        var course = courseWithCredits(3);
+        givenStudentAndCourse(1L, 10L, student, course);
+        when(enrollmentRepository.findValidationSummary(1L, 10L))
+                .thenReturn(validation(false, 0, false));
+        when(course.isFull()).thenReturn(true);
+        var error = assertThrows(EnrollmentException.class,
+                () -> enrollmentService.validateForEnrollment(1L, 10L));
+        assertEquals("COURSE_FULL", error.getCode());
+        verify(courseRepository).findById(10L);
+        verify(enrollmentRepository, never()).save(any());
+    }
+
+    @Test
+    void capacityIsCheckedAgainAfterPrecheckPassesForBothStrategies() {
+        var student = activeStudent(1L, 18);
+        var course = courseWithCredits(3);
+        givenStudentAndCourse(1L, 10L, student, course);
+        when(enrollmentRepository.findValidationSummary(1L, 10L))
+                .thenReturn(validation(false, 0, false));
+        when(course.isFull()).thenReturn(false, true, true);
+        enrollmentService.validateForEnrollment(1L, 10L);
+        assertEquals("COURSE_FULL", assertThrows(EnrollmentException.class,
+                () -> enrollmentService.completeEnrollment(1L, 10L)).getCode());
+        when(courseRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(course));
+        assertEquals("COURSE_FULL", assertThrows(EnrollmentException.class,
+                () -> enrollmentService.completeEnrollmentWithPessimisticLock(1L, 10L)).getCode());
+        verify(enrollmentRepository, never()).save(any());
+    }
+
     private void givenStudentAndCourse(
             Long studentId,
             Long courseId,

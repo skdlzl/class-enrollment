@@ -28,3 +28,4 @@ redisson:
 # Same JAR: REDIS is the control group. No local admission gate in either mode.
 enrollment:
   course-lock-strategy: ${COURSE_LOCK_STRATEGY:PESSIMISTIC}
+  capacity-precheck: ${CAPACITY_PRECHECK:true}

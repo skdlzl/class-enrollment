@@ -12,6 +12,7 @@ import com.jiyun.classenrollment.student.domain.StudentStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,9 @@ public class EnrollmentService {
     private static final Logger log = LoggerFactory.getLogger(EnrollmentService.class);
     private static final long TIMING_LOG_INTERVAL = 10L;
     private static final AtomicLong requestCount = new AtomicLong();
+
+    @Value("${enrollment.capacity-precheck:true}")
+    private boolean capacityPrecheck = true;
 
     private final StudentRepository studentRepository;
     private final CourseRepository courseRepository;
@@ -125,6 +129,11 @@ public class EnrollmentService {
         validateDuplicate(validation);
         validateCreditLimit(student, course, validation);
         validateSchedule(validation);
+        // Optimization only: the locked write must still check current capacity.
+        // Reuse this transaction's course read; do not add another database query.
+        if (capacityPrecheck) {
+            validateCapacity(course);
+        }
     }
 
     /*

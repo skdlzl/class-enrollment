@@ -96,8 +96,11 @@ public class EnrollmentRedissonFacade {
              * 과목 락을 기다리기 전에 읽기 전용 검증을 끝내 과목 락 점유 시간을 줄입니다.
              */
             phaseStartedAt = System.nanoTime();
-            enrollmentService.validateForEnrollment(studentId, courseId);
-            validationMillis = elapsedMillis(phaseStartedAt);
+            try {
+                enrollmentService.validateForEnrollment(studentId, courseId);
+            } finally {
+                validationMillis = elapsedMillis(phaseStartedAt);
+            }
 
             if (courseLockStrategy == CourseLockStrategy.REDIS) {
                 phaseStartedAt = System.nanoTime();
@@ -133,10 +136,14 @@ public class EnrollmentRedissonFacade {
             phaseStartedAt = System.nanoTime();
             // DB mode writeMillis includes pool/transaction acquisition, DB lock
             // wait, writes and commit. courseLockWaitMillis measures Redis ONLY.
-            Long enrollmentId = courseLockStrategy == CourseLockStrategy.PESSIMISTIC
-                    ? enrollmentService.completeEnrollmentWithPessimisticLock(studentId, courseId)
-                    : enrollmentService.completeEnrollment(studentId, courseId);
-            writeMillis = elapsedMillis(phaseStartedAt);
+            Long enrollmentId;
+            try {
+                enrollmentId = courseLockStrategy == CourseLockStrategy.PESSIMISTIC
+                        ? enrollmentService.completeEnrollmentWithPessimisticLock(studentId, courseId)
+                        : enrollmentService.completeEnrollment(studentId, courseId);
+            } finally {
+                writeMillis = elapsedMillis(phaseStartedAt);
+            }
 
             logTiming(
                     "SUCCESS",
@@ -165,6 +172,8 @@ public class EnrollmentRedissonFacade {
             throw exception;
 
         } catch (PessimisticLockingFailureException exception) {
+            logTiming("DB_LOCK_FAILURE", studentId, courseId, studentLockWaitMillis,
+                    validationMillis, courseLockWaitMillis, writeMillis, facadeStartedAt);
             // Includes translated DB lock timeout/deadlock; no implicit retry.
             EnrollmentException failure = new EnrollmentException(
                     "DB_LOCK_FAILURE", "DB 잠금 문제로 수강신청을 처리하지 못했습니다.",
@@ -213,7 +222,13 @@ public class EnrollmentRedissonFacade {
     ) {
         long currentCount = timingLogCount.incrementAndGet();
 
-        if (currentCount % TIMING_LOG_INTERVAL != 0) {
+        // Keep every infrastructure failure; sample normal success/business rejection.
+        boolean infrastructureFailure = outcome.endsWith("_TIMEOUT")
+                || outcome.equals("REDIS_UNAVAILABLE") || outcome.equals("DB_LOCK_FAILURE");
+        if (outcome.equals("BUSINESS_REJECTED_LOCK_ACQUISITION_TIMEOUT")) {
+            return; // Already logged with the student/course phase above.
+        }
+        if (!infrastructureFailure && currentCount % TIMING_LOG_INTERVAL != 0) {
             return;
         }
 
