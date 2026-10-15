@@ -46,7 +46,39 @@ public class EnrollmentRedissonFacade {
         this.courseLockStrategy = courseLockStrategy;
     }
 
+    @Value("${enrollment.local-gate-enabled:false}")
+    private boolean localGateEnabled;
+    @Value("${enrollment.local-gate-wait-ms:10000}")
+    private long localGateWaitMs = 10000;
+    private final LocalCourseGate localGate = new LocalCourseGate();
+    private final AtomicLong gateSamples = new AtomicLong();
+
     public Long enroll(Long studentId, Long courseId) {
+        if (!localGateEnabled) return enrollAfterGate(studentId, courseId);
+        long started = System.nanoTime();
+        try (var permit = localGate.acquire(courseId, localGateWaitMs)) {
+            long waited = elapsedMillis(started);
+            if (permit == null) {
+                log.warn("LOCAL_GATE_TIMING strategy={} courseId={} outcome=LOCAL_GATE_TIMEOUT gateWaitMs={}",
+                        courseLockStrategy, courseId, waited);
+                throw new EnrollmentException("LOCAL_GATE_TIMEOUT", "과목 요청 대기 시간이 초과됐습니다.",
+                        HttpStatus.SERVICE_UNAVAILABLE);
+            }
+            if (gateSamples.incrementAndGet() % TIMING_LOG_INTERVAL == 0) {
+                log.info("LOCAL_GATE_TIMING strategy={} courseId={} outcome=ACQUIRED gateWaitMs={}",
+                        courseLockStrategy, courseId, waited);
+            }
+            // Validate in a fresh transaction AFTER local admission. The final
+            // write still holds the Redis/DB lock and rechecks current capacity.
+            return enrollAfterGate(studentId, courseId);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new EnrollmentException("LOCAL_GATE_INTERRUPTED", "과목 요청 대기가 중단됐습니다.",
+                    HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    private Long enrollAfterGate(Long studentId, Long courseId) {
         long facadeStartedAt = System.nanoTime();
 
         RLock studentLock = null;

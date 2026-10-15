@@ -29,3 +29,8 @@ redisson:
 enrollment:
   course-lock-strategy: ${COURSE_LOCK_STRATEGY:PESSIMISTIC}
   capacity-precheck: ${CAPACITY_PRECHECK:true}
+  local-gate-enabled: ${LOCAL_GATE_ENABLED:false}
+  local-gate-wait-ms: 10000
+
+experiment:
+  enabled: false

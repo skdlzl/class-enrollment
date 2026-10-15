@@ -32,6 +32,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @SpringBootTest(properties = {
         "enrollment.course-lock-strategy=PESSIMISTIC",
+        "enrollment.local-gate-enabled=true",
+        "experiment.enabled=true",
         "spring.datasource.hikari.connection-init-sql=SET SESSION innodb_lock_wait_timeout=1"
 })
 class EnrollmentPessimisticIntegrationTest {
@@ -63,15 +65,18 @@ class EnrollmentPessimisticIntegrationTest {
         }
     }
 
-    @Test
-    void independentRedisClientsShareDatabaseCourseLock() throws Exception {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(CourseLockStrategy.class)
+    void independentClientsWithLocalGatePreserveCapacity(CourseLockStrategy strategy) throws Exception {
         var aConfig = new Config(); aConfig.useSingleServer().setAddress(address());
         var bConfig = new Config(); bConfig.useSingleServer().setAddress(address());
         var a = Redisson.create(aConfig); var b = Redisson.create(bConfig);
         var pool = Executors.newFixedThreadPool(20);
         try {
-            var serverA = new EnrollmentRedissonFacade(service, a, CourseLockStrategy.PESSIMISTIC);
-            var serverB = new EnrollmentRedissonFacade(service, b, CourseLockStrategy.PESSIMISTIC);
+            var serverA = new EnrollmentRedissonFacade(service, a, strategy);
+            var serverB = new EnrollmentRedissonFacade(service, b, strategy);
+            org.springframework.test.util.ReflectionTestUtils.setField(serverA, "localGateEnabled", true);
+            org.springframework.test.util.ReflectionTestUtils.setField(serverB, "localGateEnabled", true);
             var ready = new CountDownLatch(20); var start = new CountDownLatch(1);
             List<Future<String>> results = new ArrayList<>();
             for (long id=1000; id<1020; id++) {
@@ -139,6 +144,15 @@ class EnrollmentPessimisticIntegrationTest {
                 .content("{\"studentId\":1000,\"courseId\":1}"))
                 .andExpect(status().isCreated());
         assertCourse(1, 1);
+    }
+
+    @Test
+    void experimentReadActuallyQueriesDatabaseAndPoolReportsMode() throws Exception {
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/experiment/read"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(1));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/experiment/pool"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.strategy").value("PESSIMISTIC"))
+                .andExpect(jsonPath("$.gate").value(true)).andExpect(jsonPath("$.waiting").isNumber());
     }
 
     private String outcome(EnrollmentRedissonFacade target, long student, long course) {
