@@ -30,7 +30,7 @@ jobs:
         run: bash mvnw -B -Dtest=LocalCourseGateTest,EnrollmentServiceTest,EnrollmentRedissonFacadeTest,EnrollmentLockScopeExperimentTest,EnrollmentPessimisticFacadeTest,EnrollmentPessimisticIntegrationTest test
       - name: Smoke test open arrival JMeter plan
         run: |
-          curl -fsSL --retry 2 https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz -o /tmp/jmeter.tgz
+          curl -fsSL --connect-timeout 15 --max-time 180 --retry 1 https://dlcdn.apache.org/jmeter/binaries/apache-jmeter-5.6.3.tgz -o /tmp/jmeter.tgz
           tar -xzf /tmp/jmeter.tgz -C /tmp
           python3 scripts/test-catalog-jmx.py /tmp/apache-jmeter-5.6.3/bin/jmeter
       - uses: actions/upload-artifact@v4
