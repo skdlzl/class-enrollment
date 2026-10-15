@@ -143,6 +143,21 @@ public class EnrollmentService {
         return saveEnrollment(student, course);
     }
 
+    /**
+     * Called while the student lock is held, in a new transaction after validation.
+     * Lock BEFORE INSERT (including its FK check), and keep it until commit.
+     * Do not reuse the earlier ordinary course read from the validation transaction.
+     */
+    @Transactional
+    public Long completeEnrollmentWithPessimisticLock(Long studentId, Long courseId) {
+        Course course = courseRepository.findByIdForUpdate(courseId)
+                .orElseThrow(() -> error("COURSE_NOT_FOUND",
+                        "과목 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+        validateCapacity(course);
+        Student student = studentRepository.getReferenceById(studentId);
+        return saveEnrollment(student, course);
+    }
+
     private void logTiming(
             String outcome,
             Long studentId,

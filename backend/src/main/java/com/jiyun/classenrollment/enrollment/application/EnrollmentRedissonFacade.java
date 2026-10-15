@@ -7,6 +7,9 @@ import org.redisson.client.RedisException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
@@ -23,13 +26,24 @@ public class EnrollmentRedissonFacade {
 
     private final EnrollmentService enrollmentService;
     private final RedissonClient redissonClient;
+    private final CourseLockStrategy courseLockStrategy;
 
     public EnrollmentRedissonFacade(
             EnrollmentService enrollmentService,
             RedissonClient redissonClient
     ) {
+        this(enrollmentService, redissonClient, CourseLockStrategy.REDIS);
+    }
+
+    @Autowired
+    public EnrollmentRedissonFacade(
+            EnrollmentService enrollmentService,
+            RedissonClient redissonClient,
+            @Value("${enrollment.course-lock-strategy:PESSIMISTIC}") CourseLockStrategy courseLockStrategy
+    ) {
         this.enrollmentService = enrollmentService;
         this.redissonClient = redissonClient;
+        this.courseLockStrategy = courseLockStrategy;
     }
 
     public Long enroll(Long studentId, Long courseId) {
@@ -50,9 +64,9 @@ public class EnrollmentRedissonFacade {
             studentLock = redissonClient.getLock(
                     "lock:student:" + studentId
             );
-            courseLock = redissonClient.getLock(
-                    "lock:course:" + courseId
-            );
+            if (courseLockStrategy == CourseLockStrategy.REDIS) {
+                courseLock = redissonClient.getLock("lock:course:" + courseId);
+            }
 
             long phaseStartedAt = System.nanoTime();
             studentLockAcquired = studentLock.tryLock(
@@ -85,27 +99,30 @@ public class EnrollmentRedissonFacade {
             enrollmentService.validateForEnrollment(studentId, courseId);
             validationMillis = elapsedMillis(phaseStartedAt);
 
-            phaseStartedAt = System.nanoTime();
-            courseLockAcquired = courseLock.tryLock(
-                    LOCK_WAIT_SECONDS,
-                    TimeUnit.SECONDS
-            );
-            courseLockWaitMillis = elapsedMillis(phaseStartedAt);
+            if (courseLockStrategy == CourseLockStrategy.REDIS) {
+                phaseStartedAt = System.nanoTime();
+                courseLockAcquired = courseLock.tryLock(
+                        LOCK_WAIT_SECONDS,
+                        TimeUnit.SECONDS
+                );
+                courseLockWaitMillis = elapsedMillis(phaseStartedAt);
 
-            if (!courseLockAcquired) {
-                logTiming(
-                        "COURSE_LOCK_TIMEOUT",
-                        studentId,
-                        courseId,
-                        studentLockWaitMillis,
-                        validationMillis,
-                        courseLockWaitMillis,
-                        writeMillis,
-                        facadeStartedAt
-                );
-                throw lockTimeout(
-                        "요청이 몰려 수강신청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."
-                );
+                if (!courseLockAcquired) {
+                    logTiming(
+                            "COURSE_LOCK_TIMEOUT",
+                            studentId,
+                            courseId,
+                            studentLockWaitMillis,
+                            validationMillis,
+                            courseLockWaitMillis,
+                            writeMillis,
+                            facadeStartedAt
+                    );
+                    throw lockTimeout(
+                            "요청이 몰려 수강신청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."
+                    );
+                }
+
             }
 
             /*
@@ -114,8 +131,11 @@ public class EnrollmentRedissonFacade {
              * 그 다음에 과목 락을 해제합니다.
              */
             phaseStartedAt = System.nanoTime();
-            Long enrollmentId =
-                    enrollmentService.completeEnrollment(studentId, courseId);
+            // DB mode writeMillis includes pool/transaction acquisition, DB lock
+            // wait, writes and commit. courseLockWaitMillis measures Redis ONLY.
+            Long enrollmentId = courseLockStrategy == CourseLockStrategy.PESSIMISTIC
+                    ? enrollmentService.completeEnrollmentWithPessimisticLock(studentId, courseId)
+                    : enrollmentService.completeEnrollment(studentId, courseId);
             writeMillis = elapsedMillis(phaseStartedAt);
 
             logTiming(
@@ -144,6 +164,14 @@ public class EnrollmentRedissonFacade {
             );
             throw exception;
 
+        } catch (PessimisticLockingFailureException exception) {
+            // Includes translated DB lock timeout/deadlock; no implicit retry.
+            EnrollmentException failure = new EnrollmentException(
+                    "DB_LOCK_FAILURE", "DB 잠금 문제로 수강신청을 처리하지 못했습니다.",
+                    HttpStatus.SERVICE_UNAVAILABLE);
+            failure.initCause(exception);
+            throw failure;
+
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(
@@ -165,8 +193,11 @@ public class EnrollmentRedissonFacade {
             throw redisUnavailable(exception);
 
         } finally {
-            unlockIfHeld(courseLock, courseLockAcquired);
-            unlockIfHeld(studentLock, studentLockAcquired);
+            try {
+                unlockIfHeld(courseLock, courseLockAcquired);
+            } finally {
+                unlockIfHeld(studentLock, studentLockAcquired);
+            }
         }
     }
 
@@ -187,9 +218,10 @@ public class EnrollmentRedissonFacade {
         }
 
         log.info(
-                "ENROLLMENT_TIMING requestCount={} outcome={} studentId={} courseId={} "
+                "ENROLLMENT_TIMING strategy={} requestCount={} outcome={} studentId={} courseId={} "
                         + "studentLockWaitMs={} validationMs={} courseLockWaitMs={} "
                         + "writeMs={} facadeTotalMs={}",
+                courseLockStrategy,
                 currentCount,
                 outcome,
                 studentId,
