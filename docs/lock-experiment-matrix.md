@@ -74,3 +74,19 @@ java -jar .\target\class-enrollment-backend-0.0.1-SNAPSHOT.jar --server.port=808
 ## 검증 범위
 
 CI는 MySQL/Redis Testcontainers로 두 전략의 로컬 대기열 정합성, 학점 제한, 롤백, 실제 DB 락 타임아웃 뒤 재요청 성공, 실험 조회/풀 API를 검사한다. 세마포어 동시 접근/타임아웃/인터럽트/예외 해제도 별도 검사한다. Windows PowerShell 실행기와 JMeter 부하 결과는 사용자 PC에서 실행해야 하며 CI 성공을 성능 검증으로 간주하지 않는다.
+
+## 10과목 × 정원100 / 총10,000요청 동시 시작
+
+`-Courses 10 -Users 10000 -Capacity 100 -Ramp 0 -Simultaneous` 사용. 학생은10000~19999이며 중복 없이 1회 신청. 과목당1000요청, 각 과목은8080/8081에500요청씩 배정한다. 단순히 학생 번호 홀짝으로 포트를 배정하면 짝수 과목 수에서 과목과 서버가 고정되는 오류가 있어 과목 순환마다 서버를 교대한다.
+
+로컬 대기열 OFF로 먼저 두 전략을 비교하고 DB 풀 크기는 변경하지 않는다. 성공 상한은 총1000명이다. 정합성은 과목별 enrolled_count와 실제 신청 수를 비교한다. 모든 자리를 채웠다는 보장은 없으므로 503/연결 실패가 있으면 성공 수와 빈자리도 함께 확인한다.
+
+Synchronizing Timer는10000개의 JMeter 스레드가 모이면 풀어준다(최대 대기60초). 서버에서10000건을 정확히 동시에 처리한다는 보장이 아니다. 발생기 OS 스레드/CPU/메모리, 서버 HTTP 스레드/accept backlog 제한도 영향을 준다. JMeter 스레드 생성 실패/동기화 시간 초과가 있으면 DB 병목 실험으로 단정하지 않는다. `jmeter.log`, 실제 sampler 시작 시각 차이(start-spread.txt), 원본 JTL을 보관한다.
+
+기본 탐침30초는 부족할 수 있으므로 이 조건은 양쪽 모두 ProbeSeconds180초로 시작한다. 탐침 종료 경고가 있으면 전체 구간을 관측하지 못한 결과로 구분한다. maxWaiting/waitingSamples는 커넥션 확보 대기 관측값이며 그 원인이 행 잠금 때문인지까지 증명하지는 않는다. 연결 풀의 max와 active, 오류 로그, 요청 대기를 함께 확인한다. Mixed를 켜지 않으면 일반 조회 영향까지 측정한 실험은 아니다.
+
+```powershell
+.\scripts\run-lock-comparison.ps1 -Strategy PESSIMISTIC -Gate $false -Courses 10 -Users 10000 -Capacity 100 -Ramp 0 -Simultaneous -ProbeSeconds 180
+```
+
+최초 양쪽1회씩 실행해 부하 발생기가 이 조건을 소화하는지 확인한 후 반복 여부를 결정한다. 10,000 OS 스레드가 발생기 한계를 넘으면 실제 동시성이 확보되지 않은 결과를 '동시10000건'으로 포장하지 않는다.

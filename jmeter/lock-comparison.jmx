@@ -22,7 +22,7 @@
         <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Students" enabled="true">
           <stringProp name="filename">${__P(csv)}</stringProp>
           <stringProp name="fileEncoding">UTF-8</stringProp>
-          <stringProp name="variableNames">studentId,port</stringProp>
+          <stringProp name="variableNames">studentId,courseId,port</stringProp>
           <stringProp name="ignoreFirstLine">true</stringProp>
           <stringProp name="delimiter">,</stringProp>
           <stringProp name="quotedData">false</stringProp>
@@ -44,7 +44,7 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{"studentId":${studentId},"courseId":1}</stringProp>
+                <stringProp name="Argument.value">{"studentId":${studentId},"courseId":${courseId}}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
@@ -60,6 +60,11 @@
               </elementProp>
             </collectionProp>
           </HeaderManager>
+          <hashTree />
+          <SyncTimer guiclass="TestBeanGUI" testclass="SyncTimer" testname="Enrollment start barrier" enabled="true">
+            <stringProp name="groupSize">${__P(syncUsers,1)}</stringProp>
+            <longProp name="timeoutInMs">60000</longProp>
+          </SyncTimer>
           <hashTree />
         </hashTree>
       </hashTree>
