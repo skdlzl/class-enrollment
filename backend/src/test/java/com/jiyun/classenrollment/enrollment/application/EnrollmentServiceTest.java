@@ -228,8 +228,8 @@ class EnrollmentServiceTest {
         var student = activeStudent(1L, 18);
         var course = courseWithCredits(3);
         givenStudentAndCourse(1L, 10L, student, course);
-        when(enrollmentRepository.findValidationSummary(1L, 10L))
-                .thenReturn(validation(false, 0, false));
+        var summary = validation(false, 0, false);
+        when(enrollmentRepository.findValidationSummary(1L, 10L)).thenReturn(summary);
         when(course.isFull()).thenReturn(true);
         var error = assertThrows(EnrollmentException.class,
                 () -> enrollmentService.validateForEnrollment(1L, 10L));
@@ -243,8 +243,8 @@ class EnrollmentServiceTest {
         var student = activeStudent(1L, 18);
         var course = courseWithCredits(3);
         givenStudentAndCourse(1L, 10L, student, course);
-        when(enrollmentRepository.findValidationSummary(1L, 10L))
-                .thenReturn(validation(false, 0, false));
+        var summary = validation(false, 0, false);
+        when(enrollmentRepository.findValidationSummary(1L, 10L)).thenReturn(summary);
         when(course.isFull()).thenReturn(false, true, true);
         enrollmentService.validateForEnrollment(1L, 10L);
         assertEquals("COURSE_FULL", assertThrows(EnrollmentException.class,
