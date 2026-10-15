@@ -155,6 +155,34 @@ class EnrollmentPessimisticIntegrationTest {
                 .andExpect(jsonPath("$.gate").value(true)).andExpect(jsonPath("$.waiting").isNumber());
     }
 
+    @Test
+    void catalogFixturesAreRepeatableAndCursorPaginationIsCorrect() throws Exception {
+        try (var connection = jdbc.getDataSource().getConnection()) {
+            org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(connection,
+                    new org.springframework.core.io.FileSystemResource("../jmeter/data/setup-load-test.sql"));
+            for (int i=0; i<2; i++) {
+                org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(connection,
+                        new org.springframework.core.io.FileSystemResource("../jmeter/data/setup-catalog-test.sql"));
+            }
+        }
+        assertEquals(20000, jdbc.queryForObject("SELECT COUNT(*) FROM courses WHERE id BETWEEN 100000 AND 119999", Integer.class));
+        assertEquals(10000, jdbc.queryForObject("SELECT COUNT(*) FROM students WHERE id BETWEEN 200000 AND 209999", Integer.class));
+        assertEquals(20000, jdbc.queryForObject("SELECT COUNT(*) FROM enrollments WHERE course_id BETWEEN 100000 AND 119999", Integer.class));
+        var get = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/courses");
+        mvc.perform(get.param("department", "CS").param("afterId", "100000").param("size", "2"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].id").value(100005))
+                .andExpect(jsonPath("$.items[1].id").value(100010))
+                .andExpect(jsonPath("$.nextAfterId").value(100010));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/courses")
+                .param("department", "CS").param("afterId", "100010").param("size", "2"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(100015));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/courses").param("size", "101"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/courses").param("department", "' OR 1=1 --"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(0));
+    }
+
     private String outcome(EnrollmentRedissonFacade target, long student, long course) {
         try { target.enroll(student, course); return "SUCCESS"; }
         catch (EnrollmentException e) { return e.getCode(); }

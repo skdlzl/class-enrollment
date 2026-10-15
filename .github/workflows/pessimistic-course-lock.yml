@@ -21,11 +21,18 @@ jobs:
         run: |
           $tokens = $null
           $parseErrors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile("$PWD/scripts/run-lock-comparison.ps1", [ref]$tokens, [ref]$parseErrors) | Out-Null
-          if ($parseErrors.Count -gt 0) { $parseErrors | Format-List; exit 1 }
+          foreach ($file in @("run-lock-comparison.ps1", "run-catalog-comparison.ps1")) {
+            [System.Management.Automation.Language.Parser]::ParseFile("$PWD/scripts/$file", [ref]$tokens, [ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count -gt 0) { $parseErrors | Format-List; exit 1 }
+          }
       - name: Unit and real MySQL/Redis integration tests
         working-directory: backend
         run: bash mvnw -B -Dtest=LocalCourseGateTest,EnrollmentServiceTest,EnrollmentRedissonFacadeTest,EnrollmentLockScopeExperimentTest,EnrollmentPessimisticFacadeTest,EnrollmentPessimisticIntegrationTest test
+      - name: Smoke test open arrival JMeter plan
+        run: |
+          curl -fsSL --retry 2 https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz -o /tmp/jmeter.tgz
+          tar -xzf /tmp/jmeter.tgz -C /tmp
+          python3 scripts/test-catalog-jmx.py /tmp/apache-jmeter-5.6.3/bin/jmeter
       - uses: actions/upload-artifact@v4
         if: always()
         with:
