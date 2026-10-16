@@ -116,6 +116,44 @@ class EnrollmentQueueIntegrationTest {
         store.retry(ticket.requestId());worker.process(ticket.requestId());
         assertEquals("CONFIRMED",store.get(ticket.requestId()).status());
     }
+
+    @Test void contendedCourseIsRequeuedWithoutWaitingForRecoveryScan() throws Exception {
+        var config=new Config();config.useSingleServer().setAddress(address());
+        var other=Redisson.create(config);
+        try {
+            var ticket=store.submit(1,1);
+            other.getLock("lock:course:1").lock();
+            worker.process(ticket.requestId());
+            assertEquals("QUEUED",store.get(ticket.requestId()).status());
+            assertEquals(0,store.get(ticket.requestId()).attempts());
+            other.getLock("lock:course:1").unlock();
+            // Exercise the Redis retry eligibility without ever invoking recover().
+            long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(3);
+            while(!store.get(ticket.requestId()).terminal() && System.nanoTime()<deadline) {
+                worker.tick();Thread.sleep(20);
+            }
+            assertEquals("CONFIRMED",store.get(ticket.requestId()).status());
+        } finally {other.shutdown();}
+    }
+    @Test void fullCourseRejectsWithoutAcquiringItsRedisLock() {
+        var first=store.submit(1,1);worker.process(first.requestId());
+        var config=new Config();config.useSingleServer().setAddress(address());
+        var other=Redisson.create(config);
+        try {
+            other.getLock("lock:course:1").lock();
+            var second=store.submit(2,1);worker.process(second.requestId());
+            assertEquals("REJECTED",store.get(second.requestId()).status());
+            other.getLock("lock:course:1").unlock();
+        }finally{other.shutdown();}
+    }
+    @Test void fullCourseDoesNotRejectAnAlreadyEnrolledStudent() {
+        var first=store.submit(1,1);worker.process(first.requestId());
+        // Reconcile an enrollment predating the new receipt.
+        jdbc.update("DELETE FROM enrollment_requests WHERE request_id=?",first.requestId());
+        var again=store.submit(1,1);worker.process(again.requestId());
+        assertEquals("CONFIRMED",store.get(again.requestId()).status());
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class));
+    }
     @Test void failedFinalUpdateRollsBackEnrollmentAndCount(){
         var ticket=store.submit(1,1);store.start(ticket.requestId());
         // A DB rejection at the final receipt update must also roll back enrollment.

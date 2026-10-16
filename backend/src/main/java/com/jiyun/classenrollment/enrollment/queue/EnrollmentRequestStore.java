@@ -45,6 +45,13 @@ public class EnrollmentRequestStore {
     public List<EnrollmentTicket> recoverable() {
         return query(" WHERE r.status IN ('QUEUED','PROCESSING') AND r.next_attempt_at<=CURRENT_TIMESTAMP(6) ORDER BY r.id LIMIT 200");
     }
+    public boolean isFullWithoutEnrollment(long studentId, long courseId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+            SELECT c.enrolled_count>=c.capacity AND NOT EXISTS (
+                SELECT 1 FROM enrollments e WHERE e.student_id=? AND e.course_id=c.id
+            ) FROM courses c WHERE c.id=?
+            """, Boolean.class,studentId,courseId));
+    }
     public boolean start(String id) {
         return jdbc.update("""
             UPDATE enrollment_requests SET status='PROCESSING', attempts=attempts+1,
