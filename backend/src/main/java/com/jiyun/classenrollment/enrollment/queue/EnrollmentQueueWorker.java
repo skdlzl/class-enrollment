@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -38,6 +39,7 @@ public class EnrollmentQueueWorker {
     private final RedissonClient redis;
     private final int workers, slots, maxAttempts;
     private final LongAdder handled=new LongAdder(), deferred=new LongAdder(), fastRejected=new LongAdder();
+    private final QueueTimings timings=new QueueTimings();
     private ScheduledExecutorService executor;
     private volatile boolean running;
     public EnrollmentQueueWorker(EnrollmentRequestStore store, QueuedEnrollmentTransaction transaction,
@@ -54,6 +56,7 @@ public class EnrollmentQueueWorker {
     public void start() {
         if(!schedulerEnabled) return;
         running=true;
+        log.info("QUEUE_DIAGNOSTICS version=phase-timing-v1 workers={} globalSlots={}",workers,slots);
         executor=Executors.newScheduledThreadPool(workers+1);
         executor.scheduleWithFixedDelay(this::recover,0,5,TimeUnit.SECONDS);
         for(int i=0;i<workers;i++) executor.execute(this::runWorker);
@@ -76,8 +79,8 @@ public class EnrollmentQueueWorker {
         } catch(Exception error) {log.warn("QUEUE_PUBLISH_DEFERRED requestId={}",ticket.requestId());}
     }
     private void enqueue(String id, long delayMs) {
-        redis.getScript(StringCodec.INSTANCE).eval(RScript.Mode.READ_WRITE,ENQUEUE,
-            RScript.ReturnType.LONG,List.of(READY),id,delayMs);
+        timed("redis.enqueue",()->redis.getScript(StringCodec.INSTANCE).eval(RScript.Mode.READ_WRITE,ENQUEUE,
+            RScript.ReturnType.LONG,List.of(READY),id,delayMs));
     }
     private void defer(String id) {
         deferred.increment();
@@ -86,9 +89,10 @@ public class EnrollmentQueueWorker {
     void recover() {
         try {
             // NX preserves a short retry deadline already in Redis.
-            for(var ticket:store.recoverable()) enqueue(ticket.requestId(),0);
+            for(var ticket:timed("db.recover",store::recoverable)) enqueue(ticket.requestId(),0);
             log.info("QUEUE_PROGRESS handled={} lockDeferred={} fastRejected={}",
                 handled.sum(),deferred.sum(),fastRejected.sum());
+            timings.logSnapshot();
         } catch(Exception error) { log.warn("QUEUE_RECOVERY_FAILED",error); }
     }
     public void tick() { drainBatch(); }
@@ -98,14 +102,14 @@ public class EnrollmentQueueWorker {
         try {
             for(int i=0;i<slots;i++) {
                 RLock candidate=redis.getLock("enrollment:worker-slot:"+i);
-                if(candidate.tryLock()) {slot=candidate; break;}
+                if(timed("redis.slot",candidate::tryLock)) {slot=candidate; break;}
             }
             if(slot==null) return false;
             // Release the global slot periodically so another server can get a turn.
             long until=System.nanoTime()+TimeUnit.MILLISECONDS.toNanos(100);
             for(int i=0;i<32;i++) {
-                String id=redis.getScript(StringCodec.INSTANCE).eval(RScript.Mode.READ_WRITE,POP_DUE,
-                    RScript.ReturnType.VALUE,List.of(READY));
+                String id=timed("redis.pop",()->redis.getScript(StringCodec.INSTANCE).eval(RScript.Mode.READ_WRITE,POP_DUE,
+                    RScript.ReturnType.VALUE,List.of(READY)));
                 if(id==null) break;
                 consumed=true;
                 process(id);
@@ -117,42 +121,50 @@ public class EnrollmentQueueWorker {
     }
     void process(String id) {
         RLock job=redis.getLock("enrollment:request:"+id),student=null,course=null;
-        if(!job.tryLock()) {defer(id);return;}
+        if(!timed("redis.job",job::tryLock)) {defer(id);return;}
         boolean started=false;
         try {
-            var ticket=store.get(id);
+            var ticket=timed("db.ticket",()->store.get(id));
             if(ticket.terminal()) return;
             // Rejection optimization only; existing enrollments must still reconcile as CONFIRMED.
-            if(store.isFullWithoutEnrollment(ticket.studentId(),ticket.courseId())) {
-                started=store.start(id);
+            if(timed("db.fullCheck",()->store.isFullWithoutEnrollment(ticket.studentId(),ticket.courseId()))) {
+                started=timed("db.start",()->store.start(id));
                 if(started) {
-                    store.reject(id,"수강 정원이 마감되었습니다.");
+                    timedRun("db.reject",()->store.reject(id,"수강 정원이 마감되었습니다."));
                     fastRejected.increment();handled.increment();
                 }
                 return;
             }
             student=redis.getLock("lock:student:"+ticket.studentId());
-            if(!student.tryLock()) {student=null;defer(id);return;}
+            if(!timed("redis.student",student::tryLock)) {student=null;defer(id);return;}
             course=redis.getLock("lock:course:"+ticket.courseId());
-            if(!course.tryLock()) {course=null;defer(id);return;}
-            started=store.start(id);
+            if(!timed("redis.course",course::tryLock)) {course=null;defer(id);return;}
+            started=timed("db.start",()->store.start(id));
             if(!started) return;
-            transaction.confirm(ticket);
+            timedRun("db.confirmIncludingCommit",()->transaction.confirm(ticket));
             handled.increment();
         } catch(EnrollmentException error) {
             if(started) {
-                if(error.getStatus().is4xxClientError()) {store.reject(id,error.getMessage());handled.increment();}
-                else store.retryLater(id,maxAttempts);
+                if(error.getStatus().is4xxClientError()) {timedRun("db.reject",()->store.reject(id,error.getMessage()));handled.increment();}
+                else timedRun("db.retry",()->store.retryLater(id,maxAttempts));
             }
         } catch(Exception error) {
             log.warn("QUEUE_PROCESSING_FAILED requestId={}",id,error);
-            if(started) store.retryLater(id,maxAttempts);
+            if(started) timedRun("db.retry",()->store.retryLater(id,maxAttempts));
         } finally { release(course); release(student); release(job); }
     }
     private void release(RLock lock) {
         if(lock==null) return;
-        try { if(lock.isHeldByCurrentThread()) lock.unlock(); }
+        try { timedRun("redis.release",()->{if(lock.isHeldByCurrentThread()) lock.unlock();}); }
         catch(Exception error) {log.warn("QUEUE_UNLOCK_FAILED",error);}
+    }
+    private <T> T timed(String phase, Supplier<T> operation) {
+        long start=System.nanoTime();
+        try {return operation.get();}
+        finally {timings.record(phase,System.nanoTime()-start);}
+    }
+    private void timedRun(String phase, Runnable operation) {
+        timed(phase,()->{operation.run();return null;});
     }
     @PreDestroy
     public void stop() {
