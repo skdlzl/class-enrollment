@@ -1,0 +1,16 @@
+services:
+  redis-ingress:
+    image: redis:7.4-alpine
+    container_name: class-enrollment-redis-ingress
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - class-enrollment-redis-ingress-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  class-enrollment-redis-ingress-data:

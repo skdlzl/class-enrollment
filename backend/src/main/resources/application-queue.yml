@@ -1,8 +1,6 @@
-# Run both application instances with --spring.profiles.active=queue.
+# Separate persisted Redis instance; old experiments remain on port 6379.
+redisson:
+  address: redis://localhost:6380
 enrollment:
   queue:
     enabled: true
-    workers: 2
-    global-slots: 4
-    max-attempts: 5
-  course-lock-strategy: REDIS

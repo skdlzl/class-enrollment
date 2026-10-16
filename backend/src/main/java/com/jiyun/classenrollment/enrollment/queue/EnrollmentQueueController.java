@@ -13,25 +13,33 @@ import java.util.Map;
 @RequestMapping("/api/enrollment-requests")
 @ConditionalOnProperty(name="enrollment.queue.enabled", havingValue="true")
 public class EnrollmentQueueController {
-    private final EnrollmentRequestStore store;
+    private final RedisIngressStore store;
     private final JdbcTemplate jdbc;
-    private final EnrollmentQueueWorker worker;
-    public EnrollmentQueueController(EnrollmentRequestStore store, JdbcTemplate jdbc, EnrollmentQueueWorker worker) {this.store=store;this.jdbc=jdbc;this.worker=worker;}
+    public EnrollmentQueueController(RedisIngressStore store, JdbcTemplate jdbc) {this.store=store;this.jdbc=jdbc;}
+    @ExceptionHandler(org.redisson.client.RedisException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public Map<String,String> unavailable(org.redisson.client.RedisException error){
+        return Map.of("message","접수 상태를 확인할 수 없습니다. 같은 신청으로 다시 확인해 주세요.");
+    }
     @PostMapping @ResponseStatus(HttpStatus.ACCEPTED)
     public EnrollmentTicket submit(@Valid @RequestBody EnrollmentRequest request) {
         var ticket=store.submit(request.studentId(),request.courseId());
-        worker.publish(ticket);
         return ticket;
     }
     @GetMapping("/{id}") public EnrollmentTicket get(@PathVariable String id) {return store.get(id);}
     @GetMapping public List<EnrollmentTicket> list(@RequestParam long studentId) {return store.forStudent(studentId);}
     @PostMapping("/{id}/retry") @ResponseStatus(HttpStatus.ACCEPTED)
-    public EnrollmentTicket retry(@PathVariable String id) {var ticket=store.retry(id);worker.publish(ticket);return ticket;}
-    @GetMapping("/snapshot") public Map<String,Object> snapshot(@RequestParam long studentId) {
-        return Map.of("tickets",store.forStudent(studentId),"enrollments",jdbc.queryForList("""
+    public EnrollmentTicket retry(@PathVariable String id) {return store.retry(id);}
+    @GetMapping("/health") public Map<String,Object> health(){return Map.of("mode","redis-ingress-v1","pending",store.pending());}
+    @GetMapping("/snapshot") public Map<String,Object> snapshot(@RequestParam long studentId,
+            @RequestParam(defaultValue="false") boolean includeEnrollments) {
+        var tickets=store.forStudent(studentId);
+        var confirmed=includeEnrollments?jdbc.queryForList("""
             SELECT c.id,c.name,c.credits FROM enrollments e JOIN courses c ON c.id=e.course_id
             WHERE e.student_id=? ORDER BY e.id
-            """,studentId));
+            """,studentId):tickets.stream().filter(t->t.status().equals("CONFIRMED"))
+                .map(t->Map.<String,Object>of("id",t.courseId(),"name",t.courseName(),"credits",t.credits())).toList();
+        return Map.of("tickets",tickets,"enrollments",confirmed);
     }
     // Demo selectors use actual DB identifiers, not the old browser-only mock IDs.
     @GetMapping("/options") public Map<String,Object> options() {

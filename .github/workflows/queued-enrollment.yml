@@ -1,7 +1,7 @@
 name: Queued enrollment verification
 on:
   push:
-    branches: [feat/queued-enrollment]
+    branches: [feat/redis-ingress-queue]
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,7 +18,7 @@ jobs:
           cache: maven
       - name: Queue durability and concurrency integration tests
         working-directory: backend
-        run: bash mvnw -B -Dtest=EnrollmentQueueIntegrationTest,EnrollmentServiceTest,EnrollmentRedissonFacadeTest test
+        run: bash mvnw -B -Dtest=RedisIngressIntegrationTest,EnrollmentServiceTest,EnrollmentRedissonFacadeTest test
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

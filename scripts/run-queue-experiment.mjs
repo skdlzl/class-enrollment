@@ -113,13 +113,14 @@ async function main() {
   if(config.readSeconds*1000<config.enrollmentDelayMs+config.rampSeconds*1000+config.deadlineMs)throw Error('--seconds must cover enrollment delay + ramp + 45s observation');
   const bases=['http://localhost:8080','http://localhost:8081'];
   for(const base of bases) {
+    const health=await http(`${base}/api/enrollment-requests/health`);
+    if(health.status!==200 || health.body.mode!=="redis-ingress-v1")throw Error(`${base}: redis-ingress-v1 서버가 아닙니다.`);
+    if(health.body.pending)throw Error(`${base}: 미완료 Redis 접수가 있습니다. 새 실험 전에 처리 상태를 확인하세요.`);
     const result=await http(`${base}/api/enrollment-requests/options`);
     if(result.status!==200||!Array.isArray(result.body?.courses))throw Error(`${base}: queue 프로필 서버를 먼저 실행하세요.`);
     const read=await http(`${base}/api/courses?year=2026&semester=2&department=CS&afterId=100000&size=20`);
     if(read.status!==200||read.body?.items?.length!==20)throw Error(`${base}: 이전 catalog 실험 데이터가 필요합니다. 기존 초기화 스크립트를 임의로 실행하지 말고 데이터 상태를 확인하세요.`);
   }
-  const outstanding=Number(sql("SELECT COUNT(*) FROM enrollment_requests WHERE status IN ('QUEUED','PROCESSING');"));
-  if(outstanding)throw Error(`미완료 접수 ${outstanding}건이 있습니다. 처리 완료 후 실행하세요.`);
   const catalogCount=Number(sql("SELECT COUNT(*) FROM courses WHERE academic_year=2026 AND semester=2 AND department='CS';"));
   const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
   const run=`Q${randomBytes(6).toString('hex')}`;
@@ -157,11 +158,11 @@ async function main() {
     submitStartSpreadMs:Math.max(...mixed.enrollments.map(e=>e.startedAt))-Math.min(...mixed.enrollments.map(e=>e.startedAt))};
   const [capacity,enrolled,actual,confirmedReceipts]=sql(`SELECT c.capacity,c.enrolled_count,
     (SELECT COUNT(*) FROM enrollments e WHERE e.course_id=c.id),
-    (SELECT COUNT(*) FROM enrollment_requests r WHERE r.course_id=c.id AND r.status='CONFIRMED')
+    (SELECT COUNT(*) FROM enrollment_ingress_results r WHERE r.course_id=c.id AND r.status='CONFIRMED')
     FROM courses c WHERE c.id=${courseId};`).split('\t').map(Number);
   summary.database={capacity,enrolled,actual,confirmedReceipts,consistent:enrolled===actual && actual===confirmedReceipts && actual<=capacity};
   save(directory,'summary.json',summary);
-  const verification=sql(`SELECT c.id,c.capacity,c.enrolled_count,(SELECT COUNT(*) FROM enrollments e WHERE e.course_id=c.id) AS actual_count FROM courses c WHERE c.id=${courseId}; SELECT status,COUNT(*) AS count FROM enrollment_requests WHERE course_id=${courseId} GROUP BY status;`,true);
+  const verification=sql(`SELECT c.id,c.capacity,c.enrolled_count,(SELECT COUNT(*) FROM enrollments e WHERE e.course_id=c.id) AS actual_count FROM courses c WHERE c.id=${courseId}; SELECT status,COUNT(*) AS count FROM enrollment_ingress_results WHERE course_id=${courseId} GROUP BY status;`,true);
   writeFileSync(resolve(directory,'database.txt'),verification+'\n');
   console.table(summary.reads.map(r=>({phase:r.phase,server:r.base,count:r.count,p95Ms:r.p95Ms,failed:r.failed,actualRps:r.actualStartRps.toFixed(2),skipped:r.skipped})));
   console.log('접수 응답 (202 응답만):',summary.acceptedSubmit);

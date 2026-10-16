@@ -51,11 +51,15 @@ export default function EnrollmentPage() {
     let timer: ReturnType<typeof setTimeout>;
     const controller=new AbortController();
     setSnapshot({tickets:[],enrollments:[]});setSubmitting([]);
+    let initial=true;
     async function poll() {
       const version=snapshotVersion.current;
       try {
-        const data=await api<Snapshot>(`/api/enrollment-requests/snapshot?studentId=${studentId}`,{signal:controller.signal});
-        if(!disposed && version===snapshotVersion.current) {setSnapshot(data);setError("");}
+        const data=await api<Snapshot>(`/api/enrollment-requests/snapshot?studentId=${studentId}&includeEnrollments=${initial}`,{signal:controller.signal});
+        if(!disposed && version===snapshotVersion.current) {
+          setSnapshot(current=>({tickets:data.tickets,enrollments:[...new Map([...current.enrollments,...data.enrollments].map(e=>[e.id,e])).values()]}));
+          initial=false;setError("");
+        }
       } catch(e) {if(!disposed)setError(e instanceof Error ? e.message : "결과를 불러오지 못했습니다.");}
       finally {if(!disposed)timer=setTimeout(poll,2000);}
     }
@@ -118,7 +122,7 @@ export default function EnrollmentPage() {
           <div className="section-head"><div><p className="eyebrow">MY REQUESTS</p><h2>신청 진행 상황</h2></div><span className="live-label">자동 갱신</span></div>
           <div className="request-list" aria-live="polite" aria-relevant="additions text">
             {snapshot.tickets.length ? snapshot.tickets.map(t=><article className={`request-card state-${t.status.toLowerCase()}`} key={t.requestId}>
-              <div className="request-title"><strong>{t.courseName}</strong><span className="request-state">{labels[t.status]}</span></div>
+              <div className="request-title"><strong>{t.courseName || options.courses.find(c=>c.id===t.courseId)?.name || "신청 과목"}</strong><span className="request-state">{labels[t.status]}</span></div>
               <p>{t.message}</p><small>접수 {new Date(t.createdAt).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})} · {t.requestId.slice(0,8)}</small>
               {t.status==="QUEUED" || t.status==="PROCESSING" ? <div className="request-progress" aria-hidden="true"><i/></div> : null}
               {t.status==="FAILED" ? <button className="text-button" disabled={submitting.includes(t.courseId)} onClick={()=>void submit(t.courseId,t.requestId)}>다시 처리 요청</button> : null}
