@@ -70,14 +70,14 @@ public class EnrollmentQueueWorker {
         if(ticket.terminal()) return;
         try {
             redis.getScript(StringCodec.INSTANCE).evalAsync(RScript.Mode.READ_WRITE,ENQUEUE,
-                RScript.ReturnType.INTEGER,List.of(READY),ticket.requestId(),0).whenComplete((added,error)->{
+                RScript.ReturnType.LONG,List.of(READY),ticket.requestId(),0).whenComplete((added,error)->{
                     if(error!=null) log.warn("QUEUE_PUBLISH_DEFERRED requestId={}",ticket.requestId());
                 });
         } catch(Exception error) {log.warn("QUEUE_PUBLISH_DEFERRED requestId={}",ticket.requestId());}
     }
     private void enqueue(String id, long delayMs) {
         redis.getScript(StringCodec.INSTANCE).eval(RScript.Mode.READ_WRITE,ENQUEUE,
-            RScript.ReturnType.INTEGER,List.of(READY),id,delayMs);
+            RScript.ReturnType.LONG,List.of(READY),id,delayMs);
     }
     private void defer(String id) {
         deferred.increment();
