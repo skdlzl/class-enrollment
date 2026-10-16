@@ -1,0 +1,8 @@
+# Run both application instances with --spring.profiles.active=queue.
+enrollment:
+  queue:
+    enabled: true
+    workers: 2
+    global-slots: 4
+    max-attempts: 5
+  course-lock-strategy: REDIS

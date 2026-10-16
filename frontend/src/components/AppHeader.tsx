@@ -20,7 +20,7 @@ export default function AppHeader({
         <span className="brand-mark">CE</span>
         <span>
           <strong>Class Enrollment</strong>
-          <small>2026학년도 1학기</small>
+          <small>2026학년도 2학기</small>
         </span>
       </NavLink>
 
@@ -48,9 +48,9 @@ export default function AppHeader({
               </select>
             </span>
           </label>
-          <button className="icon-button" type="button" onClick={onReset} aria-label="테스트 데이터 초기화">
+          {onReset ? <button className="icon-button" type="button" onClick={onReset} aria-label="테스트 데이터 초기화">
             ↻
-          </button>
+          </button> : null}
         </div>
       ) : null}
     </header>
