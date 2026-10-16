@@ -149,3 +149,18 @@ node .\scripts\run-queue-experiment.mjs --users 100 --capacity 20
 같은 500건 실험을 실행하고 시작부터 종료까지 양쪽 서버 로그를 보관합니다.
 접수 비동기 Redis publish는 `QUEUE_TIMING`에 포함되지 않습니다.
 기존 요청 처리 흐름, 워커 수, 재시도 시간, 측정 종료 기준은 변경하지 않았습니다.
+
+
+### 과목별 처리 분리 (v3)
+
+과목 ID를 고정된 4개 큐 구역에 배정합니다. 각 구역은 Redis 슬롯 락을 획득한 워커만 요청을 꺼내므로 같은 과목을 여러 워커가 꺼내 재조회하는 경쟁을 줄입니다.
+서로 다른 구역은 병렬 처리합니다. 같은 구역으로 배정된 다른 과목도 순차 처리되는 제약이 있습니다.
+학생 및 과목 락, DB 최종 행 잠금, 복구 및 멱등성 검증은 유지합니다. 정확한 선착순 순서를 보장하지 않습니다.
+최대 32건 또는 100ms 처리 후 슬롯을 반환합니다. 단일 요청이 100ms를 넘으면 그 요청 완료 후 반환합니다.
+
+두 서버를 모두 종료하고 동일한 JAR 및 global-slots 설정으로 재시작해야 합니다. v3 큐는 DB의 미완료 접수에서 복구되며 v2 Redis 큐는 더 이상 소비하지 않습니다.
+기존 Redis 데이터나 DB 접수 내역을 삭제하지 않습니다. 처리 중 서버 중단이나 Redis 락 소유권 상실 시 기존 DB 방어 및 복구가 적용됩니다.
+
+시작 로그: `QUEUE_DIAGNOSTICS version=course-lanes-v3`.
+추가 시간 기록: `tx.requestLock`, `tx.studentLock`, `tx.courseLock`, `tx.existing`, `tx.validateAndSave`, `tx.confirmReceipt`.
+이 값은 트랜잭션 내부 단계로 커밋 이후까지 포함하는 `db.confirmIncludingCommit`과 중복됩니다. 서로 합산하지 마세요.

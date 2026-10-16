@@ -61,6 +61,27 @@ class EnrollmentQueueIntegrationTest {
             assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM enrollment_requests",Integer.class));
         } finally{pool.shutdownNow();}
     }
+    @Test void busyCourseLaneDoesNotConsumeItsRequestsOrBlockOtherLanes() {
+        Config config=new Config();config.useSingleServer().setAddress(address());
+        RedissonClient other=Redisson.create(config);
+        var first=store.submit(1,1);
+        var second=store.submit(2,2);
+        worker.recover();
+        var lane=other.getLock("enrollment:worker-slot:1");
+        try {
+            lane.lock();
+            worker.tick();
+            assertEquals("QUEUED",store.get(first.requestId()).status());
+            assertEquals(0,store.get(first.requestId()).attempts());
+            assertEquals("CONFIRMED",store.get(second.requestId()).status());
+            lane.unlock();
+            worker.tick(); // No recovery necessary: the busy lane's receipt was never popped.
+            assertEquals("CONFIRMED",store.get(first.requestId()).status());
+        } finally {
+            if(lane.isHeldByCurrentThread()) lane.unlock();
+            other.shutdown();
+        }
+    }
     @Test void lostRedisQueueIsRebuiltAndRepeatedDeliveryDoesNotDuplicateWrite(){
         var ticket=store.submit(1,1);
         redis.getKeys().flushdb();

@@ -19,8 +19,9 @@ import java.util.concurrent.atomic.LongAdder;
 @ConditionalOnProperty(name="enrollment.queue.enabled", havingValue="true")
 public class EnrollmentQueueWorker {
     private static final Logger log=LoggerFactory.getLogger(EnrollmentQueueWorker.class);
-    // v2 scores are Redis-clock eligibility times, not receipt sequence numbers.
-    private static final String READY="enrollment:ready:v2";
+    // Stable course partitions: only the slot owner consumes a lane.
+    private String ready(long courseId) { return laneKey((int)Math.floorMod(courseId,(long)slots)); }
+    private String laneKey(int lane) { return "enrollment:ready:v3:"+slots+":"+lane; }
     private static final String ENQUEUE="""
         local t=redis.call('TIME')
         local due=tonumber(t[1])*1000+math.floor(tonumber(t[2])/1000)+tonumber(ARGV[2])
@@ -56,7 +57,7 @@ public class EnrollmentQueueWorker {
     public void start() {
         if(!schedulerEnabled) return;
         running=true;
-        log.info("QUEUE_DIAGNOSTICS version=phase-timing-v1 workers={} globalSlots={}",workers,slots);
+        log.info("QUEUE_DIAGNOSTICS version=course-lanes-v3 workers={} globalSlots={}",workers,slots);
         executor=Executors.newScheduledThreadPool(workers+1);
         executor.scheduleWithFixedDelay(this::recover,0,5,TimeUnit.SECONDS);
         for(int i=0;i<workers;i++) executor.execute(this::runWorker);
@@ -73,51 +74,57 @@ public class EnrollmentQueueWorker {
         if(ticket.terminal()) return;
         try {
             redis.getScript(StringCodec.INSTANCE).evalAsync(RScript.Mode.READ_WRITE,ENQUEUE,
-                RScript.ReturnType.LONG,List.of(READY),ticket.requestId(),0).whenComplete((added,error)->{
+                RScript.ReturnType.LONG,List.of(ready(ticket.courseId())),ticket.requestId(),0).whenComplete((added,error)->{
                     if(error!=null) log.warn("QUEUE_PUBLISH_DEFERRED requestId={}",ticket.requestId());
                 });
         } catch(Exception error) {log.warn("QUEUE_PUBLISH_DEFERRED requestId={}",ticket.requestId());}
     }
-    private void enqueue(String id, long delayMs) {
+    private void enqueue(String id, long courseId, long delayMs) {
         timed("redis.enqueue",()->redis.getScript(StringCodec.INSTANCE).eval(RScript.Mode.READ_WRITE,ENQUEUE,
-            RScript.ReturnType.LONG,List.of(READY),id,delayMs));
+            RScript.ReturnType.LONG,List.of(ready(courseId)),id,delayMs));
     }
     private void defer(String id) {
         deferred.increment();
-        enqueue(id,ThreadLocalRandom.current().nextLong(50,151));
+        var ticket=timed("db.deferTicket",()->store.get(id));
+        enqueue(id,ticket.courseId(),ThreadLocalRandom.current().nextLong(50,151));
     }
     void recover() {
         try {
             // NX preserves a short retry deadline already in Redis.
-            for(var ticket:timed("db.recover",store::recoverable)) enqueue(ticket.requestId(),0);
+            for(var ticket:timed("db.recover",store::recoverable)) enqueue(ticket.requestId(),ticket.courseId(),0);
             log.info("QUEUE_PROGRESS handled={} lockDeferred={} fastRejected={}",
                 handled.sum(),deferred.sum(),fastRejected.sum());
             timings.logSnapshot();
+            transaction.logTimings();
         } catch(Exception error) { log.warn("QUEUE_RECOVERY_FAILED",error); }
     }
     public void tick() { drainBatch(); }
+    private final java.util.concurrent.atomic.AtomicInteger nextLane=new java.util.concurrent.atomic.AtomicInteger();
     private boolean drainBatch() {
-        RLock slot=null;
-        boolean consumed=false;
-        try {
-            for(int i=0;i<slots;i++) {
-                RLock candidate=redis.getLock("enrollment:worker-slot:"+i);
-                if(timed("redis.slot",candidate::tryLock)) {slot=candidate; break;}
-            }
-            if(slot==null) return false;
-            // Release the global slot periodically so another server can get a turn.
-            long until=System.nanoTime()+TimeUnit.MILLISECONDS.toNanos(100);
-            for(int i=0;i<32;i++) {
-                String id=timed("redis.pop",()->redis.getScript(StringCodec.INSTANCE).eval(RScript.Mode.READ_WRITE,POP_DUE,
-                    RScript.ReturnType.VALUE,List.of(READY)));
-                if(id==null) break;
-                consumed=true;
-                process(id);
-                if(System.nanoTime()>=until) break;
-            }
-            return consumed;
-        } catch(Exception error) { log.warn("QUEUE_WORKER_FAILED",error);return false; }
-        finally { release(slot); }
+        // Rotate the first lane to avoid starving another course partition.
+        int first=Math.floorMod(nextLane.getAndIncrement(),slots);
+        for(int offset=0;offset<slots;offset++) {
+            int lane=(first+offset)%slots;
+            RLock slot=redis.getLock("enrollment:worker-slot:"+lane);
+            boolean acquired=false,consumed=false;
+            try {
+                acquired=timed("redis.slot",slot::tryLock);
+                if(!acquired) continue;
+                long until=System.nanoTime()+TimeUnit.MILLISECONDS.toNanos(100);
+                for(int i=0;i<32;i++) {
+                    // Pop only after owning the lane: other workers never take its requests.
+                    String id=timed("redis.pop",()->redis.getScript(StringCodec.INSTANCE).eval(
+                        RScript.Mode.READ_WRITE,POP_DUE,RScript.ReturnType.VALUE,List.of(laneKey(lane))));
+                    if(id==null) break;
+                    consumed=true;
+                    process(id);
+                    if(System.nanoTime()>=until) break;
+                }
+            } catch(Exception error) {log.warn("QUEUE_WORKER_FAILED",error);}
+            finally {if(acquired) release(slot);}
+            if(consumed) return true;
+        }
+        return false;
     }
     void process(String id) {
         RLock job=redis.getLock("enrollment:request:"+id),student=null,course=null;
