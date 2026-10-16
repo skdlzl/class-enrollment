@@ -40,6 +40,14 @@ public class EnrollmentQueueWorker {
         executor.scheduleWithFixedDelay(this::recover,0,5,TimeUnit.SECONDS);
         for(int i=0;i<workers;i++) executor.scheduleWithFixedDelay(this::tick,250,250,TimeUnit.MILLISECONDS);
     }
+    public void publish(EnrollmentTicket ticket) {
+        if(ticket.terminal()) return;
+        try {
+            ready.addAsync(ticket.id(),ticket.requestId()).whenComplete((added,error)->{
+                if(error!=null) log.warn("QUEUE_PUBLISH_DEFERRED requestId={}",ticket.requestId());
+            });
+        } catch(Exception error) {log.warn("QUEUE_PUBLISH_DEFERRED requestId={}",ticket.requestId());}
+    }
     // DB is the durable source. A crash between DB insert and publish cannot lose a receipt.
     void recover() {
         try { for(var ticket:store.recoverable()) ready.add(ticket.id(),ticket.requestId()); }

@@ -15,15 +15,18 @@ import java.util.Map;
 public class EnrollmentQueueController {
     private final EnrollmentRequestStore store;
     private final JdbcTemplate jdbc;
-    public EnrollmentQueueController(EnrollmentRequestStore store, JdbcTemplate jdbc) {this.store=store;this.jdbc=jdbc;}
+    private final EnrollmentQueueWorker worker;
+    public EnrollmentQueueController(EnrollmentRequestStore store, JdbcTemplate jdbc, EnrollmentQueueWorker worker) {this.store=store;this.jdbc=jdbc;this.worker=worker;}
     @PostMapping @ResponseStatus(HttpStatus.ACCEPTED)
     public EnrollmentTicket submit(@Valid @RequestBody EnrollmentRequest request) {
-        return store.submit(request.studentId(),request.courseId());
+        var ticket=store.submit(request.studentId(),request.courseId());
+        worker.publish(ticket);
+        return ticket;
     }
     @GetMapping("/{id}") public EnrollmentTicket get(@PathVariable String id) {return store.get(id);}
     @GetMapping public List<EnrollmentTicket> list(@RequestParam long studentId) {return store.forStudent(studentId);}
     @PostMapping("/{id}/retry") @ResponseStatus(HttpStatus.ACCEPTED)
-    public EnrollmentTicket retry(@PathVariable String id) {return store.retry(id);}
+    public EnrollmentTicket retry(@PathVariable String id) {var ticket=store.retry(id);worker.publish(ticket);return ticket;}
     @GetMapping("/snapshot") public Map<String,Object> snapshot(@RequestParam long studentId) {
         return Map.of("tickets",store.forStudent(studentId),"enrollments",jdbc.queryForList("""
             SELECT c.id,c.name,c.credits FROM enrollments e JOIN courses c ON c.id=e.course_id

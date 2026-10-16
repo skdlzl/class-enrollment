@@ -119,12 +119,12 @@ class EnrollmentQueueIntegrationTest {
     @Test void failedFinalUpdateRollsBackEnrollmentAndCount(){
         var ticket=store.submit(1,1);store.start(ticket.requestId());
         // A DB rejection at the final receipt update must also roll back enrollment.
-        jdbc.execute("CREATE TRIGGER reject_confirmation BEFORE UPDATE ON enrollment_requests FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='injected failure'");
+        jdbc.execute("ALTER TABLE enrollment_requests ADD CONSTRAINT chk_test_reject_confirm CHECK(status <> 'CONFIRMED')");
         try {
             assertThrows(RuntimeException.class,()->transaction.confirm(ticket));
             assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class));
             assertEquals(0,jdbc.queryForObject("SELECT enrolled_count FROM courses WHERE id=1",Integer.class));
-        }finally{jdbc.execute("DROP TRIGGER reject_confirmation");}
+        }finally{jdbc.execute("ALTER TABLE enrollment_requests DROP CHECK chk_test_reject_confirm");}
         worker.process(ticket.requestId()); // Not yet due, recovery will retry after lease.
     }
 }
