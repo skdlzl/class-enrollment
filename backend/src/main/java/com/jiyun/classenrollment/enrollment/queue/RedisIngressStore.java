@@ -75,6 +75,54 @@ public class RedisIngressStore {
             List.of(RECORDS,READY,TOKENS),token,leaseMs);
         return raw==null?null:new Claim(decode(raw),token);
     }
+    /** Claim only due receipts of one course; unexpired processing leases are excluded. */
+    public List<Claim> claimCourse(long courseId,int limit,long leaseMs){
+        if(limit<1||limit>50)throw new IllegalArgumentException("Batch must contain 1..50 receipts");
+        String token=UUID.randomUUID().toString();
+        List<String> rows=redis.getScript(StringCodec.INSTANCE).eval(RScript.Mode.READ_WRITE,"""
+            local t=redis.call('TIME');local now=t[1]*1000+math.floor(t[2]/1000)
+            local ids=redis.call('ZRANGEBYSCORE',KEYS[2],'-inf',now,'LIMIT',0,5000)
+            local result={}
+            for _,id in ipairs(ids) do
+              local raw=redis.call('HGET',KEYS[1],id)
+              if raw then
+                local r=cjson.decode(raw)
+                if tostring(r.courseId)==ARGV[1] and (r.status=='QUEUED' or r.status=='PROCESSING') then
+                  r.status='PROCESSING';r.attempts=r.attempts+1;r.message='신청 조건을 확인하고 있습니다.'
+                  local updated=cjson.encode(r)
+                  redis.call('HSET',KEYS[1],id,updated)
+                  redis.call('HSET',KEYS[3],id,ARGV[2])
+                  redis.call('ZADD',KEYS[2],now+tonumber(ARGV[3]),id)
+                  table.insert(result,updated)
+                  if #result>=tonumber(ARGV[4]) then break end
+                end
+              else redis.call('ZREM',KEYS[2],id) end
+            end
+            return result
+            """,RScript.ReturnType.LIST,List.of(RECORDS,READY,TOKENS),String.valueOf(courseId),token,leaseMs,limit);
+        return rows.stream().map(raw->new Claim(decode(raw),token)).toList();
+    }
+    public long finishBatch(List<Claim> claims,List<EnrollmentTicket> results){
+        if(claims.size()!=results.size()||claims.size()>50)throw new IllegalArgumentException("Invalid result batch");
+        if(claims.isEmpty())return 0;
+        List<Object> args=new ArrayList<>();
+        for(int i=0;i<claims.size();i++){
+            var claim=claims.get(i);var result=results.get(i);
+            if(!claim.ticket().requestId().equals(result.requestId())||!result.terminal())throw new IllegalArgumentException("Invalid terminal receipt");
+            args.add(result.requestId());args.add(claim.token());args.add(encode(result));
+        }
+        Number n=redis.getScript(StringCodec.INSTANCE).eval(RScript.Mode.READ_WRITE,"""
+            local count=0
+            for i=1,#ARGV,3 do
+              if redis.call('HGET',KEYS[3],ARGV[i])==ARGV[i+1] then
+                redis.call('HSET',KEYS[1],ARGV[i],ARGV[i+2])
+                redis.call('HDEL',KEYS[3],ARGV[i]);redis.call('ZREM',KEYS[2],ARGV[i]);count=count+1
+              end
+            end
+            return count
+            """,RScript.ReturnType.LONG,List.of(RECORDS,READY,TOKENS),args.toArray());
+        return n.longValue();
+    }
     public boolean finish(Claim claim,EnrollmentTicket result){
         Number n=redis.getScript(StringCodec.INSTANCE).eval(RScript.Mode.READ_WRITE,FINISH,RScript.ReturnType.LONG,
             List.of(RECORDS,READY,TOKENS),claim.ticket().requestId(),claim.token(),encode(result));

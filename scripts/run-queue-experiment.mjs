@@ -112,22 +112,25 @@ async function main() {
   if(config.users>2000||config.readRps>50||config.readSeconds>180||config.capacity>config.users)throw Error('Supported: users<=2000, read-rps<=50, seconds<=180, capacity<=users');
   if(config.readSeconds*1000<config.enrollmentDelayMs+config.rampSeconds*1000+config.deadlineMs)throw Error('--seconds must cover enrollment delay + ramp + 45s observation');
   const bases=['http://localhost:8080','http://localhost:8081'];
+  const serverModes=[];
   for(const base of bases) {
     const health=await http(`${base}/api/enrollment-requests/health`);
     if(health.status!==200 || health.body.mode!=="redis-ingress-v1")throw Error(`${base}: redis-ingress-v1 서버가 아닙니다.`);
+    serverModes.push({base,...health.body});
     if(health.body.pending)throw Error(`${base}: 미완료 Redis 접수가 있습니다. 새 실험 전에 처리 상태를 확인하세요.`);
     const result=await http(`${base}/api/enrollment-requests/options`);
     if(result.status!==200||!Array.isArray(result.body?.courses))throw Error(`${base}: queue 프로필 서버를 먼저 실행하세요.`);
     const read=await http(`${base}/api/courses?year=2026&semester=2&department=CS&afterId=100000&size=20`);
     if(read.status!==200||read.body?.items?.length!==20)throw Error(`${base}: 이전 catalog 실험 데이터가 필요합니다. 기존 초기화 스크립트를 임의로 실행하지 말고 데이터 상태를 확인하세요.`);
   }
+  if(serverModes.some(h=>h.version!==serverModes[0].version || h.batchReject!==serverModes[0].batchReject))throw Error("두 서버의 버전 또는 batchReject 설정이 다릅니다.");
   const catalogCount=Number(sql("SELECT COUNT(*) FROM courses WHERE academic_year=2026 AND semester=2 AND department='CS';"));
   const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
   const run=`Q${randomBytes(6).toString('hex')}`;
   const directory=resolve(root,'jmeter','results',`queue-${new Date().toISOString().replace(/[:.]/g,'-')}-${run}`);
   mkdirSync(directory,{recursive:true});
   let revision='unknown';try{revision=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();}catch{}
-  save(directory,'conditions.json',{...config,run,revision,bases,catalogCount,
+  save(directory,'conditions.json',{...config,run,revision,bases,catalogCount,serverModes,
     note:'Node HTTP client. Same read arrival schedule in both phases. Terminal time includes polling delay; no claim of simultaneous arrival.'});
   // Independent identities for each run. Never truncate/delete the user's enrollment or catalog data.
   const values=Array.from({length:config.users},(_,i)=>`('${run}${i}','Queue ${i}','ACTIVE',18)`).join(',');

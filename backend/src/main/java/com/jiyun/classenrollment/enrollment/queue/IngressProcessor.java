@@ -7,7 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.http.HttpStatus;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class IngressProcessor {
@@ -36,6 +36,54 @@ public class IngressProcessor {
             // The failed validation transaction has rolled back before persisting rejection.
             return tx.execute(status->{var current=lockReceipt(input);return current.terminal()?current:save(input,"REJECTED",null,e.getMessage());});
         }
+    }
+    public boolean isCourseFull(long courseId){
+        var rows=jdbc.queryForList("SELECT enrolled_count>=capacity FROM courses WHERE id=?",Boolean.class,courseId);
+        return !rows.isEmpty()&&Boolean.TRUE.equals(rows.get(0));
+    }
+    /** The initial fullness check is only a hint. This transaction rechecks under the course lock. */
+    public List<EnrollmentTicket> rejectFullBatch(List<EnrollmentTicket> inputs){
+        if(inputs.isEmpty())return List.of();
+        long courseId=inputs.get(0).courseId();
+        if(inputs.size()>50||inputs.stream().anyMatch(t->t.courseId()!=courseId)
+                ||inputs.stream().map(EnrollmentTicket::requestId).distinct().count()!=inputs.size())
+            throw new IllegalArgumentException("Batch must have <=50 distinct receipts of the same course");
+        return tx.execute(status->{
+            var sorted=inputs.stream().sorted(Comparator.comparing(EnrollmentTicket::requestId)).toList();
+            String tuples=String.join(",",Collections.nCopies(sorted.size(),"(?,?,?,'PROCESSING',?)"));
+            List<Object> args=new ArrayList<>();
+            for(var t:sorted){args.add(t.requestId());args.add(t.studentId());args.add(t.courseId());args.add(java.sql.Timestamp.from(java.time.Instant.parse(t.createdAt())));}
+            // Match ordinary processing order: receipt locks first, course lock later.
+            // The multi-row insert/update holds the receipt rows until commit.
+            jdbc.update("INSERT INTO enrollment_ingress_results(request_id,student_id,course_id,status,created_at) VALUES "+tuples+
+                " ON DUPLICATE KEY UPDATE request_id=request_id",args.toArray());
+            var full=jdbc.queryForList("SELECT enrolled_count>=capacity FROM courses WHERE id=? FOR UPDATE",Boolean.class,courseId);
+            String placeholders=String.join(",",Collections.nCopies(sorted.size(),"?"));
+            Object[] ids=sorted.stream().map(EnrollmentTicket::requestId).toArray();
+            if(!full.isEmpty()&&Boolean.TRUE.equals(full.get(0))){
+                // Existing enrollments and committed terminal receipts must never be rejected.
+                // Invalid/inactive students fall back to ordinary validation for their specific error.
+                var eligible=jdbc.queryForList("""
+                    SELECT r.request_id FROM enrollment_ingress_results r
+                    JOIN students s ON s.id=r.student_id AND s.status='ACTIVE'
+                    LEFT JOIN enrollments e ON e.student_id=r.student_id AND e.course_id=r.course_id
+                    WHERE r.status='PROCESSING' AND e.id IS NULL AND r.request_id IN (
+                    """+placeholders+")",String.class,ids);
+                // Update only receipt rows; do not acquire student row locks after the course lock.
+                if(!eligible.isEmpty())jdbc.update(
+                    "UPDATE enrollment_ingress_results SET status='REJECTED',message='수강 정원이 마감되었습니다.' WHERE status='PROCESSING' AND request_id IN ("+
+                    String.join(",",Collections.nCopies(eligible.size(),"?"))+")",eligible.toArray());
+            }
+            var attempts=new HashMap<String,Integer>();for(var t:inputs)attempts.put(t.requestId(),t.attempts());
+            var rows=jdbc.query("""
+                SELECT r.*,COALESCE(c.name,'') course_name,COALESCE(c.credits,0) credits
+                FROM enrollment_ingress_results r LEFT JOIN courses c ON c.id=r.course_id WHERE request_id IN (
+                """+placeholders+")",(rs,n)->new EnrollmentTicket(0,rs.getString("request_id"),rs.getLong("student_id"),rs.getLong("course_id"),
+                rs.getString("course_name"),rs.getInt("credits"),rs.getString("status"),attempts.get(rs.getString("request_id")),
+                rs.getObject("enrollment_id",Long.class),rs.getString("message"),rs.getTimestamp("created_at").toInstant().toString()),ids);
+            var byId=new HashMap<String,EnrollmentTicket>();for(var t:rows)byId.put(t.requestId(),t);
+            return inputs.stream().map(t->byId.get(t.requestId())).toList();
+        });
     }
     private EnrollmentTicket lockReceipt(EnrollmentTicket input){
         jdbc.update("""

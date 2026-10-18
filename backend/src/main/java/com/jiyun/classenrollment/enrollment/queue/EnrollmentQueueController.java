@@ -13,6 +13,7 @@ import java.util.Map;
 @RequestMapping("/api/enrollment-requests")
 @ConditionalOnProperty(name="enrollment.queue.enabled", havingValue="true")
 public class EnrollmentQueueController {
+    @org.springframework.beans.factory.annotation.Value("${enrollment.queue.batch-reject-enabled:true}") private boolean batchReject;
     private final RedisIngressStore store;
     private final JdbcTemplate jdbc;
     public EnrollmentQueueController(RedisIngressStore store, JdbcTemplate jdbc) {this.store=store;this.jdbc=jdbc;}
@@ -30,7 +31,7 @@ public class EnrollmentQueueController {
     @GetMapping public List<EnrollmentTicket> list(@RequestParam long studentId) {return store.forStudent(studentId);}
     @PostMapping("/{id}/retry") @ResponseStatus(HttpStatus.ACCEPTED)
     public EnrollmentTicket retry(@PathVariable String id) {return store.retry(id);}
-    @GetMapping("/health") public Map<String,Object> health(){return Map.of("mode","redis-ingress-v1","pending",store.pending());}
+    @GetMapping("/health") public Map<String,Object> health(){return Map.of("mode","redis-ingress-v1","version","redis-ingress-v2","batchReject",batchReject,"pending",store.pending());}
     @GetMapping("/snapshot") public Map<String,Object> snapshot(@RequestParam long studentId,
             @RequestParam(defaultValue="false") boolean includeEnrollments) {
         var tickets=store.forStudent(studentId);
