@@ -46,3 +46,20 @@ test('fixed read arrival schedule reports failures instead of excluding them fro
     assert.equal(result.count,4);assert.equal(result.failed,1);assert.equal(result.actualStartRps,4);assert.equal(result.skipped,0);
   });
 });
+
+test('synchronous comparison counts 201 and business 409 as final, never 503',async()=>{
+  const {observeSynchronous}=await import('./run-queue-experiment.mjs');
+  for(const [code,body,outcome] of [[201,{},'CONFIRMED'],[409,{code:'COURSE_FULL'},'REJECTED'],[503,{},'SUBMIT_FAILED'],[409,{},'SUBMIT_FAILED']]){
+    await withServer((req,res)=>json(res,code,body),async base=>{
+      const result=await observeSynchronous(base,1,1,config);
+      assert.equal(result.outcome,outcome);assert.equal(result.polls,0);
+      assert.equal(Number.isFinite(result.observedResultMs),['CONFIRMED','REJECTED'].includes(outcome));
+    });
+  }
+});
+test('synchronous network failure is unknown rather than business rejection',async()=>{
+  const {observeSynchronous}=await import('./run-queue-experiment.mjs');
+  await withServer((req,res)=>req.socket.destroy(),async base=>{
+    const result=await observeSynchronous(base,1,1,config);assert.equal(result.outcome,'SUBMIT_UNKNOWN');
+  });
+});

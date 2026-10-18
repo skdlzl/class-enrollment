@@ -18,6 +18,8 @@ public class ExperimentController {
     private final HikariDataSource pool;
     @Value("${enrollment.course-lock-strategy}") private String strategy;
     @Value("${enrollment.local-gate-enabled:false}") private boolean gate;
+    @Value("${enrollment.queue.enabled:false}") private boolean queueEnabled;
+    @Value("${enrollment.queue.batch-reject-enabled:true}") private boolean batchReject;
     @Value("${enrollment.capacity-precheck:true}") private boolean precheck;
     public ExperimentController(JdbcTemplate jdbc, DataSource source) throws SQLException {
         this.jdbc = jdbc;
@@ -33,6 +35,6 @@ public class ExperimentController {
         return Map.of("active", mx.getActiveConnections(), "idle", mx.getIdleConnections(),
                 "waiting", mx.getThreadsAwaitingConnection(), "total", mx.getTotalConnections(),
                 "max", pool.getMaximumPoolSize(), "strategy", strategy, "gate", gate,
-                "precheck", precheck);
+                "precheck", precheck,"queueEnabled",queueEnabled,"batchReject",batchReject);
     }
 }
