@@ -97,3 +97,27 @@ test('HTTP deadline includes waiting for a pooled socket',async()=>{
     assert.ok(timed.elapsedMs>=25);release();await first;
   });}finally{client.close();}
 });
+
+import { validateSyncLockMode } from './sync-lock-modes.mjs';
+test('synchronous lock comparison rejects queue, gate, precheck and strategy mismatches',()=>{
+  const redis={strategy:'REDIS',gate:false,precheck:false,max:10,queueEnabled:false};
+  assert.doesNotThrow(()=>validateSyncLockMode('sync-redis',redis));
+  assert.doesNotThrow(()=>validateSyncLockMode('sync-pessimistic',{...redis,strategy:'PESSIMISTIC'}));
+  for(const [key,value] of Object.entries({queueEnabled:true,gate:true,precheck:true,max:50,strategy:'PESSIMISTIC'}))
+    assert.throws(()=>validateSyncLockMode('sync-redis',{...redis,[key]:value}));
+});
+
+
+test('both lock modes use synchronous enrollment endpoint without polling',async()=>{
+  const {phase}=await import('./run-queue-experiment.mjs');
+  for(const mode of ['sync-redis','sync-pessimistic']){
+    const paths=[];
+    await withServer((req,res)=>{paths.push([req.method,req.url]);json(res,201,{});},async base=>{
+      const result=await phase('test',[base],[1],1,{...config,mode,readSeconds:0,readRps:1,
+        collectPool:false,enrollmentDelayMs:0,rampSeconds:0.01});
+      assert.deepEqual(paths,[['POST','/api/enrollments']]);
+      assert.equal(result.enrollments[0].outcome,'CONFIRMED');
+      assert.equal(result.enrollments[0].polls,0);
+    });
+  }
+});

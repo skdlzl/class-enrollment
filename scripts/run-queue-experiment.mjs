@@ -1,3 +1,4 @@
+import { syncLockModes, validateSyncLockMode } from './sync-lock-modes.mjs';
 /** Node 18+; no npm dependencies. Run from any directory with Docker and both queue-profile servers running. */
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -140,7 +141,7 @@ export async function phase(name,bases,students,courseId,config) {
       const wait=start+i*config.rampSeconds*1000/students.length-performance.now();if(wait>0)await delay(wait);
       const lagMs=Math.max(0,performance.now()-(start+i*config.rampSeconds*1000/students.length));
       if(lagMs>1000){results.push({studentId:students[i],courseId,outcome:'CLIENT_SKIPPED',lagMs,polls:0,pollErrors:0});continue;}
-      const observe=config.mode?.startsWith('pessimistic')?observeSynchronous:observeRequest;
+      const observe=config.mode && config.mode!=='queue'?observeSynchronous:observeRequest;
       tasks.push(observe(bases[i%bases.length],students[i],courseId,config).then(result=>results.push({...result,lagMs})));
     }
     await Promise.all(tasks);
@@ -164,7 +165,7 @@ function save(directory,name,data){writeFileSync(resolve(directory,name),JSON.st
 async function main() {
   const modeAt=process.argv.indexOf('--mode');
   const mode=modeAt<0?'queue':process.argv[modeAt+1];
-  if(!['queue','pessimistic','pessimistic-ungated'].includes(mode))throw Error('--mode queue|pessimistic|pessimistic-ungated');
+  if(!['queue','pessimistic','pessimistic-ungated',...Object.keys(syncLockModes)].includes(mode))throw Error('--mode queue|pessimistic|pessimistic-ungated|sync-redis|sync-pessimistic');
   const config={mode,collectPool:process.argv.includes('--pool'),strict:process.argv.includes('--strict'),users:option('users',500),capacity:option('capacity',100),readSeconds:option('seconds',60),
     readRps:option('read-rps',10),rampSeconds:option('ramp',5),pollMs:2000,deadlineMs:option('deadline',45)*1000,httpTimeoutMs:10000,enrollmentDelayMs:5000};
   if(config.users>10000||config.readRps>200||config.readSeconds>300||config.deadlineMs>180000||config.capacity>config.users)throw Error('Supported: users<=10000, read-rps<=200, seconds<=300, deadline<=180, capacity<=users');
@@ -179,8 +180,9 @@ async function main() {
       const diagnostic=await http(`${base}/api/experiment/diagnostics`);
       if(diagnostic.status!==200)throw Error(`${base}: 진단 기능이 포함된 최신 JAR로 재시작하세요.`);
       poolState=p.body;
+      validateSyncLockMode(mode,poolState);
       if(mode==='queue'&&!poolState.queueEnabled)throw Error(`${base}: 큐가 비활성화돼 있습니다.`);
-      if(mode!=='queue'&&(poolState.queueEnabled||poolState.strategy!=='PESSIMISTIC'||poolState.gate!==(mode==='pessimistic')))
+      if(mode!=='queue'&&!syncLockModes[mode]&&(poolState.queueEnabled||poolState.strategy!=='PESSIMISTIC'||poolState.gate!==(mode==='pessimistic')))
         throw Error(`${base}: 비교 모드와 서버의 queue/strategy/gate 설정이 다릅니다.`);
     }
     if(mode==='queue'){
