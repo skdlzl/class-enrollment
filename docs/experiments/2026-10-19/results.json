@@ -1,0 +1,873 @@
+[
+  {
+    "source": "summary(1).json",
+    "sha256": "a379d7b4cee0b0a83b82a22e7eba0c4f4a792e3a18334b6a50929bb84f82192f",
+    "round": 1,
+    "mode": "queue",
+    "outcomes": {
+      "CONFIRMED": 100,
+      "REJECTED": 4900,
+      "FAILED": 0,
+      "UNRESOLVED": 0,
+      "SUBMIT_FAILED": 0,
+      "SUBMIT_UNKNOWN": 0,
+      "CLIENT_SKIPPED": 0
+    },
+    "responseCodes": {
+      "202": 5000
+    },
+    "acceptedSubmit": {
+      "count": 5000,
+      "meanMs": 1419.21,
+      "p95Ms": 2305.89,
+      "maxMs": 2414.98
+    },
+    "terminalByOutcome": {
+      "CONFIRMED": {
+        "count": 100,
+        "meanMs": 7341.23,
+        "p95Ms": 9481.49,
+        "maxMs": 9533.35
+      },
+      "REJECTED": {
+        "count": 4900,
+        "meanMs": 15510.34,
+        "p95Ms": 19567.76,
+        "maxMs": 19747.15
+      },
+      "FAILED": {
+        "count": 0,
+        "meanMs": null,
+        "p95Ms": null,
+        "maxMs": null
+      }
+    },
+    "reads": [
+      {
+        "phase": "Baseline",
+        "base": "http://localhost:8080",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 4.57,
+        "p95Ms": 11.13,
+        "maxMs": 29.81
+      },
+      {
+        "phase": "Baseline",
+        "base": "http://localhost:8081",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 4.17,
+        "p95Ms": 10.38,
+        "maxMs": 38.6
+      },
+      {
+        "phase": "Mixed",
+        "base": "http://localhost:8080",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 89.82,
+        "p95Ms": 774.97,
+        "maxMs": 1073.84
+      },
+      {
+        "phase": "Mixed",
+        "base": "http://localhost:8081",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 90.73,
+        "p95Ms": 777.97,
+        "maxMs": 1073.01
+      }
+    ],
+    "burstReads": [
+      {
+        "base": "http://localhost:8080",
+        "failed": 0,
+        "count": 250,
+        "meanMs": 578.35,
+        "p95Ms": 939.4,
+        "maxMs": 1044.41
+      },
+      {
+        "base": "http://localhost:8081",
+        "failed": 0,
+        "count": 250,
+        "meanMs": 586.17,
+        "p95Ms": 970.62,
+        "maxMs": 1049.41
+      }
+    ],
+    "pool": [
+      {
+        "base": "http://localhost:8080",
+        "samples": 90,
+        "failed": 0,
+        "maxActive": 7,
+        "maxWaiting": 0
+      },
+      {
+        "base": "http://localhost:8081",
+        "samples": 90,
+        "failed": 0,
+        "maxActive": 6,
+        "maxWaiting": 0
+      }
+    ],
+    "generator": {
+      "eventLoopP95Ms": 61.472767,
+      "eventLoopMaxMs": 242.614271,
+      "cpuMs": 20969,
+      "wallMs": 90026.23760000001,
+      "rssBytes": 113983488,
+      "maxEnrollmentLagMs": 206.9722000000038,
+      "skippedEnrollment": 0
+    },
+    "database": {
+      "capacity": 100,
+      "enrolled": 100,
+      "actual": 100,
+      "confirmedReceipts": 100,
+      "consistent": true
+    }
+  },
+  {
+    "source": "summary(5).json",
+    "sha256": "14add79a093f1571cb6f44341eb7e6e48881000776993aebb70c17d2cc2549b6",
+    "round": 2,
+    "mode": "queue",
+    "outcomes": {
+      "CONFIRMED": 100,
+      "REJECTED": 4900,
+      "FAILED": 0,
+      "UNRESOLVED": 0,
+      "SUBMIT_FAILED": 0,
+      "SUBMIT_UNKNOWN": 0,
+      "CLIENT_SKIPPED": 0
+    },
+    "responseCodes": {
+      "202": 5000
+    },
+    "acceptedSubmit": {
+      "count": 5000,
+      "meanMs": 4235.29,
+      "p95Ms": 6623.17,
+      "maxMs": 6843.74
+    },
+    "terminalByOutcome": {
+      "CONFIRMED": {
+        "count": 100,
+        "meanMs": 21488.21,
+        "p95Ms": 24065.5,
+        "maxMs": 24155.69
+      },
+      "REJECTED": {
+        "count": 4900,
+        "meanMs": 31116.44,
+        "p95Ms": 35214.87,
+        "maxMs": 35433.32
+      },
+      "FAILED": {
+        "count": 0,
+        "meanMs": null,
+        "p95Ms": null,
+        "maxMs": null
+      }
+    },
+    "reads": [
+      {
+        "phase": "Baseline",
+        "base": "http://localhost:8080",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 5.55,
+        "p95Ms": 12.79,
+        "maxMs": 40.28
+      },
+      {
+        "phase": "Baseline",
+        "base": "http://localhost:8081",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 5.06,
+        "p95Ms": 12.07,
+        "maxMs": 34.85
+      },
+      {
+        "phase": "Mixed",
+        "base": "http://localhost:8080",
+        "targetRps": 50,
+        "actualStartRps": 49.98461538461538,
+        "skipped": 1,
+        "failed": 0,
+        "count": 3249,
+        "meanMs": 155.94,
+        "p95Ms": 1290.02,
+        "maxMs": 1999.42
+      },
+      {
+        "phase": "Mixed",
+        "base": "http://localhost:8081",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 152.54,
+        "p95Ms": 1205.03,
+        "maxMs": 2058.3
+      }
+    ],
+    "burstReads": [
+      {
+        "base": "http://localhost:8080",
+        "failed": 0,
+        "count": 242,
+        "meanMs": 1368.37,
+        "p95Ms": 1805.03,
+        "maxMs": 1999.42
+      },
+      {
+        "base": "http://localhost:8081",
+        "failed": 0,
+        "count": 243,
+        "meanMs": 1337.19,
+        "p95Ms": 1804.55,
+        "maxMs": 2058.3
+      }
+    ],
+    "pool": [
+      {
+        "base": "http://localhost:8080",
+        "samples": 90,
+        "failed": 0,
+        "maxActive": 10,
+        "maxWaiting": 5
+      },
+      {
+        "base": "http://localhost:8081",
+        "samples": 90,
+        "failed": 0,
+        "maxActive": 10,
+        "maxWaiting": 6
+      }
+    ],
+    "generator": {
+      "eventLoopP95Ms": 67.076095,
+      "eventLoopMaxMs": 393.215999,
+      "cpuMs": 28547,
+      "wallMs": 90018.4047,
+      "rssBytes": 83714048,
+      "maxEnrollmentLagMs": 272.03889999999956,
+      "skippedEnrollment": 0
+    },
+    "database": {
+      "capacity": 100,
+      "enrolled": 100,
+      "actual": 100,
+      "confirmedReceipts": 100,
+      "consistent": true
+    }
+  },
+  {
+    "source": "summary(6).json",
+    "sha256": "651846418eef6206cbf18572b6499141b3078a2ebc5ead891ec21377ac6ea39f",
+    "round": 3,
+    "mode": "queue",
+    "outcomes": {
+      "CONFIRMED": 100,
+      "REJECTED": 4900,
+      "FAILED": 0,
+      "UNRESOLVED": 0,
+      "SUBMIT_FAILED": 0,
+      "SUBMIT_UNKNOWN": 0,
+      "CLIENT_SKIPPED": 0
+    },
+    "responseCodes": {
+      "202": 5000
+    },
+    "acceptedSubmit": {
+      "count": 5000,
+      "meanMs": 1318.79,
+      "p95Ms": 1761.42,
+      "maxMs": 1821.08
+    },
+    "terminalByOutcome": {
+      "CONFIRMED": {
+        "count": 100,
+        "meanMs": 6705.5,
+        "p95Ms": 12071.03,
+        "maxMs": 12298.71
+      },
+      "REJECTED": {
+        "count": 4900,
+        "meanMs": 12629.83,
+        "p95Ms": 14803.3,
+        "maxMs": 14925.01
+      },
+      "FAILED": {
+        "count": 0,
+        "meanMs": null,
+        "p95Ms": null,
+        "maxMs": null
+      }
+    },
+    "reads": [
+      {
+        "phase": "Baseline",
+        "base": "http://localhost:8080",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 4.83,
+        "p95Ms": 11.18,
+        "maxMs": 58.41
+      },
+      {
+        "phase": "Baseline",
+        "base": "http://localhost:8081",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 4.36,
+        "p95Ms": 10.49,
+        "maxMs": 51.31
+      },
+      {
+        "phase": "Mixed",
+        "base": "http://localhost:8080",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 46.66,
+        "p95Ms": 331.29,
+        "maxMs": 797.6
+      },
+      {
+        "phase": "Mixed",
+        "base": "http://localhost:8081",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 47.34,
+        "p95Ms": 335.37,
+        "maxMs": 916.7
+      }
+    ],
+    "burstReads": [
+      {
+        "base": "http://localhost:8080",
+        "failed": 0,
+        "count": 248,
+        "meanMs": 345.85,
+        "p95Ms": 663.31,
+        "maxMs": 797.6
+      },
+      {
+        "base": "http://localhost:8081",
+        "failed": 0,
+        "count": 248,
+        "meanMs": 358.7,
+        "p95Ms": 706.3,
+        "maxMs": 916.7
+      }
+    ],
+    "pool": [
+      {
+        "base": "http://localhost:8080",
+        "samples": 90,
+        "failed": 0,
+        "maxActive": 9,
+        "maxWaiting": 0
+      },
+      {
+        "base": "http://localhost:8081",
+        "samples": 90,
+        "failed": 0,
+        "maxActive": 8,
+        "maxWaiting": 0
+      }
+    ],
+    "generator": {
+      "eventLoopP95Ms": 51.019775,
+      "eventLoopMaxMs": 285.474815,
+      "cpuMs": 20485,
+      "wallMs": 90014.803,
+      "rssBytes": 111869952,
+      "maxEnrollmentLagMs": 241.76690000000235,
+      "skippedEnrollment": 0
+    },
+    "database": {
+      "capacity": 100,
+      "enrolled": 100,
+      "actual": 100,
+      "confirmedReceipts": 100,
+      "consistent": true
+    }
+  },
+  {
+    "source": "summary(2).json",
+    "sha256": "24f0c9124dc8c783563c3c29c7d9099f6be42dd98be19f3902d95156d0719d95",
+    "round": 1,
+    "mode": "pessimistic",
+    "outcomes": {
+      "CONFIRMED": 100,
+      "REJECTED": 3223,
+      "FAILED": 0,
+      "UNRESOLVED": 0,
+      "SUBMIT_FAILED": 2,
+      "SUBMIT_UNKNOWN": 1675,
+      "CLIENT_SKIPPED": 0
+    },
+    "responseCodes": {
+      "201": 100,
+      "409": 3223,
+      "503": 2,
+      "SUBMIT_UNKNOWN": 1675
+    },
+    "acceptedSubmit": {
+      "count": 0,
+      "meanMs": null,
+      "p95Ms": null,
+      "maxMs": null
+    },
+    "terminalByOutcome": {
+      "CONFIRMED": {
+        "count": 100,
+        "meanMs": 4222.2,
+        "p95Ms": 6499.68,
+        "maxMs": 6712.82
+      },
+      "REJECTED": {
+        "count": 3223,
+        "meanMs": 34863.02,
+        "p95Ms": 57340.68,
+        "maxMs": 60011.21
+      },
+      "FAILED": {
+        "count": 0,
+        "meanMs": null,
+        "p95Ms": null,
+        "maxMs": null
+      }
+    },
+    "reads": [
+      {
+        "phase": "Baseline",
+        "base": "http://localhost:8080",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 5.2,
+        "p95Ms": 11.84,
+        "maxMs": 23.89
+      },
+      {
+        "phase": "Baseline",
+        "base": "http://localhost:8081",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 4.83,
+        "p95Ms": 11.2,
+        "maxMs": 22.6
+      },
+      {
+        "phase": "Mixed",
+        "base": "http://localhost:8080",
+        "targetRps": 50,
+        "actualStartRps": 49.87692307692308,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3242,
+        "meanMs": 24.08,
+        "p95Ms": 42,
+        "maxMs": 1131.8
+      },
+      {
+        "phase": "Mixed",
+        "base": "http://localhost:8081",
+        "targetRps": 50,
+        "actualStartRps": 49.87692307692308,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3242,
+        "meanMs": 15.14,
+        "p95Ms": 33.96,
+        "maxMs": 593.62
+      }
+    ],
+    "burstReads": [
+      {
+        "base": "http://localhost:8080",
+        "failed": 0,
+        "count": 250,
+        "meanMs": 187.07,
+        "p95Ms": 775.83,
+        "maxMs": 1131.8
+      },
+      {
+        "base": "http://localhost:8081",
+        "failed": 0,
+        "count": 250,
+        "meanMs": 72.5,
+        "p95Ms": 451.23,
+        "maxMs": 593.62
+      }
+    ],
+    "pool": [
+      {
+        "base": "http://localhost:8080",
+        "samples": 90,
+        "failed": 0,
+        "maxActive": 10,
+        "maxWaiting": 1
+      },
+      {
+        "base": "http://localhost:8081",
+        "samples": 90,
+        "failed": 0,
+        "maxActive": 9,
+        "maxWaiting": 0
+      }
+    ],
+    "generator": {
+      "eventLoopP95Ms": 31.719423,
+      "eventLoopMaxMs": 207.224831,
+      "cpuMs": 16952,
+      "wallMs": 90005.59140000002,
+      "rssBytes": 115531776,
+      "maxEnrollmentLagMs": 159.68009999999776,
+      "skippedEnrollment": 0
+    },
+    "database": {
+      "capacity": 100,
+      "enrolled": 100,
+      "actual": 100,
+      "confirmedReceipts": 0,
+      "consistent": true
+    }
+  },
+  {
+    "source": "summary(3).json",
+    "sha256": "0b4e1ebc2e40e7ce3fa6ff75c4cf244f76aad13af88f3256258990ac3dc0673e",
+    "round": 2,
+    "mode": "pessimistic",
+    "outcomes": {
+      "CONFIRMED": 100,
+      "REJECTED": 4414,
+      "FAILED": 0,
+      "UNRESOLVED": 0,
+      "SUBMIT_FAILED": 0,
+      "SUBMIT_UNKNOWN": 486,
+      "CLIENT_SKIPPED": 0
+    },
+    "responseCodes": {
+      "201": 100,
+      "409": 4414,
+      "SUBMIT_UNKNOWN": 486
+    },
+    "acceptedSubmit": {
+      "count": 0,
+      "meanMs": null,
+      "p95Ms": null,
+      "maxMs": null
+    },
+    "terminalByOutcome": {
+      "CONFIRMED": {
+        "count": 100,
+        "meanMs": 1446.38,
+        "p95Ms": 2343.52,
+        "maxMs": 2422.13
+      },
+      "REJECTED": {
+        "count": 4414,
+        "meanMs": 29905.85,
+        "p95Ms": 57083.86,
+        "maxMs": 60000.47
+      },
+      "FAILED": {
+        "count": 0,
+        "meanMs": null,
+        "p95Ms": null,
+        "maxMs": null
+      }
+    },
+    "reads": [
+      {
+        "phase": "Baseline",
+        "base": "http://localhost:8080",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 4.78,
+        "p95Ms": 11.36,
+        "maxMs": 30.07
+      },
+      {
+        "phase": "Baseline",
+        "base": "http://localhost:8081",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 4.38,
+        "p95Ms": 10.71,
+        "maxMs": 29.11
+      },
+      {
+        "phase": "Mixed",
+        "base": "http://localhost:8080",
+        "targetRps": 50,
+        "actualStartRps": 49.93846153846154,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3246,
+        "meanMs": 8.28,
+        "p95Ms": 8.21,
+        "maxMs": 501.12
+      },
+      {
+        "phase": "Mixed",
+        "base": "http://localhost:8081",
+        "targetRps": 50,
+        "actualStartRps": 49.93846153846154,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3246,
+        "meanMs": 8.35,
+        "p95Ms": 7.91,
+        "maxMs": 528.48
+      }
+    ],
+    "burstReads": [
+      {
+        "base": "http://localhost:8080",
+        "failed": 0,
+        "count": 250,
+        "meanMs": 15.41,
+        "p95Ms": 91.86,
+        "maxMs": 297.84
+      },
+      {
+        "base": "http://localhost:8081",
+        "failed": 0,
+        "count": 250,
+        "meanMs": 16.62,
+        "p95Ms": 95.31,
+        "maxMs": 291.61
+      }
+    ],
+    "pool": [
+      {
+        "base": "http://localhost:8080",
+        "samples": 90,
+        "failed": 0,
+        "maxActive": 5,
+        "maxWaiting": 0
+      },
+      {
+        "base": "http://localhost:8081",
+        "samples": 90,
+        "failed": 0,
+        "maxActive": 2,
+        "maxWaiting": 0
+      }
+    ],
+    "generator": {
+      "eventLoopP95Ms": 31.375359,
+      "eventLoopMaxMs": 307.494911,
+      "cpuMs": 12641,
+      "wallMs": 90016.46439999998,
+      "rssBytes": 113020928,
+      "maxEnrollmentLagMs": 98.75110000000859,
+      "skippedEnrollment": 0
+    },
+    "database": {
+      "capacity": 100,
+      "enrolled": 100,
+      "actual": 100,
+      "confirmedReceipts": 0,
+      "consistent": true
+    }
+  },
+  {
+    "source": "summary(4).json",
+    "sha256": "b700c547b4fd381806753ce91c1808ea1c52d43b6c13b8f070ac2a910e914188",
+    "round": 3,
+    "mode": "pessimistic",
+    "outcomes": {
+      "CONFIRMED": 100,
+      "REJECTED": 3328,
+      "FAILED": 0,
+      "UNRESOLVED": 0,
+      "SUBMIT_FAILED": 0,
+      "SUBMIT_UNKNOWN": 1572,
+      "CLIENT_SKIPPED": 0
+    },
+    "responseCodes": {
+      "201": 100,
+      "409": 3328,
+      "SUBMIT_UNKNOWN": 1572
+    },
+    "acceptedSubmit": {
+      "count": 0,
+      "meanMs": null,
+      "p95Ms": null,
+      "maxMs": null
+    },
+    "terminalByOutcome": {
+      "CONFIRMED": {
+        "count": 100,
+        "meanMs": 1432.09,
+        "p95Ms": 2493.95,
+        "maxMs": 2604.22
+      },
+      "REJECTED": {
+        "count": 3328,
+        "meanMs": 34208.85,
+        "p95Ms": 58162.47,
+        "maxMs": 59993.75
+      },
+      "FAILED": {
+        "count": 0,
+        "meanMs": null,
+        "p95Ms": null,
+        "maxMs": null
+      }
+    },
+    "reads": [
+      {
+        "phase": "Baseline",
+        "base": "http://localhost:8080",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 4.63,
+        "p95Ms": 10.47,
+        "maxMs": 72.31
+      },
+      {
+        "phase": "Baseline",
+        "base": "http://localhost:8081",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 4.16,
+        "p95Ms": 9.51,
+        "maxMs": 78.28
+      },
+      {
+        "phase": "Mixed",
+        "base": "http://localhost:8080",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 17,
+        "p95Ms": 31.47,
+        "maxMs": 742.73
+      },
+      {
+        "phase": "Mixed",
+        "base": "http://localhost:8081",
+        "targetRps": 50,
+        "actualStartRps": 50,
+        "skipped": 0,
+        "failed": 0,
+        "count": 3250,
+        "meanMs": 17.6,
+        "p95Ms": 28.36,
+        "maxMs": 731.32
+      }
+    ],
+    "burstReads": [
+      {
+        "base": "http://localhost:8080",
+        "failed": 0,
+        "count": 250,
+        "meanMs": 11.42,
+        "p95Ms": 55.54,
+        "maxMs": 207.82
+      },
+      {
+        "base": "http://localhost:8081",
+        "failed": 0,
+        "count": 250,
+        "meanMs": 12.03,
+        "p95Ms": 47.29,
+        "maxMs": 217.35
+      }
+    ],
+    "pool": [
+      {
+        "base": "http://localhost:8080",
+        "samples": 90,
+        "failed": 0,
+        "maxActive": 4,
+        "maxWaiting": 0
+      },
+      {
+        "base": "http://localhost:8081",
+        "samples": 90,
+        "failed": 0,
+        "maxActive": 4,
+        "maxWaiting": 0
+      }
+    ],
+    "generator": {
+      "eventLoopP95Ms": 31.637503,
+      "eventLoopMaxMs": 292.814847,
+      "cpuMs": 16751,
+      "wallMs": 90012.5704,
+      "rssBytes": 114561024,
+      "maxEnrollmentLagMs": 56.61099999998987,
+      "skippedEnrollment": 0
+    },
+    "database": {
+      "capacity": 100,
+      "enrolled": 100,
+      "actual": 100,
+      "confirmedReceipts": 0,
+      "consistent": true
+    }
+  }
+]
