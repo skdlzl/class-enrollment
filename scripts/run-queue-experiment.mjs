@@ -26,7 +26,7 @@ function option(name, fallback) {
   if(!Number.isInteger(value)||value<1)throw Error(`--${name} requires a positive integer`);
   return value;
 }
-async function http(url,init={},timeout=10000){return transport.request(url,init,timeout);}
+export async function http(url,init={},timeout=10000){return transport.request(url,init,timeout);}
 export function transportSummary(samples){
   return Object.fromEntries(['submit','catalog','poll','diagnostic'].map(group=>{
     const rows=samples.filter(s=>s.group===group);
@@ -141,7 +141,7 @@ export async function phase(name,bases,students,courseId,config) {
       const wait=start+i*config.rampSeconds*1000/students.length-performance.now();if(wait>0)await delay(wait);
       const lagMs=Math.max(0,performance.now()-(start+i*config.rampSeconds*1000/students.length));
       if(lagMs>1000){results.push({studentId:students[i],courseId,outcome:'CLIENT_SKIPPED',lagMs,polls:0,pollErrors:0});continue;}
-      const observe=config.mode && config.mode!=='queue'?observeSynchronous:observeRequest;
+      const observe=config.observe ?? (config.mode && config.mode!=='queue'?observeSynchronous:observeRequest);
       tasks.push(observe(bases[i%bases.length],students[i],courseId,config).then(result=>results.push({...result,lagMs})));
     }
     await Promise.all(tasks);
@@ -157,7 +157,7 @@ export async function phase(name,bases,students,courseId,config) {
   return {name,startedAt,endedAt,reads:readResults,pools:poolResults,enrollments:results,
     diagnostics:{before,after,generator,transport:transportSummary(httpSamples)},httpSamples};
 }
-function sql(query, headers=false) {
+export function sql(query, headers=false) {
   return execFileSync('docker',['exec','-i','class-enrollment-mysql','mysql','-uclass_user','-pclass_password',
     '--batch',...(headers?[]:['--skip-column-names']),'class_enrollment'],{input:query,encoding:'utf8',maxBuffer:8*1024*1024,stdio:['pipe','pipe','pipe']}).trim();
 }
@@ -268,3 +268,5 @@ async function main() {
   }
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(error=>{console.error(error.message);process.exitCode=1;}).finally(()=>transport.close());
+
+export function closeExperimentTransport(){transport.close();}
