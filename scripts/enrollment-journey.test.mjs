@@ -27,3 +27,8 @@ test('full query result avoids POST; unrelated 409 stops',async()=>{
   const other=await observeJourney('http://test',7,null,config,async(u,i)=>i.method==='POST'?{status:409,body:{code:'CREDIT_LIMIT_EXCEEDED'}}:page);
   assert.equal(other.outcome,'SUBMIT_FAILED');assert.equal(other.attempts,1);
 });
+test('retain lock error message and per-request transport timing',async()=>{
+  const timing={socketAssignedMs:12,elapsedMs:45};
+  const r=await observeJourney('http://test',7,null,config,async(u,i)=>i.method==='POST'?{status:503,body:{code:'LOCK_ACQUISITION_TIMEOUT',message:'course lock timeout'},timing}:{...page,timing});
+  assert.equal(r.outcome,'SUBMIT_FAILED');assert.equal(r.steps[1].message,'course lock timeout');assert.deepEqual(r.steps[1].timing,timing);assert.deepEqual(r.steps[0].timing,timing);
+});

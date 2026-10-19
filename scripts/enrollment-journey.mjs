@@ -11,7 +11,7 @@ export async function observeJourney(base, studentId, unused, config, request) {
     let read, began=performance.now();
     try {read=await request(`${base}/api/courses?year=2026&semester=2&department=${config.department}&size=20`,{},Math.max(1,remaining()));}
     catch(error){steps.push({kind:'read',elapsedMs:performance.now()-began,error:error.message});return finish('READ_FAILED');}
-    steps.push({kind:'read',status:read.status,elapsedMs:performance.now()-began});
+    steps.push({kind:'read',status:read.status,elapsedMs:performance.now()-began,timing:read.timing});
     if(read.status!==200||!Array.isArray(read.body?.items))return finish('READ_FAILED');
     const available=read.body.items.filter(c=>config.courseIds.includes(c.id)&&!tried.has(c.id)&&c.enrolledCount<c.capacity).sort((a,b)=>a.id-b.id);
     if(!available.length)return finish('NO_AVAILABLE_COURSE');
@@ -22,7 +22,7 @@ export async function observeJourney(base, studentId, unused, config, request) {
     let result;
     try {result=await request(`${base}/api/enrollments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId,courseId:course.id})},Math.max(1,remaining()));}
     catch(error){steps.push({kind:'submit',courseId:course.id,elapsedMs:performance.now()-began,error:error.message});return finish('SUBMIT_UNKNOWN');}
-    steps.push({kind:'submit',courseId:course.id,status:result.status,code:result.body?.code,elapsedMs:performance.now()-began});
+    steps.push({kind:'submit',courseId:course.id,status:result.status,code:result.body?.code,message:result.body?.message,timing:result.timing,elapsedMs:performance.now()-began});
     if(result.status===201)return finish('CONFIRMED');
     // Never retry ambiguous writes or infrastructure errors against a different course.
     if(result.status!==409||result.body?.code!=='COURSE_FULL')return finish('SUBMIT_FAILED');

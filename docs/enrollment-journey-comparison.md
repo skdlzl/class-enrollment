@@ -47,3 +47,11 @@ node .\scripts\run-enrollment-journey.mjs REDIS --warmup
 - DB 확인은 정원/카운터/실제 신청 수 및 학생의 복수 신청 여부를 확인한다. 응답 불명으로 클라이언트 성공 수와 DB 성공 수가 다르면 정상 비교로 취급하지 않는다.
 - 폴더는 jmeter/results/journey-전략-warmup또는measured-시간-ID 이다. summary.json과 mixed.json을 비교한다.
 - 이전 단일 과목 실험과는 시나리오가 달라 성능 개선율을 직접 계산하지 않는다. Redis가 더 유리하다는 결론은 사전 가정하지 않는다.
+
+## v2 측정기 수정
+
+measurementVersion=journey-v2-isolated-client. 사용자 흐름은 별도 HTTP Agent를 사용한다. 서버별 사용자 250명에 맞춰 사용자 조회/신청 각각 maxSockets=250으로 설정한다. 배경 조회 Agent는 기존 16개를 유지하며 사용자 조회와 공유하지 않는다. 동일 Node 프로세스와 PC 자원은 여전히 공유하므로 완전한 부하 생성기 격리는 아니다.
+
+서버 락/DB 풀/타임아웃 설정은 변경하지 않는다. 클라이언트 연결 제한이 바뀌어 실제 서버 유입량이 달라질 수 있으므로 v1 결과와 개선율을 계산하지 말고 두 전략 모두 v2로 측정한다. socketAssignedMs는 연결 배정까지의 클라이언트 대기다. afterSocketMs는 각 요청의 전체 시간에서 연결 배정 시간을 뺀 값으로, TCP 연결/네트워크/서버 처리 등이 포함되며 순수 서버 처리 시간이 아니다. P95끼리 빼지 않고 요청별로 계산한다.
+
+failureGroups에 HTTP 상태/오류 코드/메시지를 보존한다. LOCK_ACQUISITION_TIMEOUT의 학생/과목 구분은 메시지 및 서버 ENROLLMENT_TIMING의 outcome을 교차 확인한다. 이전 v1 원시 결과에는 메시지가 없으므로 새 측정으로 이전 실패 위치를 소급 확정할 수 없다.
