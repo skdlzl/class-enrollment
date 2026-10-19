@@ -23,9 +23,10 @@ public class EnrollmentQueueController {
         return Map.of("message","접수 상태를 확인할 수 없습니다. 같은 신청으로 다시 확인해 주세요.");
     }
     @PostMapping @ResponseStatus(HttpStatus.ACCEPTED)
-    public EnrollmentTicket submit(@Valid @RequestBody EnrollmentRequest request) {
-        var ticket=store.submit(request.studentId(),request.courseId());
-        return ticket;
+    public EnrollmentTicket submit(@Valid @RequestBody EnrollmentRequest request, jakarta.servlet.http.HttpServletRequest http) {
+        long start=System.nanoTime();
+        try {return store.submit(request.studentId(),request.courseId());}
+        finally {http.setAttribute(com.jiyun.classenrollment.experiment.RequestDiagnostics.REDIS_NANOS,System.nanoTime()-start);}
     }
     @GetMapping("/{id}") public EnrollmentTicket get(@PathVariable String id) {return store.get(id);}
     @GetMapping public List<EnrollmentTicket> list(@RequestParam long studentId) {return store.forStudent(studentId);}

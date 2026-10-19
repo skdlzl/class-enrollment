@@ -65,3 +65,20 @@ node .\scripts\run-enrollment-stress.mjs --mode pessimistic
 - conditions.json에 실제 서버 설정을 기록합니다. 양쪽 서버의 모드·풀 설정이 다르면 실험을 시작하지 않습니다.
 
 부하 생성기와 서버가 같은 PC라면 자원을 서로 공유합니다. 이번 로컬 결과를 실서비스의 최대 처리량으로 일반화하지 않습니다.
+
+## 시간 초과 진단
+
+최신 JAR을 experiment.enabled=true로 실행하면 /api/experiment/diagnostics가 누적 카운터를 제공합니다.
+각 phase 전후 스냅샷과 Node 생성기 정보를 baseline.json / mixed.json에 저장하며,
+혼합 구간 진단은 summary.json에도 포함합니다. 재시작 없이 스냅샷 차이로 비교합니다.
+
+- entered/completed/errors: 서블릿 필터 진입/종료/오류 수. HTTP 진입 전 연결 대기는 포함하지 않습니다.
+- httpTotalMs: 필터 진입부터 종료까지의 누적 시간. 응답이 클라이언트에 전달됐다는 보장은 아닙니다.
+- redisCalls/redisTotalMs: 접수 store 호출 횟수/누적 시간. 직렬화, Redisson 연결 대기와 통신을 포함하며 Redis 명령 실행 시간만 뜻하지 않습니다.
+- generator.eventLoopP95Ms/eventLoopMaxMs: Node 이벤트 루프 지연. 20ms 해상도의 측정 기준값이 포함됩니다.
+- generator.cpuMs/wallMs/rssBytes: 해당 Node 프로세스의 CPU 사용 시간, 관찰 시간, 종료 시점 메모리. 서버나 Docker CPU가 아닙니다.
+
+카운터 스냅샷은 원자적 전체 스냅샷이 아니므로 처리 중에는 작은 시점 차이가 있습니다.
+HTTP 종료 시에 Redis 시간을 집계하므로 진행 중 요청은 아직 시간 합계에 포함되지 않습니다.
+진단 API도 실패하면 error/status를 남기며 0으로 대체하지 않습니다.
+타임아웃과 큐 크기, 디스크 동기화 정책은 변경하지 않았습니다.

@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
-import { performance } from 'node:perf_hooks';
+import { performance, monitorEventLoopDelay } from 'node:perf_hooks';
 import { setTimeout as delay } from 'node:timers/promises';
 
 export function percentile(values, quantile = .95) {
@@ -113,6 +113,13 @@ export async function readLoad(base, config) {
 }
 export async function phase(name,bases,students,courseId,config) {
   console.log(`${name}: 조회 ${config.readSeconds}초${students.length ? ` + 신청 ${students.length}건/${config.rampSeconds}초` : ''}`);
+  const diagnosticSnapshot=async()=>Promise.all(bases.map(async base=>{
+    try {const r=await http(`${base}/api/experiment/diagnostics`,{},3000);return {base,...r};}
+    catch(error){return {base,error:error.message};}
+  }));
+  const before=config.collectPool?await diagnosticSnapshot():[];
+  const loop=monitorEventLoopDelay({resolution:20});loop.enable();
+  const cpuStart=process.cpuUsage(),wallStart=performance.now();
   const startedAt=Date.now();
   const reads=Promise.all(bases.map(base=>readLoad(base,config)));
   const pools=config.collectPool?Promise.all(bases.map(base=>poolLoad(base,config))):Promise.resolve([]);
@@ -129,7 +136,15 @@ export async function phase(name,bases,students,courseId,config) {
     }
     await Promise.all(tasks);
   }
-  return {name,startedAt,endedAt:Date.now(),reads:await reads,pools:await pools,enrollments:results};
+  const readResults=await reads,poolResults=await pools;
+  loop.disable();
+  const cpu=process.cpuUsage(cpuStart);
+  const generator={eventLoopP95Ms:loop.percentile(95)/1e6,eventLoopMaxMs:loop.max/1e6,
+    cpuMs:(cpu.user+cpu.system)/1000,wallMs:performance.now()-wallStart,rssBytes:process.memoryUsage().rss};
+  const endedAt=Date.now();
+  const after=config.collectPool?await diagnosticSnapshot():[];
+  return {name,startedAt,endedAt,reads:readResults,pools:poolResults,enrollments:results,
+    diagnostics:{before,after,generator}};
 }
 function sql(query, headers=false) {
   return execFileSync('docker',['exec','-i','class-enrollment-mysql','mysql','-uclass_user','-pclass_password',
@@ -151,6 +166,8 @@ async function main() {
     if(mode!=='queue'||config.collectPool){
       const p=await http(`${base}/api/experiment/pool`);
       if(p.status!==200||typeof p.body?.queueEnabled!=='boolean')throw Error(`${base}: 최신 서버를 --experiment.enabled=true로 실행하세요.`);
+      const diagnostic=await http(`${base}/api/experiment/diagnostics`);
+      if(diagnostic.status!==200)throw Error(`${base}: 진단 기능이 포함된 최신 JAR로 재시작하세요.`);
       poolState=p.body;
       if(mode==='queue'&&!poolState.queueEnabled)throw Error(`${base}: 큐가 비활성화돼 있습니다.`);
       if(mode!=='queue'&&(poolState.queueEnabled||poolState.strategy!=='PESSIMISTIC'||poolState.gate!==(mode==='pessimistic')))
@@ -217,7 +234,8 @@ async function main() {
     return {base:p.base,samples:valid.length,failed:p.samples.length-valid.length,
       maxActive:valid.length?Math.max(...valid.map(s=>s.active)):null,maxWaiting:valid.length?Math.max(...valid.map(s=>s.waiting)):null};
   });
-  summary.generator={maxEnrollmentLagMs:Math.max(...mixed.enrollments.map(e=>e.lagMs??0)),skippedEnrollment:summary.outcomes.CLIENT_SKIPPED};
+  summary.diagnostics=mixed.diagnostics;
+  summary.generator={...mixed.diagnostics.generator,maxEnrollmentLagMs:Math.max(...mixed.enrollments.map(e=>e.lagMs??0)),skippedEnrollment:summary.outcomes.CLIENT_SKIPPED};
   summary.responseCodes=Object.fromEntries([...new Set(mixed.enrollments.map(e=>String(e.submitCode??e.outcome)))].map(code=>[code,mixed.enrollments.filter(e=>String(e.submitCode??e.outcome)===code).length]));
   save(directory,'summary.json',summary);
   const verification=sql(`SELECT c.id,c.capacity,c.enrolled_count,(SELECT COUNT(*) FROM enrollments e WHERE e.course_id=c.id) AS actual_count FROM courses c WHERE c.id=${courseId}; SELECT status,COUNT(*) AS count FROM enrollment_ingress_results WHERE course_id=${courseId} GROUP BY status;`,true);

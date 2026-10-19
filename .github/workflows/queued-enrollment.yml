@@ -18,7 +18,7 @@ jobs:
           cache: maven
       - name: Queue durability and concurrency integration tests
         working-directory: backend
-        run: bash mvnw -B -Dtest=RedisIngressIntegrationTest,EnrollmentServiceTest,EnrollmentRedissonFacadeTest test
+        run: bash mvnw -B -Dtest=RedisIngressIntegrationTest,EnrollmentServiceTest,EnrollmentRedissonFacadeTest,RequestDiagnosticsTest test
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

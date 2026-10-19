@@ -15,16 +15,20 @@ import java.util.Map;
 @ConditionalOnProperty(name="experiment.enabled", havingValue="true")
 public class ExperimentController {
     private final JdbcTemplate jdbc;
+    private final RequestDiagnostics diagnostics;
     private final HikariDataSource pool;
     @Value("${enrollment.course-lock-strategy}") private String strategy;
     @Value("${enrollment.local-gate-enabled:false}") private boolean gate;
     @Value("${enrollment.queue.enabled:false}") private boolean queueEnabled;
     @Value("${enrollment.queue.batch-reject-enabled:true}") private boolean batchReject;
     @Value("${enrollment.capacity-precheck:true}") private boolean precheck;
-    public ExperimentController(JdbcTemplate jdbc, DataSource source) throws SQLException {
+    public ExperimentController(JdbcTemplate jdbc, DataSource source, RequestDiagnostics diagnostics) throws SQLException {
         this.jdbc = jdbc;
+        this.diagnostics = diagnostics;
         this.pool = source.unwrap(HikariDataSource.class);
     }
+    @GetMapping("/api/experiment/diagnostics")
+    public Map<String,Object> diagnostics() {return diagnostics.snapshot();}
     @GetMapping("/api/experiment/read")
     public Map<String, Object> read() {
         return jdbc.queryForMap("SELECT id, name FROM students WHERE id=1");
