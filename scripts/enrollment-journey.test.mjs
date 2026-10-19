@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { observeJourney } from './enrollment-journey.mjs';
+import { observeJourney, assertSearchTargets } from './enrollment-journey.mjs';
 const config={deadlineMs:1000,department:'TEST',courseIds:[1,2,3,4,5],studentIndexes:{7:0}};
 const page={status:200,body:{items:[1,2,3,4,5].map(id=>({id,capacity:100,enrolledCount:0}))}};
 test('fresh query before each alternative; stop on first success',async()=>{
@@ -43,4 +43,12 @@ test('search journey uses actual pagination then filtered results before submiss
   assert.equal(r.outcome,'CONFIRMED');assert.equal(calls.length,4);
   assert.equal(calls[0].get('grade'),'1');assert.equal(calls[0].get('size'),'50');
   assert.equal(calls[1].get('afterId'),'999');assert.equal(calls[2].get('keyword'),'수강실습');
+});
+
+test('preflight refuses empty or corrupted keyword results before load begins',()=>{
+  assert.throws(()=>assertSearchTargets({status:200,body:{items:[]}},[1]),/검색 사전 검증 실패/);
+  const item={id:1,grade:1,capacity:100,enrolledCount:0,name:'수강실습 C1'};
+  assert.doesNotThrow(()=>assertSearchTargets({status:200,body:{items:[item]}},[1]));
+  assert.throws(()=>assertSearchTargets({status:200,body:{items:[{...item,name:'???'}]}},[1]));
+  assert.throws(()=>assertSearchTargets({status:200,body:{items:[item]}},[1,2]));
 });

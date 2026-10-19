@@ -38,3 +38,10 @@ export async function observeJourney(base, studentId, unused, config, request) {
   }
   return finish('ATTEMPT_LIMIT');
 }
+
+export function assertSearchTargets(response, courseIds) {
+  const items=response.body?.items;
+  if(response.status!==200||!Array.isArray(items))throw Error('검색 사전 검증 실패: 목록 응답이 올바르지 않습니다.');
+  const missing=courseIds.filter(id=>!items.some(c=>c.id===id&&c.grade===1&&c.enrolledCount===0&&c.capacity===100&&c.name?.includes('수강실습')));
+  if(missing.length)throw Error(`검색 사전 검증 실패: 신청 대상 ${missing.length}개가 검색되지 않거나 초기 상태가 다릅니다. preflight.json을 확인하세요. 측정은 시작하지 않았습니다.`);
+}

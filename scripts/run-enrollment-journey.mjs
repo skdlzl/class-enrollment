@@ -7,7 +7,7 @@ import { http, sql, phase, statistics, transportSummary, closeExperimentTranspor
 import { validateSyncLockMode } from './sync-lock-modes.mjs';
 import { ExperimentHttp } from './experiment-http.mjs';
 const journeyTransport=new ExperimentHttp({submit:250,catalog:250,poll:1,diagnostic:1});
-import { observeJourney } from './enrollment-journey.mjs';
+import { observeJourney, assertSearchTargets } from './enrollment-journey.mjs';
 
 async function main(){
   const searchMode=process.argv.includes('--search');
@@ -64,6 +64,19 @@ async function main(){
   save('cohort.json',{students,courseIds});
   console.log(`결과 저장: ${directory}\n${searchMode?'1만 과목, 목록 2페이지+과목명 검색 → 신청':'조회 → 신청'} → 마감 시 재조회, 최대 3회 신청. 배경 조회 서버당 ${readRps}RPS. ${warmup?'예열 실행(비교 제외)':'본 측정'}`);
   for(const base of bases)for(let i=0;i<5;i++)await http(config.readUrl?config.readUrl(base,i):`${base}/api/courses?year=2026&semester=2&department=CS&afterId=100000&size=20`);
+  if(searchMode){
+    console.log('준비: 두 서버에서 한글 검색 결과와 신청 대상 5개 대조');
+    const preflight=[];
+    for(const base of bases){
+      const params=new URLSearchParams({year:'2026',semester:'2',department,grade:'1',keyword:'수강실습',size:'50'});
+      const result=await http(`${base}/api/courses?${params}`);
+      const unfiltered=await http(`${base}/api/courses?year=2026&semester=2&department=${department}&grade=1&size=50`);
+      preflight.push({base,expectedCourseIds:courseIds,query:params.toString(),result,unfiltered});
+      save('preflight.json',preflight);
+      assertSearchTargets(result,courseIds);
+    }
+    console.log('검색 사전 검증 통과: 두 서버 모두 신청 대상 5개 확인');
+  }
   const baseline=await phase('Baseline',bases,[],null,config);save('baseline.json',baseline);
   const mixed=await phase('Journey',bases,students,null,{...config,observe:(...args)=>observeJourney(...args,(...requestArgs)=>journeyTransport.request(...requestArgs))});mixed.journeyHttpSamples=journeyTransport.drain();save('mixed.json',mixed);
   const rows=mixed.enrollments, steps=rows.flatMap(r=>r.steps??[]);
@@ -88,7 +101,7 @@ async function main(){
   console.table(outcomes);console.log('첫 조회부터 신청 성공까지:',summary.successfulJourney);console.table(database);
   console.table(summary.backgroundReads.map(r=>({phase:r.phase,base:r.base,p95Ms:r.p95Ms,failed:r.failed,skipped:r.skipped})));
   console.log(`Saved: ${directory}`);
-  if(!summary.databaseConsistent||summary.clientConfirmed!==summary.dbConfirmed||['READ_FAILED','SUBMIT_FAILED','SUBMIT_UNKNOWN','DEADLINE','CLIENT_SKIPPED'].some(o=>outcomes[o])||summary.backgroundReads.some(r=>r.failed||r.skipped)||summary.pool.some(p=>p.failed)){
+  if(!steps.some(s=>s.kind==='submit')||!summary.databaseConsistent||summary.clientConfirmed!==summary.dbConfirmed||['READ_FAILED','SUBMIT_FAILED','SUBMIT_UNKNOWN','DEADLINE','CLIENT_SKIPPED'].some(o=>outcomes[o])||summary.backgroundReads.some(r=>r.failed||r.skipped)||summary.pool.some(p=>p.failed)){
     console.warn('오류/측정 불확실성이 있습니다. 결과를 보존하고 원인을 확인하세요.');process.exitCode=2;
   }
 }

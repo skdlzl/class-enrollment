@@ -159,7 +159,7 @@ export async function phase(name,bases,students,courseId,config) {
 }
 export function sql(query, headers=false) {
   return execFileSync('docker',['exec','-i','class-enrollment-mysql','mysql','-uclass_user','-pclass_password',
-    '--batch',...(headers?[]:['--skip-column-names']),'class_enrollment'],{input:query,encoding:'utf8',maxBuffer:8*1024*1024,stdio:['pipe','pipe','pipe']}).trim();
+    '--default-character-set=utf8mb4','--batch',...(headers?[]:['--skip-column-names']),'class_enrollment'],{input:query,encoding:'utf8',maxBuffer:8*1024*1024,stdio:['pipe','pipe','pipe']}).trim();
 }
 function save(directory,name,data){writeFileSync(resolve(directory,name),JSON.stringify(data,null,2));}
 async function main() {
