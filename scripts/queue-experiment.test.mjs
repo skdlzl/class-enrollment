@@ -110,7 +110,7 @@ test('synchronous lock comparison rejects queue, gate, precheck and strategy mis
 
 test('both lock modes use synchronous enrollment endpoint without polling',async()=>{
   const {phase}=await import('./run-queue-experiment.mjs');
-  for(const mode of ['sync-redis','sync-pessimistic']){
+  for(const mode of ['sync-redis','sync-pessimistic','sync-redis-precheck','sync-pessimistic-precheck']){
     const paths=[];
     await withServer((req,res)=>{paths.push([req.method,req.url]);json(res,201,{});},async base=>{
       const result=await phase('test',[base],[1],1,{...config,mode,readSeconds:0,readRps:1,
@@ -119,5 +119,17 @@ test('both lock modes use synchronous enrollment endpoint without polling',async
       assert.equal(result.enrollments[0].outcome,'CONFIRMED');
       assert.equal(result.enrollments[0].polls,0);
     });
+  }
+});
+
+
+test('precheck modes require precheck on for both strategies and keep gate off',()=>{
+  for(const strategy of ['REDIS','PESSIMISTIC']){
+    const mode=`sync-${strategy.toLowerCase()}-precheck`;
+    const state={strategy,gate:false,precheck:true,max:10,queueEnabled:false};
+    assert.doesNotThrow(()=>validateSyncLockMode(mode,state));
+    assert.throws(()=>validateSyncLockMode(mode,{...state,precheck:false}));
+    assert.throws(()=>validateSyncLockMode(mode,{...state,gate:true}));
+    assert.throws(()=>validateSyncLockMode(mode,{...state,queueEnabled:true}));
   }
 });

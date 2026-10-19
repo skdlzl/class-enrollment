@@ -74,3 +74,21 @@ Redis의 courseLockWaitMs는 Redis 락 대기다. 비관적 락의 writeMs에는
 
 DB 연결 대기와 조회 지연이 줄면서 신청 처리 비용이 증가한다면 트레이드오프가 확인된 것이다.
 모든 주요 지표에서 비관적 락이 좋으면 이 조건에서는 비관적 락이 유리하다고 기록한다.
+
+
+## 사전 정원 검사 ON 비교
+
+OFF 결과를 보존하고 양쪽 서버 모두 `--enrollment.capacity-precheck=true`로 시작한다.
+나머지 서버 옵션과 부하 조건은 동일하다. JAR 수정은 없다.
+
+```powershell
+node .\scripts\run-sync-lock-comparison.mjs REDIS --precheck
+# 두 서버를 PESSIMISTIC으로 재시작한 후
+node .\scripts\run-sync-lock-comparison.mjs PESSIMISTIC --precheck
+```
+
+결과 mode는 sync-redis-precheck / sync-pessimistic-precheck로 구분된다.
+서버 사전 검사 설정이 false면 실행을 거부한다.
+사전 검사는 조회 시점에 이미 마감된 요청을 거절한다. 이미 검사를 통과해 락을 기다리는 요청을 취소하지 않으며,
+검사 직후 정원이 찰 수도 있으므로 락 내부의 최종 정원 검사는 유지한다.
+503 감소 여부는 측정 결과로 확인하며 미리 보장하지 않는다.
