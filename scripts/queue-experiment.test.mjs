@@ -63,3 +63,37 @@ test('synchronous network failure is unknown rather than business rejection',asy
     const result=await observeSynchronous(base,1,1,config);assert.equal(result.outcome,'SUBMIT_UNKNOWN');
   });
 });
+
+import { ExperimentHttp } from './experiment-http.mjs';
+test('bounded submit pool queues requests, reuses sockets and does not block catalog pool',async()=>{
+  const client=new ExperimentHttp({submit:1,catalog:1,poll:1,diagnostic:1});
+  let release,entered;
+  const arrived=new Promise(r=>entered=r);
+  let posts=0;
+  try{await withServer((req,res)=>{
+    if(req.method==='POST'&&++posts===1){release=()=>json(res,202,{});entered();}
+    else json(res,req.method==='POST'?202:200,{});
+  },async base=>{
+    const first=client.request(base+'/api/enrollment-requests',{method:'POST'},2000);
+    await arrived;
+    const second=client.request(base+'/api/enrollment-requests',{method:'POST'},2000);
+    const read=await client.request(base+'/api/courses',{},1000);
+    assert.equal(read.status,200);assert.equal(posts,1);
+    await new Promise(r=>setTimeout(r,30));release();
+    const [a,b]=await Promise.all([first,second]);
+    assert.equal(a.status,202);assert.equal(b.status,202);
+    assert.ok(b.timing.socketAssignedMs>=25);assert.equal(b.timing.reusedSocket,true);
+  });}finally{client.close();}
+});
+test('HTTP deadline includes waiting for a pooled socket',async()=>{
+  const client=new ExperimentHttp({submit:1,catalog:1,poll:1,diagnostic:1});
+  let release,entered;
+  const arrived=new Promise(r=>entered=r);
+  try{await withServer((req,res)=>{release=()=>json(res,202,{});entered();},async base=>{
+    const first=client.request(base+'/api/enrollment-requests',{method:'POST'},2000);
+    await arrived;
+    await assert.rejects(client.request(base+'/api/enrollment-requests',{method:'POST'},30),{code:'HTTP_DEADLINE'});
+    const timed=client.drain()[0];assert.equal(timed.socketAssignedMs,null);
+    assert.ok(timed.elapsedMs>=25);release();await first;
+  });}finally{client.close();}
+});

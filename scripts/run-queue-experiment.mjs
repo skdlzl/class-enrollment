@@ -3,6 +3,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ExperimentHttp } from './experiment-http.mjs';
+const transport=new ExperimentHttp();
 import { randomBytes } from 'node:crypto';
 import { performance, monitorEventLoopDelay } from 'node:perf_hooks';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -23,10 +25,16 @@ function option(name, fallback) {
   if(!Number.isInteger(value)||value<1)throw Error(`--${name} requires a positive integer`);
   return value;
 }
-async function http(url, init={}, timeout=10000) {
-  const response=await fetch(url,{...init,signal:AbortSignal.timeout(timeout)});
-  const body=await response.json().catch(()=>null);
-  return {status:response.status,body};
+async function http(url,init={},timeout=10000){return transport.request(url,init,timeout);}
+export function transportSummary(samples){
+  return Object.fromEntries(['submit','catalog','poll','diagnostic'].map(group=>{
+    const rows=samples.filter(s=>s.group===group);
+    const metric=key=>statistics(rows.filter(s=>Number.isFinite(s[key])).map(s=>s[key]));
+    return [group,{count:rows.length,failed:rows.filter(s=>s.error).length,
+      noSocket:rows.filter(s=>s.socketAssignedMs===null).length,reused:rows.filter(s=>s.reusedSocket).length,
+      socketAssignedMs:metric('socketAssignedMs'),connectedMs:metric('connectedMs'),
+      requestFlushedMs:metric('requestFlushedMs'),headersMs:metric('headersMs'),elapsedMs:metric('elapsedMs')}];
+  }));
 }
 export async function observeRequest(base, studentId, courseId, config) {
   const start=performance.now(), startedAt=Date.now();
@@ -118,6 +126,7 @@ export async function phase(name,bases,students,courseId,config) {
     catch(error){return {base,error:error.message};}
   }));
   const before=config.collectPool?await diagnosticSnapshot():[];
+  transport.drain();
   const loop=monitorEventLoopDelay({resolution:20});loop.enable();
   const cpuStart=process.cpuUsage(),wallStart=performance.now();
   const startedAt=Date.now();
@@ -142,9 +151,10 @@ export async function phase(name,bases,students,courseId,config) {
   const generator={eventLoopP95Ms:loop.percentile(95)/1e6,eventLoopMaxMs:loop.max/1e6,
     cpuMs:(cpu.user+cpu.system)/1000,wallMs:performance.now()-wallStart,rssBytes:process.memoryUsage().rss};
   const endedAt=Date.now();
+  const httpSamples=transport.drain();
   const after=config.collectPool?await diagnosticSnapshot():[];
   return {name,startedAt,endedAt,reads:readResults,pools:poolResults,enrollments:results,
-    diagnostics:{before,after,generator}};
+    diagnostics:{before,after,generator,transport:transportSummary(httpSamples)},httpSamples};
 }
 function sql(query, headers=false) {
   return execFileSync('docker',['exec','-i','class-enrollment-mysql','mysql','-uclass_user','-pclass_password',
@@ -189,7 +199,7 @@ async function main() {
   const directory=resolve(root,'jmeter','results',`${mode}-${new Date().toISOString().replace(/[:.]/g,'-')}-${run}`);
   mkdirSync(directory,{recursive:true});
   let revision='unknown';try{revision=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();}catch{}
-  save(directory,'conditions.json',{...config,run,revision,bases,catalogCount,serverModes,
+  save(directory,'conditions.json',{...config,run,revision,bases,catalogCount,serverModes,transport:{name:'node-http-keepalive-v1',limits:transport.limits},
     note:'Node HTTP client. Same read arrival schedule in both phases. Terminal time includes polling delay; no claim of simultaneous arrival.'});
   // Independent identities for each run. Never truncate/delete the user's enrollment or catalog data.
   const values=Array.from({length:config.users},(_,i)=>`('${run}${i}','Queue ${i}','ACTIVE',18)`).join(',');
@@ -242,6 +252,7 @@ async function main() {
   writeFileSync(resolve(directory,'database.txt'),verification+'\n');
   console.table(summary.reads.map(r=>({phase:r.phase,server:r.base,count:r.count,p95Ms:r.p95Ms,failed:r.failed,actualRps:r.actualStartRps.toFixed(2),skipped:r.skipped})));
   if(mode==='queue')console.log('접수 응답 (202 응답만):',summary.acceptedSubmit);
+  console.log('HTTP 연결 진단:',JSON.stringify(summary.diagnostics.transport,null,2));
   console.log('신청이 몰린 구간의 조회 응답:');console.table(summary.burstReads);
   console.table(summary.pool);console.log('응답 코드:',summary.responseCodes,'부하 생성:',summary.generator);
   console.table(summary.terminalByOutcome);console.table(summary.outcomes);console.log(verification);
@@ -254,4 +265,4 @@ async function main() {
     console.warn('부하 한계 또는 측정 불확실성이 확인됐습니다. 결과를 보존하고 자동 증량을 중단합니다.');process.exitCode=2;
   }
 }
-if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(error=>{console.error(error.message);process.exitCode=1;});
+if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(error=>{console.error(error.message);process.exitCode=1;}).finally(()=>transport.close());

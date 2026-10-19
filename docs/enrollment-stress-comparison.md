@@ -82,3 +82,22 @@ node .\scripts\run-enrollment-stress.mjs --mode pessimistic
 HTTP 종료 시에 Redis 시간을 집계하므로 진행 중 요청은 아직 시간 합계에 포함되지 않습니다.
 진단 API도 실패하면 error/status를 남기며 0으로 대체하지 않습니다.
 타임아웃과 큐 크기, 디스크 동기화 정책은 변경하지 않았습니다.
+
+## 연결 풀을 명시한 생성기
+
+node-http-keepalive-v1은 서버(origin)당 접수128, 조회16, 결과확인32, 진단2개 연결을
+각각 재사용합니다. 큐 모드와 비관적 락 모드에 같은 제한을 적용합니다.
+이전 fetch 기반 결과와는 생성기 버전이 다르므로 직접 성능 향상률을 계산하지 않습니다.
+접수 타임아웃10초는 연결 배정 대기부터 응답 본문 수신까지 모두 포함합니다.
+연결 제한으로 실제 서버 도착률이 목표보다 낮아질 수 있으며, 계획한 전송률을 서버 도착률로 표현하지 않습니다.
+
+mixed.json의 httpSamples와 summary.json의 diagnostics.transport를 함께 봅니다.
+각 시간은 HTTP 호출 시작 기준 누적 시간이며 서로 더하는 값이 아닙니다.
+- socketAssignedMs: Agent가 소켓을 배정하기까지. 새 연결의 TCP 연결 시간은 제외.
+- connectedMs: TCP 연결(HTTPS는 TLS까지) 또는 재사용 소켓 준비 시점.
+- requestFlushedMs: Node가 요청 쓰기를 완료한 시점. 서버 도착을 보장하지 않음.
+- headersMs: 응답 헤더 수신 시점.
+- elapsedMs: 본문 수신 또는 오류까지. 실패도 포함.
+- noSocket: 소켓 배정 전 끝난 요청 수. 누락된 측정값은 0으로 처리하지 않음.
+
+이 수정은 서버 지연을 해결했다는 뜻이 아닙니다. 생성기 연결 대기를 드러내기 위한 수정입니다.
