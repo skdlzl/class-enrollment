@@ -32,3 +32,15 @@ test('retain lock error message and per-request transport timing',async()=>{
   const r=await observeJourney('http://test',7,null,config,async(u,i)=>i.method==='POST'?{status:503,body:{code:'LOCK_ACQUISITION_TIMEOUT',message:'course lock timeout'},timing}:{...page,timing});
   assert.equal(r.outcome,'SUBMIT_FAILED');assert.equal(r.steps[1].message,'course lock timeout');assert.deepEqual(r.steps[1].timing,timing);assert.deepEqual(r.steps[0].timing,timing);
 });
+test('search journey uses actual pagination then filtered results before submission',async()=>{
+  const calls=[];
+  const r=await observeJourney('http://test',7,null,{...config,searchMode:true},async(url,init)=>{
+    if(init.method==='POST'){calls.push('POST');assert.equal(JSON.parse(init.body).courseId,1);return {status:201};}
+    const params=new URL(url).searchParams;calls.push(params);
+    if(params.get('keyword'))return page;
+    return {status:200,body:{items:[{id:999,capacity:100,enrolledCount:0}],nextAfterId:999}};
+  });
+  assert.equal(r.outcome,'CONFIRMED');assert.equal(calls.length,4);
+  assert.equal(calls[0].get('grade'),'1');assert.equal(calls[0].get('size'),'50');
+  assert.equal(calls[1].get('afterId'),'999');assert.equal(calls[2].get('keyword'),'수강실습');
+});

@@ -110,7 +110,7 @@ export async function readLoad(base, config) {
     const began=performance.now();
     const task=(async()=>{
       try {
-        const result=await http(`${base}/api/courses?year=2026&semester=2&department=CS&afterId=${100000+(i%100)*100}&size=20`,{},config.httpTimeoutMs);
+        const result=await http(config.readUrl ? config.readUrl(base,i) : `${base}/api/courses?year=2026&semester=2&department=CS&afterId=${100000+(i%100)*100}&size=20`,{},config.httpTimeoutMs);
         samples.push({startedMs:began-start,elapsedMs:performance.now()-began,lagMs:lag,code:result.status});
       } catch(error){samples.push({startedMs:began-start,elapsedMs:performance.now()-began,lagMs:lag,code:'NETWORK_ERROR',error:error.message});}
     })();pending.add(task);task.finally(()=>pending.delete(task));

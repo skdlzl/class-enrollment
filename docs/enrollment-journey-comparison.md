@@ -55,3 +55,28 @@ measurementVersion=journey-v2-isolated-client. 사용자 흐름은 별도 HTTP A
 서버 락/DB 풀/타임아웃 설정은 변경하지 않는다. 클라이언트 연결 제한이 바뀌어 실제 서버 유입량이 달라질 수 있으므로 v1 결과와 개선율을 계산하지 말고 두 전략 모두 v2로 측정한다. socketAssignedMs는 연결 배정까지의 클라이언트 대기다. afterSocketMs는 각 요청의 전체 시간에서 연결 배정 시간을 뺀 값으로, TCP 연결/네트워크/서버 처리 등이 포함되며 순수 서버 처리 시간이 아니다. P95끼리 빼지 않고 요청별로 계산한다.
 
 failureGroups에 HTTP 상태/오류 코드/메시지를 보존한다. LOCK_ACQUISITION_TIMEOUT의 학생/과목 구분은 메시지 및 서버 ENROLLMENT_TIMING의 outcome을 교차 확인한다. 이전 v1 원시 결과에는 메시지가 없으므로 새 측정으로 이전 실패 위치를 소급 확정할 수 없다.
+
+## v3 검색 부하 (--search)
+
+새 API는 grade(1~4)와 keyword(과목명 부분 일치)를 지원한다. 50행씩 커서 페이지 조회하며 정원과 현재 신청 인원을 함께 반환한다. V6 마이그레이션으로 target_grade 및 학과/학년 조회 인덱스를 추가한다. LIKE 와일드카드는 문자 그대로 이스케이프하며 SQL은 바인딩한다. 기존 API 호출은 유지된다.
+
+매 실행 새 검색 데이터 10,000개를 만든다(10개 학과, 1~4학년). 기존 데이터는 보존하므로 전체 DB 과목 수는 10,000보다 많다. 사용자 500명은 같은 학과/학년의 목록 2페이지(각 50개)를 보고 '수강실습' 과목명으로 검색한 뒤 결과에서 신청한다. 신청 대상은 5개 과목(각 정원 100)으로 유지한다. 모든 1만 과목에 신청을 분산한 실험은 아니다. 마감 후 재선택 때도 조회 3회를 반복한다. 사용자 생각 시간은 없으므로 실사용 행동의 정확한 재현으로 해석하지 않는다.
+
+배경 조회 기본값은 서버당 50 RPS(총 100), 학과/학년/과목명을 순환하고 50행씩 가져온다. --read-rps 100처럼 조절 가능(1..200)하지만 비교하는 두 전략에 같은 값을 쓴다. 이전 10RPS 단순 조회 실험과 직접 개선율을 계산하지 않는다. 사용자 HTTP 풀과 배경 HTTP 풀은 분리하고 연결 대기 및 skipped를 보존한다. 배경 풀은 서버당 16 연결이며 대기가 늘면 서버 시간과 구분해서 해석한다. 결과가 불확실하면 자동 증량하지 않는다.
+
+이번 변경은 백엔드 재빌드 필요. 두 서버를 종료한 뒤:
+```powershell
+cd C:\portfolio\class-enrollment
+git pull --ff-only
+cd backend
+.\mvnw.cmd "-Dtest=CourseQueryControllerTest" test
+if ($LASTEXITCODE -eq 0) { .\mvnw.cmd -DskipTests package }
+```
+이후 위 서버 명령으로 두 서버를 같은 전략으로 실행한다. 첫 서버 시작 시 Flyway V6 완료 후 두 번째 서버를 시작한다.
+```powershell
+cd C:\portfolio\class-enrollment
+node .\scripts\run-enrollment-journey.mjs PESSIMISTIC --search --read-rps 50 --warmup
+```
+예열 결과 확인 후 --warmup을 빼고 3회 측정한다. REDIS도 동일한 설정으로 예열 1회와 본 측정 3회를 기록한다. 본 측정의 503도 버리지 않는다. 검색 데이터 생성은 측정 이전이며 생성 SQL은 fixture.sql에 모두 저장한다.
+
+검증: Node 테스트 19개 통과. 백엔드 테스트 추가했으나 작업 환경의 Maven Central DNS 접근 실패로 실행 불가, 사용자 환경의 위 테스트 명령으로 확인 필요.
