@@ -16,7 +16,8 @@ async function main(){
   const readRps=rpsIndex<0?(searchMode?50:10):Number(process.argv[rpsIndex+1]);
   if(!Number.isInteger(readRps)||readRps<1||readRps>200)throw Error('--read-rps must be 1..200');
   const strategy=process.argv[2], warmup=process.argv.includes('--warmup');
-  if(!['REDIS','PESSIMISTIC'].includes(strategy)||process.argv.slice(3).some((x,i)=>!['--warmup','--search','--read-rps','--gate'].includes(x)&&process.argv[i+2]!=='--read-rps'))throw Error('Usage: node scripts/run-enrollment-journey.mjs REDIS|PESSIMISTIC [--warmup] [--search] [--read-rps 50] [--gate]');
+  if(!['REDIS','PESSIMISTIC','DB_ONLY'].includes(strategy)||process.argv.slice(3).some((x,i)=>!['--warmup','--search','--read-rps','--gate'].includes(x)&&process.argv[i+2]!=='--read-rps'))throw Error('Usage: node scripts/run-enrollment-journey.mjs REDIS|PESSIMISTIC|DB_ONLY [--warmup] [--search] [--read-rps 50] [--gate]');
+  if(strategy==='DB_ONLY'&&gate)throw Error('DB_ONLY comparison requires local gate OFF');
   const mode=`sync-${strategy.toLowerCase()}-precheck${gate?'-gate':''}`,bases=['http://localhost:8080','http://localhost:8081'];
   const servers=[];
   for(const base of bases){
@@ -61,7 +62,7 @@ async function main(){
   const catalogCount=searchMode?Number(sql(`SELECT COUNT(*) FROM courses WHERE department IN (${departments.map(d=>`'${d}'`).join(',')})`)):5;
   if(searchMode&&catalogCount!==10000)throw Error('Search fixture count mismatch');
   save('conditions.json',{...config,catalogCount,servers,warmup,measurementVersion:version,journeyTransport:journeyTransport.limits,backgroundTransport:{submit:128,catalog:16,poll:32,diagnostic:2},revision:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),
-    policy:(searchMode?'10,000 catalog courses, 3 queries per selection (2 pages + keyword), 50 rows/page; same 5 preferred courses; ':'')+'5 courses x 100 seats; 500 users; at most 3 submissions. First available course then deterministic alternatives. No think time. Background query RPS recorded in readRps. Students each stop after first success. Student Redis lock shared in both strategies.'});
+    policy:(searchMode?'10,000 catalog courses, 3 queries per selection (2 pages + keyword), 50 rows/page; same 5 preferred courses; ':'')+'5 courses x 100 seats; 500 users; at most 3 submissions. First available course then deterministic alternatives. No think time. Background query RPS recorded in readRps. Students each stop after first success. DB_ONLY uses student and course DB locks; REDIS/PESSIMISTIC retain student Redis lock.'});
   save('cohort.json',{students,courseIds});
   console.log(`로컬 대기열: ${gate?'ON':'OFF'} (양 서버 설정 검증 완료)\n결과 저장: ${directory}\n${searchMode?'1만 과목, 목록 2페이지+과목명 검색 → 신청':'조회 → 신청'} → 마감 시 재조회, 최대 3회 신청. 배경 조회 서버당 ${readRps}RPS. ${warmup?'예열 실행(비교 제외)':'본 측정'}`);
   for(const base of bases)for(let i=0;i<5;i++)await http(config.readUrl?config.readUrl(base,i):`${base}/api/courses?year=2026&semester=2&department=CS&afterId=100000&size=20`);

@@ -29,6 +29,9 @@ public class EnrollmentService {
     @Value("${enrollment.capacity-precheck:true}")
     private boolean capacityPrecheck = true;
 
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
+
     private final StudentRepository studentRepository;
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
@@ -173,6 +176,27 @@ public class EnrollmentService {
                         "과목 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
         validateCapacity(course);
         Student student = studentRepository.getReferenceById(studentId);
+        return saveEnrollment(student, course);
+    }
+
+    /** One transaction: student lock -> validation -> course lock/current read -> write -> commit.
+     * No Redis calls. The student locking read precedes all snapshot reads.
+     */
+    @Transactional
+    public Long enrollWithDatabaseLocks(Long studentId, Long courseId) {
+        Student student = studentRepository.findByIdForUpdate(studentId)
+                .orElseThrow(() -> error("STUDENT_NOT_FOUND", "학생 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+        validateStudent(student);
+        Course course = findCourse(courseId);
+        EnrollmentValidationSummary validation = enrollmentRepository.findValidationSummary(studentId, courseId);
+        validateDuplicate(validation);
+        validateCreditLimit(student, course, validation);
+        validateSchedule(validation);
+        if (capacityPrecheck) validateCapacity(course);
+        // Refresh with a write lock: an ordinary find followed by a locking repository
+        // query can otherwise retain the stale managed entity from the precheck.
+        entityManager.refresh(course, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        validateCapacity(course);
         return saveEnrollment(student, course);
     }
 

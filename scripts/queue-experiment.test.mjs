@@ -143,3 +143,9 @@ test('gated comparison requires both precheck and local gate, with matching stra
       assert.throws(()=>validateSyncLockMode(mode,{...state,...changes}));
   }
 });
+test('DB_ONLY journey requires pure DB strategy and gate OFF',()=>{
+  const state={strategy:'DB_ONLY',gate:false,precheck:true,max:10,queueEnabled:false};
+  assert.doesNotThrow(()=>validateSyncLockMode('sync-db_only-precheck',state));
+  assert.throws(()=>validateSyncLockMode('sync-db_only-precheck',{...state,strategy:'PESSIMISTIC'}));
+  assert.throws(()=>validateSyncLockMode('sync-db_only-precheck',{...state,gate:true}));
+});

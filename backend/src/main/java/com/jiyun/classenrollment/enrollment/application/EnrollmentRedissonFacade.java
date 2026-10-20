@@ -96,6 +96,17 @@ public class EnrollmentRedissonFacade {
         long writeMillis = 0L;
 
         try {
+            if (courseLockStrategy == CourseLockStrategy.DB_ONLY) {
+                long started = System.nanoTime();
+                try {
+                    Long id = enrollmentService.enrollWithDatabaseLocks(studentId, courseId);
+                    writeMillis = elapsedMillis(started);
+                    logTiming("SUCCESS", studentId, courseId, 0, 0, 0, writeMillis, facadeStartedAt);
+                    return id;
+                } finally {
+                    writeMillis = elapsedMillis(started);
+                }
+            }
             studentLock = redissonClient.getLock(
                     "lock:student:" + studentId
             );
@@ -206,7 +217,8 @@ public class EnrollmentRedissonFacade {
             );
             throw exception;
 
-        } catch (PessimisticLockingFailureException exception) {
+        } catch (PessimisticLockingFailureException | jakarta.persistence.LockTimeoutException
+                 | jakarta.persistence.PessimisticLockException exception) {
             logTiming("DB_LOCK_FAILURE", studentId, courseId, studentLockWaitMillis,
                     validationMillis, courseLockWaitMillis, writeMillis, facadeStartedAt);
             // Includes translated DB lock timeout/deadlock; no implicit retry.

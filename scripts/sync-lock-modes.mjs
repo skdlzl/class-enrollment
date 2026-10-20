@@ -1,4 +1,5 @@
 export const syncLockModes={
+  'sync-db_only-precheck':{strategy:'DB_ONLY',gate:false,precheck:true,max:10,queueEnabled:false},
   'sync-redis':{strategy:'REDIS',gate:false,precheck:false,max:10,queueEnabled:false},
   'sync-pessimistic':{strategy:'PESSIMISTIC',gate:false,precheck:false,max:10,queueEnabled:false},
   'sync-redis-precheck':{strategy:'REDIS',gate:false,precheck:true,max:10,queueEnabled:false},

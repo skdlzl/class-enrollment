@@ -100,3 +100,33 @@ node .\scripts\run-enrollment-journey.mjs REDIS --search --read-rps 50 --gate --
 한계: 마감 전에는 DB 조회가 하나 추가된다. 존재하지 않는 학생/잘못된 신청이라도 이미 마감된 과목이면 COURSE_FULL 응답이 우선될 수 있다. 마감 후 검증 비용 축소이며, 마감 전 쓰기 처리량이나 전체 타임아웃 해소를 보장하지 않는다. 실제 결과는 재측정 필요하다. 백엔드 재빌드 필요.
 
 검증 테스트 GatedCapacityPrecheckTest: 마감 시 Redis/학생 검증 생략, 예외 후 permit 재사용, 사전 검사 통과 후 최종 검사에서 마감되는 경우 락 해제, precheck OFF 동작. 로컬 환경은 Maven 의존성 부재로 Java 테스트 실행 불가; 사용자 환경에서 테스트 후 빌드한다.
+
+## 학생·과목 모두 DB 잠금 (DB_ONLY)
+
+기존 PESSIMISTIC은 학생 Redisson + 과목 MySQL 혼합 방식으로 유지한다. DB_ONLY는 학생 행을 먼저 잠근 후 학생/과목 조회와 학점·중복·시간표 검증, 과목 행 잠금, 정원 재검증, 저장, 커밋을 하나의 트랜잭션에서 수행한다. 요청별 DB 트랜잭션에서 Redis 락 호출은 없다. 애플리케이션의 다른 기능을 위해 Redisson 빈 자체는 계속 존재하므로 Redis 의존성을 완전히 제거한 배포 구성은 아니다.
+
+주의: 사전 검사에서 관리 중인 Course를 얻은 뒤 단순 locking query만 실행하면 관리 엔티티의 정원 값이 오래될 수 있다. EntityManager.refresh(PESSIMISTIC_WRITE)로 잠금과 최신 값 읽기를 함께 수행한다. 학생 잠금은 이 트랜잭션의 첫 DB 조회여야 한다. 학점·시간표를 변경하는 다른 쓰기 경로도 같은 잠금 규약을 적용해야 한다. 두 서버를 서로 다른 학생 락 전략으로 혼합 배포해서는 안 된다.
+
+테스트: DatabaseOnlyFacadeTest는 성공/DB 잠금 실패 시 Redis 무호출을 검사한다. DatabaseOnlyIntegrationTest는 실제 MySQL Testcontainers에서 독립 Facade 두 개로 같은 학생의 두 과목 동시 신청(학점/시간표), 여러 학생의 동일 과목 정원 경쟁, 롤백 및 이후 재신청을 확인한다. 동일 JVM의 별도 요청 스레드·트랜잭션 시험이며 두 프로세스 검증은 아래 사용자 흐름 부하에서 수행한다.
+
+Docker Desktop을 실행한 상태에서 두 기존 애플리케이션을 종료한 뒤:
+```powershell
+cd C:\portfolio\class-enrollment
+git pull --ff-only
+cd backend
+.\mvnw.cmd "-Dtest=DatabaseOnlyFacadeTest,DatabaseOnlyIntegrationTest" test
+if ($LASTEXITCODE -eq 0) { .\mvnw.cmd -DskipTests package }
+```
+서버 8080(다른 창에서 port=8081로 동일하게 실행):
+```powershell
+cd C:\portfolio\class-enrollment\backend
+java -jar .\target\class-enrollment-backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=queue --server.port=8080 --experiment.enabled=true --spring.datasource.hikari.maximum-pool-size=10 --enrollment.queue.enabled=false --enrollment.course-lock-strategy=DB_ONLY --enrollment.local-gate-enabled=false --enrollment.capacity-precheck=true
+```
+조회→신청 실험은 기존 검색 조건과 동일하다. 학생 500명, 5초, 검색용 과목 1만 개, 목록 2페이지와 과목명 검색, 인기 과목 5개 각 정원 100, 서버당 배경 검색 50RPS, gate OFF. 결과 폴더는 DB_ONLY로 구분한다.
+```powershell
+cd C:\portfolio\class-enrollment
+node .\scripts\run-enrollment-journey.mjs DB_ONLY --search --read-rps 50 --warmup
+```
+예열 1회 후 --warmup을 제거하여 본 측정 3회. 기존 REDIS/PESSIMISTIC gate-OFF 검색 결과와 비교하며, 마지막 gate-ON 결과는 섞지 않는다. DB_ONLY의 writeMs는 학생 행 잠금·검증·과목 행 잠금·저장·커밋 전체이며 다른 방식의 writeMs와 단순 비교하지 않는다.
+
+작업 환경에서는 Maven 의존성 부재로 Java 테스트 실행이 막혔다. 사용자 PC에서 위 테스트 통과 후 부하 측정을 진행한다. 데이터가 누적되고 실행 시점이 다른 한계는 결과 비교에 기록한다.
