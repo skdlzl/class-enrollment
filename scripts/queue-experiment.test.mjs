@@ -133,3 +133,13 @@ test('precheck modes require precheck on for both strategies and keep gate off',
     assert.throws(()=>validateSyncLockMode(mode,{...state,queueEnabled:true}));
   }
 });
+
+test('gated comparison requires both precheck and local gate, with matching strategy',()=>{
+  for(const strategy of ['REDIS','PESSIMISTIC']){
+    const mode=`sync-${strategy.toLowerCase()}-precheck-gate`;
+    const state={strategy,gate:true,precheck:true,max:10,queueEnabled:false};
+    assert.doesNotThrow(()=>validateSyncLockMode(mode,state));
+    for(const changes of [{gate:false},{precheck:false},{queueEnabled:true},{strategy:'WRONG'}])
+      assert.throws(()=>validateSyncLockMode(mode,{...state,...changes}));
+  }
+});

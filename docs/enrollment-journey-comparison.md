@@ -80,3 +80,15 @@ node .\scripts\run-enrollment-journey.mjs PESSIMISTIC --search --read-rps 50 --w
 예열 결과 확인 후 --warmup을 빼고 3회 측정한다. REDIS도 동일한 설정으로 예열 1회와 본 측정 3회를 기록한다. 본 측정의 503도 버리지 않는다. 검색 데이터 생성은 측정 이전이며 생성 SQL은 fixture.sql에 모두 저장한다.
 
 검증: Node 테스트 19개 통과. 백엔드 테스트 추가했으나 작업 환경의 Maven Central DNS 접근 실패로 실행 불가, 사용자 환경의 위 테스트 명령으로 확인 필요.
+
+## 로컬 대기열 최적화 비교 (--gate)
+
+기존 LocalCourseGate를 활성화하는 옵션이며 새 비동기 큐가 아니다. 각 JVM은 같은 과목 요청 하나만 학생 검증 및 과목 락 단계로 통과시킨다. 대기 뒤 새 트랜잭션에서 정원을 검사하므로 마감된 요청은 Redis 과목 락을 획득하기 전에 COURSE_FULL로 종료될 수 있다. 최종 저장은 기존 Redis/DB 과목 락 안에서 정원을 다시 확인한다. 이는 Redis 구현 최적화의 가설이며 아직 새 부하 결과는 없다.
+
+서버에 --enrollment.local-gate-enabled=true --enrollment.local-gate-wait-ms=10000 을 추가하고 실행 스크립트에 --gate를 추가한다. gate와 precheck 설정이 양 서버에서 맞지 않으면 중단한다. Redis 락 대기 제한 10초는 변경하지 않는다. 로컬 대기는 별도 단계이므로 전체 요청 제한이 10초라는 뜻은 아니다. 전체 사용자 흐름 제한은 기존 60초이다. LOCAL_GATE_TIMEOUT도 실패로 포함한다.
+
+```powershell
+node .\scripts\run-enrollment-journey.mjs REDIS --search --read-rps 50 --gate --warmup
+```
+
+폴더명 gate-on과 conditions.json의 gate=true로 기존 gate-off 실험과 구분한다. 503 감소, 최종 성공률, 조회→성공 시간, 검색 지연, skipped를 함께 확인한다. 409도 실제 DB 정원 검증에 따른 응답이어야 하며 오류를 임의로 409로 변환하지 않는다. MySQL에도 --gate를 지원하므로 Redis gate-on과 MySQL gate-off 비교를 순수 락 성능 비교로 표현하지 않는다. 백엔드 코드는 변경하지 않았으므로 JAR 재빌드는 필요 없다.

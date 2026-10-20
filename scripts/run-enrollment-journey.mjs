@@ -11,12 +11,13 @@ import { observeJourney, assertSearchTargets } from './enrollment-journey.mjs';
 
 async function main(){
   const searchMode=process.argv.includes('--search');
+  const gate=process.argv.includes('--gate');
   const rpsIndex=process.argv.indexOf('--read-rps');
   const readRps=rpsIndex<0?(searchMode?50:10):Number(process.argv[rpsIndex+1]);
   if(!Number.isInteger(readRps)||readRps<1||readRps>200)throw Error('--read-rps must be 1..200');
   const strategy=process.argv[2], warmup=process.argv.includes('--warmup');
-  if(!['REDIS','PESSIMISTIC'].includes(strategy)||process.argv.slice(3).some((x,i)=>!['--warmup','--search','--read-rps'].includes(x)&&process.argv[i+2]!=='--read-rps'))throw Error('Usage: node scripts/run-enrollment-journey.mjs REDIS|PESSIMISTIC [--warmup] [--search] [--read-rps 50]');
-  const mode=`sync-${strategy.toLowerCase()}-precheck`,bases=['http://localhost:8080','http://localhost:8081'];
+  if(!['REDIS','PESSIMISTIC'].includes(strategy)||process.argv.slice(3).some((x,i)=>!['--warmup','--search','--read-rps','--gate'].includes(x)&&process.argv[i+2]!=='--read-rps'))throw Error('Usage: node scripts/run-enrollment-journey.mjs REDIS|PESSIMISTIC [--warmup] [--search] [--read-rps 50] [--gate]');
+  const mode=`sync-${strategy.toLowerCase()}-precheck${gate?'-gate':''}`,bases=['http://localhost:8080','http://localhost:8081'];
   const servers=[];
   for(const base of bases){
     console.log(`준비: ${base} 서버 설정 및 조회 API 확인`);
@@ -29,7 +30,7 @@ async function main(){
   }
   const run=`J${randomBytes(6).toString('hex')}`;
   const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-  const directory=resolve(root,'jmeter/results',`journey-${searchMode?'search-':''}${strategy}-${warmup?'warmup':'measured'}-${new Date().toISOString().replace(/[:.]/g,'-')}-${run}`);
+  const directory=resolve(root,'jmeter/results',`journey-${searchMode?'search-':''}${strategy}-${gate?'gate-on-':''}${warmup?'warmup':'measured'}-${new Date().toISOString().replace(/[:.]/g,'-')}-${run}`);
   mkdirSync(directory,{recursive:true});
   const save=(name,data)=>writeFileSync(resolve(directory,name),JSON.stringify(data,null,2));
   const studentsSql=Array.from({length:500},(_,i)=>`('${run}${i}','Journey ${i}','ACTIVE',18)`).join(',');
@@ -53,7 +54,7 @@ async function main(){
   const students=sql(`SELECT id FROM students WHERE student_number LIKE '${run}%' ORDER BY id`).split('\n').map(Number);
   const courseIds=sql(`SELECT id FROM courses WHERE department='${department}' AND course_code LIKE '${run}C%' ORDER BY id`).split('\n').map(Number);
   if(students.length!==500||courseIds.length!==5)throw Error('Fixture mismatch');
-  const config={mode,users:500,searchMode,department,departments,courseIds,studentIndexes:Object.fromEntries(students.map((id,i)=>[id,i])),
+  const config={mode,users:500,searchMode,gate,department,departments,courseIds,studentIndexes:Object.fromEntries(students.map((id,i)=>[id,i])),
     collectPool:true,readSeconds:90,readRps,rampSeconds:5,deadlineMs:60000,httpTimeoutMs:10000,enrollmentDelayMs:5000};
   if(searchMode)config.readUrl=(base,i)=>`${base}/api/courses?${new URLSearchParams({year:'2026',semester:'2',department:departments[i%10],grade:String(Math.floor(i/10)%4+1),keyword:['자료구조','데이터베이스','운영체제','네트워크'][Math.floor(i/40)%4],size:'50'})}`;
   const version=searchMode?'journey-v3-search-10k':'journey-v2-isolated-client';
@@ -62,7 +63,7 @@ async function main(){
   save('conditions.json',{...config,catalogCount,servers,warmup,measurementVersion:version,journeyTransport:journeyTransport.limits,backgroundTransport:{submit:128,catalog:16,poll:32,diagnostic:2},revision:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),
     policy:(searchMode?'10,000 catalog courses, 3 queries per selection (2 pages + keyword), 50 rows/page; same 5 preferred courses; ':'')+'5 courses x 100 seats; 500 users; at most 3 submissions. First available course then deterministic alternatives. No think time. Background query RPS recorded in readRps. Students each stop after first success. Student Redis lock shared in both strategies.'});
   save('cohort.json',{students,courseIds});
-  console.log(`결과 저장: ${directory}\n${searchMode?'1만 과목, 목록 2페이지+과목명 검색 → 신청':'조회 → 신청'} → 마감 시 재조회, 최대 3회 신청. 배경 조회 서버당 ${readRps}RPS. ${warmup?'예열 실행(비교 제외)':'본 측정'}`);
+  console.log(`로컬 대기열: ${gate?'ON':'OFF'} (양 서버 설정 검증 완료)\n결과 저장: ${directory}\n${searchMode?'1만 과목, 목록 2페이지+과목명 검색 → 신청':'조회 → 신청'} → 마감 시 재조회, 최대 3회 신청. 배경 조회 서버당 ${readRps}RPS. ${warmup?'예열 실행(비교 제외)':'본 측정'}`);
   for(const base of bases)for(let i=0;i<5;i++)await http(config.readUrl?config.readUrl(base,i):`${base}/api/courses?year=2026&semester=2&department=CS&afterId=100000&size=20`);
   if(searchMode){
     console.log('준비: 두 서버에서 한글 검색 결과와 신청 대상 5개 대조');
