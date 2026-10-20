@@ -92,3 +92,11 @@ node .\scripts\run-enrollment-journey.mjs REDIS --search --read-rps 50 --gate --
 ```
 
 폴더명 gate-on과 conditions.json의 gate=true로 기존 gate-off 실험과 구분한다. 503 감소, 최종 성공률, 조회→성공 시간, 검색 지연, skipped를 함께 확인한다. 409도 실제 DB 정원 검증에 따른 응답이어야 하며 오류를 임의로 409로 변환하지 않는다. MySQL에도 --gate를 지원하므로 Redis gate-on과 MySQL gate-off 비교를 순수 락 성능 비교로 표현하지 않는다. 백엔드 코드는 변경하지 않았으므로 JAR 재빌드는 필요 없다.
+
+## Gate 내부 마감 요청 단축
+
+로컬 대기열을 통과한 직후, 학생 Redis 락 획득 전에 별도 읽기 전용 트랜잭션에서 과목 정원 마감 여부만 조회한다. 마감이면 COURSE_FULL로 종료하며 try-with-resources로 permit을 반환한다. 캐시하지 않으므로 취소로 재개방된 정원을 영구 차단하지 않는다. 자리가 있다는 조회는 예약이 아니며 기존 학생 검증, 과목 락, 최종 정원 검증, 커밋 후 해제를 그대로 수행한다. gate OFF 경로는 변경하지 않는다. 양 과목 락 전략에 동일하게 적용된다.
+
+한계: 마감 전에는 DB 조회가 하나 추가된다. 존재하지 않는 학생/잘못된 신청이라도 이미 마감된 과목이면 COURSE_FULL 응답이 우선될 수 있다. 마감 후 검증 비용 축소이며, 마감 전 쓰기 처리량이나 전체 타임아웃 해소를 보장하지 않는다. 실제 결과는 재측정 필요하다. 백엔드 재빌드 필요.
+
+검증 테스트 GatedCapacityPrecheckTest: 마감 시 Redis/학생 검증 생략, 예외 후 permit 재사용, 사전 검사 통과 후 최종 검사에서 마감되는 경우 락 해제, precheck OFF 동작. 로컬 환경은 Maven 의존성 부재로 Java 테스트 실행 불가; 사용자 환경에서 테스트 후 빌드한다.

@@ -43,6 +43,15 @@ public class EnrollmentService {
         this.enrollmentRepository = enrollmentRepository;
     }
 
+    /** Fresh scalar DB read for fast rejection only; never reserves capacity. */
+    @Transactional(readOnly = true)
+    public void checkCapacityBeforeStudentLock(Long courseId) {
+        if (!capacityPrecheck) return;
+        boolean full = courseRepository.findFullById(courseId)
+                .orElseThrow(() -> error("COURSE_NOT_FOUND", "과목을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+        if (full) throw error("COURSE_FULL", "수강 정원이 마감되었습니다.", HttpStatus.CONFLICT);
+    }
+
     /*
      * 락 범위 비교 전의 전체 수강신청 로직입니다.
      * 단위 테스트와 synchronized 비교 테스트에서 계속 사용합니다.

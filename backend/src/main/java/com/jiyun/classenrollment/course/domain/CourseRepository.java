@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface CourseRepository extends JpaRepository<Course, Long> {
+    @Query("select case when c.enrolledCount >= c.capacity then true else false end from Course c where c.id = :courseId")
+    Optional<Boolean> findFullById(@Param("courseId") Long courseId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Course c where c.id = :courseId")
     Optional<Course> findByIdForUpdate(@Param("courseId") Long courseId);

@@ -70,6 +70,9 @@ public class EnrollmentRedissonFacade {
             }
             // Validate in a fresh transaction AFTER local admission. The final
             // write still holds the Redis/DB lock and rechecks current capacity.
+            // Gate permit is held, but no Redis lock or write transaction yet.
+            // A stale "not full" read is safe: final locked capacity validation remains.
+            enrollmentService.checkCapacityBeforeStudentLock(courseId);
             return enrollAfterGate(studentId, courseId);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
