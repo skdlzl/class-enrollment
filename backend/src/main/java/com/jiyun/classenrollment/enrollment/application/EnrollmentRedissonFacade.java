@@ -54,6 +54,10 @@ public class EnrollmentRedissonFacade {
     @Autowired
     private EnrollmentDbAdmission dbAdmission = new EnrollmentDbAdmission(0, 3000, 500);
 
+    @Autowired
+    private com.jiyun.classenrollment.experiment.EnrollmentTimings timings =
+            new com.jiyun.classenrollment.experiment.EnrollmentTimings(false);
+
     private final AtomicLong gateSamples = new AtomicLong();
 
     public Long enroll(Long studentId, Long courseId) {
@@ -102,7 +106,7 @@ public class EnrollmentRedissonFacade {
             if (courseLockStrategy == CourseLockStrategy.DB_ONLY) {
                 long started = System.nanoTime();
                 try {
-                    Long id = dbAdmission.execute(() -> enrollmentService.enrollWithDatabaseLocks(studentId, courseId));
+                    Long id = dbAdmission.execute(() -> timings.proxy(() -> enrollmentService.enrollWithDatabaseLocks(studentId, courseId)));
                     writeMillis = elapsedMillis(started);
                     logTiming("SUCCESS", studentId, courseId, 0, 0, 0, writeMillis, facadeStartedAt);
                     return id;
@@ -186,9 +190,9 @@ public class EnrollmentRedissonFacade {
             // wait, writes and commit. courseLockWaitMillis measures Redis ONLY.
             Long enrollmentId;
             try {
-                enrollmentId = dbAdmission.execute(() -> courseLockStrategy == CourseLockStrategy.PESSIMISTIC
+                enrollmentId = dbAdmission.execute(() -> timings.proxy(() -> courseLockStrategy == CourseLockStrategy.PESSIMISTIC
                         ? enrollmentService.completeEnrollmentWithPessimisticLock(studentId, courseId)
-                        : enrollmentService.completeEnrollment(studentId, courseId));
+                        : enrollmentService.completeEnrollment(studentId, courseId)));
             } finally {
                 writeMillis = elapsedMillis(phaseStartedAt);
             }

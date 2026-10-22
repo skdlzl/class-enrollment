@@ -1,3 +1,4 @@
+import { summarizeEnrollmentPhases } from './enrollment-phase-summary.mjs';
 import { mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,6 +31,9 @@ async function main(){
     validateSyncLockMode(mode,state.body);
     if((state.body.dbAdmission?.limit??0)!==dbConcurrency)throw Error(`${base}: DB admission limit mismatch, expected ${dbConcurrency}`);
     if(servers.length && JSON.stringify([state.body.dbAdmission?.waitMs,state.body.dbAdmission?.maxWaiting])!==JSON.stringify([servers[0].dbAdmission?.waitMs,servers[0].dbAdmission?.maxWaiting]))throw Error('DB admission wait settings differ between servers');
+    const phaseProbe=await http(`${base}/api/experiment/diagnostics`);
+    if(phaseProbe.status!==200||phaseProbe.body?.enrollmentTimings?.version!=='enrollment-phases-v1'||!phaseProbe.body.enrollmentTimings.enabled)
+      throw Error(`${base}: 단계별 계측이 포함된 JAR로 재빌드/재시작하세요.`);
     servers.push({base,...state.body});
     if(searchMode){const probe=await http(`${base}/api/courses?grade=5`);if(probe.status!==400)throw Error(`${base}: 검색 API가 추가된 JAR로 재빌드/재시작하세요.`);}
     const catalog=await http(`${base}/api/courses?year=2026&semester=2&department=CS&afterId=100000&size=20`);
@@ -94,7 +98,7 @@ async function main(){
   const failures=steps.filter(s=>s.kind==='submit'&&s.status!==201&&!(s.status===409&&s.code==='COURSE_FULL'));
   const failureGroups=Object.values(failures.reduce((groups,s)=>{const key=JSON.stringify([s.status,s.code,s.message,s.error]);groups[key]??={status:s.status,code:s.code,message:s.message,error:s.error,count:0};groups[key].count++;return groups;},{}));
   const journeyTiming=Object.fromEntries(['read','submit'].map(kind=>{const samples=steps.filter(s=>s.kind===kind&&s.timing);return [kind,{socketAssignedMs:statistics(samples.map(s=>s.timing.socketAssignedMs).filter(Number.isFinite)),afterSocketMs:statistics(samples.filter(s=>Number.isFinite(s.timing.socketAssignedMs)).map(s=>s.timing.elapsedMs-s.timing.socketAssignedMs))}];}));
-  const summary={strategy,warmup,measurementVersion:version,failureGroups,journeyTiming,journeyTransport:transportSummary(mixed.journeyHttpSamples),outcomes,successRate:(outcomes.CONFIRMED??0)/500,
+  const summary={phaseTimings:summarizeEnrollmentPhases(mixed.diagnostics),strategy,warmup,measurementVersion:version,failureGroups,journeyTiming,journeyTransport:transportSummary(mixed.journeyHttpSamples),outcomes,successRate:(outcomes.CONFIRMED??0)/500,
     successfulJourney:statistics(rows.filter(r=>r.outcome==='CONFIRMED').map(r=>r.journeyMs)),
     journeyByOutcome:Object.fromEntries(Object.keys(outcomes).map(o=>[o,statistics(rows.filter(r=>r.outcome===o&&Number.isFinite(r.journeyMs)).map(r=>r.journeyMs))])),
     journeyReads:statistics(steps.filter(s=>s.kind==='read').map(s=>s.elapsedMs)),
@@ -105,6 +109,7 @@ async function main(){
     backgroundReads:[...baseline.reads.map(r=>({phase:'Baseline',...r})),...mixed.reads.map(r=>({phase:'Mixed',...r}))].map(({samples,...r})=>r),
     pool:mixed.pools.map(p=>({base:p.base,failed:p.samples.filter(s=>s.code!==200).length,maxWaiting:Math.max(0,...p.samples.filter(s=>s.code===200).map(s=>s.waiting))})),diagnostics:mixed.diagnostics};
   save('summary.json',summary);
+  console.log('트랜잭션 단계별 평균 시간(ms), P95 아님:');console.table(summary.phaseTimings);
   console.table(failureGroups);console.log('사용자 HTTP 대기(연결 배정 이후에도 네트워크/서버 처리 포함):',JSON.stringify(journeyTiming,null,2));
   console.table(outcomes);console.log('첫 조회부터 신청 성공까지:',summary.successfulJourney);console.table(database);
   console.table(summary.backgroundReads.map(r=>({phase:r.phase,base:r.base,p95Ms:r.p95Ms,failed:r.failed,skipped:r.skipped})));

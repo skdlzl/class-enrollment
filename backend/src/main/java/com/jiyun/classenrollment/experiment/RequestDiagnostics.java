@@ -36,7 +36,8 @@ public class RequestDiagnostics extends OncePerRequestFilter {
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain)
             throws ServletException,IOException {
         String path=request.getRequestURI();
-        String group=path.equals("/api/enrollment-requests")&&request.getMethod().equals("POST")?"submit":
+        String group=path.equals("/api/enrollments")&&request.getMethod().equals("POST")?"syncSubmit":
+            path.equals("/api/enrollment-requests")&&request.getMethod().equals("POST")?"submit":
             path.equals("/api/courses")?"catalog":path.startsWith("/api/enrollment-requests/")?"queueRead":null;
         if(group==null){chain.doFilter(request,response);return;}
         Counters c=groups.computeIfAbsent(group,key->new Counters());

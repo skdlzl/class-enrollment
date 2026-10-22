@@ -32,6 +32,10 @@ public class EnrollmentService {
     @jakarta.persistence.PersistenceContext
     private jakarta.persistence.EntityManager entityManager;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.jiyun.classenrollment.experiment.EnrollmentTimings timings =
+            new com.jiyun.classenrollment.experiment.EnrollmentTimings(false);
+
     private final StudentRepository studentRepository;
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
@@ -185,20 +189,28 @@ public class EnrollmentService {
     // a snapshot established before the preceding student's transaction committed.
     // These entry points must be called through the Spring proxy from the facade.
     private Long enrollGuarded(Long studentId, Long courseId) {
-        Student student = studentRepository.findByIdForUpdate(studentId)
-                .orElseThrow(() -> error("STUDENT_NOT_FOUND", "학생 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
-        validateStudent(student);
-        Course course = findCourse(courseId);
-        EnrollmentValidationSummary validation = enrollmentRepository.findValidationSummary(studentId, courseId);
-        validateDuplicate(validation);
-        validateCreditLimit(student, course, validation);
-        validateSchedule(validation);
-        if (capacityPrecheck) validateCapacity(course);
-        // Refresh with a write lock: an ordinary find followed by a locking repository
-        // query can otherwise retain the stale managed entity from the precheck.
-        entityManager.refresh(course, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
-        validateCapacity(course);
-        return saveEnrollment(student, course);
+        try (var body = timings.body()) {
+            Student student = timings.measure("studentLockQuery", () -> studentRepository.findByIdForUpdate(studentId)
+                    .orElseThrow(() -> error("STUDENT_NOT_FOUND", "학생 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND)));
+            validateStudent(student);
+            Course course = timings.measure("courseRead", () -> findCourse(courseId));
+            EnrollmentValidationSummary validation = timings.measure("validationQuery",
+                    () -> enrollmentRepository.findValidationSummary(studentId, courseId));
+            timings.measure("ruleValidation", () -> {
+                validateDuplicate(validation);
+                validateCreditLimit(student, course, validation);
+                validateSchedule(validation);
+                if (capacityPrecheck) validateCapacity(course);
+                return null;
+            });
+            // Includes SQL and ORM work, not only the database row-lock wait.
+            timings.measure("courseLockQuery", () -> {
+                entityManager.refresh(course, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+                return null;
+            });
+            validateCapacity(course);
+            return timings.measure("saveCall", () -> saveEnrollment(student, course));
+        }
     }
 
     private void logTiming(

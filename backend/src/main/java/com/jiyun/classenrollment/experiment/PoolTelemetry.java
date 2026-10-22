@@ -21,6 +21,8 @@ public class PoolTelemetry {
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "experiment-pool-sampler"); t.setDaemon(true); return t;
     });
+    @org.springframework.beans.factory.annotation.Autowired
+    private EnrollmentTimings timings;
     private long count, nanos, maxNanos, timeouts;
     public PoolTelemetry(DataSource source) throws SQLException {
         this.source = source.unwrap(HikariDataSource.class);
@@ -36,7 +38,8 @@ public class PoolTelemetry {
             throw new IllegalStateException("Experiment telemetry requires an unused Hikari metrics tracker");
         }
         source.setMetricsTrackerFactory((name, stats) -> new IMetricsTracker() {
-            @Override public void recordConnectionAcquiredNanos(long elapsed) { acquired(elapsed); }
+            @Override public void recordConnectionAcquiredNanos(long elapsed) { acquired(elapsed); timings.record("pool.acquire", elapsed, false); }
+            @Override public void recordConnectionUsageMillis(long elapsed) { timings.record("pool.usage", TimeUnit.MILLISECONDS.toNanos(elapsed), false); }
             @Override public void recordConnectionTimeout() { timeout(); }
         });
         scheduler.scheduleAtFixedRate(this::sample, 1, 1, TimeUnit.SECONDS);

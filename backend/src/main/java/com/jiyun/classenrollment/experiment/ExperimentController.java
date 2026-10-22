@@ -16,6 +16,8 @@ import java.util.Map;
 public class ExperimentController {
     @org.springframework.beans.factory.annotation.Autowired
     private com.jiyun.classenrollment.enrollment.application.EnrollmentDbAdmission admission;
+    @org.springframework.beans.factory.annotation.Autowired
+    private EnrollmentTimings timings;
     private final JdbcTemplate jdbc;
     private final RequestDiagnostics diagnostics;
     private final HikariDataSource pool;
@@ -33,6 +35,7 @@ public class ExperimentController {
     public Map<String,Object> diagnostics() {
         var result = new java.util.LinkedHashMap<String,Object>(diagnostics.snapshot());
         result.put("dbAdmission", admission.snapshot());
+        result.put("enrollmentTimings", timings.snapshot());
         return result;
     }
     @GetMapping("/api/experiment/read")

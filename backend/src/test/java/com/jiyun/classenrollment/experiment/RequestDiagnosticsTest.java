@@ -28,6 +28,13 @@ class RequestDiagnosticsTest {
         assertEquals(1L,values.get("completed"));assertEquals(1L,values.get("errors"));
         assertEquals(0L,values.get("redisCalls"));
     }
+    @Test void recordsSynchronousEnrollmentHttpTime() throws Exception {
+        var filter=new RequestDiagnostics();
+        filter.doFilter(new MockHttpServletRequest("POST","/api/enrollments"),
+            new MockHttpServletResponse(),(req,res)->{});
+        var values=(Map<?,?>)filter.snapshot().get("syncSubmit");
+        assertEquals(1L,values.get("completed"));assertEquals(0L,values.get("errors"));
+    }
     @Test void ignoresDiagnosticRequests() throws Exception {
         var filter=new RequestDiagnostics();
         filter.doFilter(new MockHttpServletRequest("GET","/api/experiment/diagnostics"),
