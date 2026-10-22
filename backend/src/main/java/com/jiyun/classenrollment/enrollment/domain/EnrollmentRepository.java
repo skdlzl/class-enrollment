@@ -9,6 +9,10 @@ import java.time.LocalTime;
 
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
 
+    @Query("select e.id from Enrollment e where e.student.id = :studentId and e.course.id = :courseId")
+    java.util.Optional<Long> findEnrollmentId(@Param("studentId") Long studentId,
+                                             @Param("courseId") Long courseId);
+
     boolean existsByStudentIdAndCourseId(Long studentId, Long courseId);
 
     @Query("""

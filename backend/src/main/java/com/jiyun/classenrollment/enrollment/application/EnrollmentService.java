@@ -46,6 +46,14 @@ public class EnrollmentService {
         this.enrollmentRepository = enrollmentRepository;
     }
 
+    @Transactional(readOnly = true)
+    public Long findConfirmedEnrollment(Long studentId, Long courseId) {
+        return enrollmentRepository.findEnrollmentId(studentId, courseId)
+                .orElseThrow(() -> error("ENROLLMENT_NOT_FOUND",
+                        "확정된 신청 내역이 없습니다. 처리 중인 요청이 있다면 다시 확인해 주세요.",
+                        HttpStatus.NOT_FOUND));
+    }
+
     /** Fresh scalar DB read for fast rejection only; never reserves capacity. */
     @Transactional(readOnly = true)
     public void checkCapacityBeforeStudentLock(Long courseId) {
@@ -125,8 +133,8 @@ public class EnrollmentService {
     /*
      * 학생 락 안에서 실행하지만 과목 락을 얻기 전에 끝내는 읽기 전용 검증입니다.
      *
-     * 동일 학생의 요청은 이미 학생 분산 락으로 직렬화되어 있으므로,
-     * 중복 과목, 최대 학점, 시간표 검사를 과목 락 밖으로 이동해도 경쟁이 발생하지 않습니다.
+     * 빠른 거절을 위한 사전 검사입니다. Redis 락을 잃을 수 있으므로
+     * 저장 트랜잭션에서도 학생 DB 락 안에서 반드시 재검사합니다.
      */
     @Transactional(readOnly = true)
     public void validateForEnrollment(Long studentId, Long courseId) {
@@ -148,35 +156,20 @@ public class EnrollmentService {
         }
     }
 
-    /*
-     * 과목 락 안에서 실행되는 최소 쓰기 구간입니다.
-     *
-     * 과목 조회, 정원 확인, 신청 저장, 신청 인원 증가만 수행해
-     * 인기 과목의 과목 락 점유 시간을 줄입니다.
-     */
+    /** Redis-admitted write, with DB safety locks even if either Redis lease is lost. */
     @Transactional
     public Long completeEnrollment(Long studentId, Long courseId) {
-        Student student = studentRepository.getReferenceById(studentId);
-        Course course = findCourse(courseId);
-
-        validateCapacity(course);
-
-        return saveEnrollment(student, course);
+        // Redis is admission control; DB locks are the final guard after lease loss.
+        return enrollGuarded(studentId, courseId);
     }
 
     /**
-     * Called while the student lock is held, in a new transaction after validation.
-     * Lock BEFORE INSERT (including its FK check), and keep it until commit.
-     * Do not reuse the earlier ordinary course read from the validation transaction.
+     * Redis student admission followed by DB student revalidation and course locking.
+     * Both DB locks remain held until commit/rollback. Prevalidation is not authoritative.
      */
     @Transactional
     public Long completeEnrollmentWithPessimisticLock(Long studentId, Long courseId) {
-        Course course = courseRepository.findByIdForUpdate(courseId)
-                .orElseThrow(() -> error("COURSE_NOT_FOUND",
-                        "과목 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
-        validateCapacity(course);
-        Student student = studentRepository.getReferenceById(studentId);
-        return saveEnrollment(student, course);
+        return enrollGuarded(studentId, courseId);
     }
 
     /** One transaction: student lock -> validation -> course lock/current read -> write -> commit.
@@ -184,6 +177,14 @@ public class EnrollmentService {
      */
     @Transactional
     public Long enrollWithDatabaseLocks(Long studentId, Long courseId) {
+        return enrollGuarded(studentId, courseId);
+    }
+
+    // All synchronous write paths use student -> course order. The first DB read
+    // is locking, so a transaction waiting for the student cannot validate against
+    // a snapshot established before the preceding student's transaction committed.
+    // These entry points must be called through the Spring proxy from the facade.
+    private Long enrollGuarded(Long studentId, Long courseId) {
         Student student = studentRepository.findByIdForUpdate(studentId)
                 .orElseThrow(() -> error("STUDENT_NOT_FOUND", "학생 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
         validateStudent(student);

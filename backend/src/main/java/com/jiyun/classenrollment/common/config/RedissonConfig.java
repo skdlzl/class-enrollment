@@ -67,7 +67,8 @@ public class RedissonConfig {
              *
              * 가 됩니다.
              */
-            @Value("${redisson.address}") String address
+            @Value("${redisson.address}") String address,
+            @Value("${redisson.lock-watchdog-timeout-ms:30000}") long watchdogTimeoutMs
     ) {
 
         /*
@@ -80,6 +81,8 @@ public class RedissonConfig {
          * org.redisson.config.Config
          */
         Config config = new Config();
+        if (watchdogTimeoutMs < 1000) throw new IllegalArgumentException("watchdog timeout must be >= 1000ms");
+        config.setLockWatchdogTimeout(watchdogTimeoutMs);
 
 
         /*

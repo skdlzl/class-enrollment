@@ -53,6 +53,59 @@ class EnrollmentPessimisticIntegrationTest {
     @Autowired PlatformTransactionManager transactions;
     @Autowired EntityManager em;
     @Autowired MockMvc mvc;
+    final java.nio.file.Path crashLogs = java.nio.file.Path.of("target", "failure-probe-logs",
+            java.util.UUID.randomUUID().toString());
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {true, false})
+    void killedJvmRollsBackOnlyBeforeCommitAndReleasesStudentLease(boolean beforeCommit) throws Exception {
+        String stage = beforeCommit ? "BEFORE_COMMIT" : "AFTER_COMMIT";
+        java.nio.file.Files.createDirectories(crashLogs);
+        var output = crashLogs.resolve(stage + ".log");
+        String javaExecutable = java.nio.file.Path.of(System.getProperty("java.home"), "bin",
+                System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java").toString();
+        var builder = new ProcessBuilder(javaExecutable, "-cp",
+                System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")),
+                EnrollmentCrashProbe.class.getName(), stage);
+        builder.environment().put("DB_URL", mysql.getJdbcUrl());
+        builder.environment().put("DB_USERNAME", mysql.getUsername());
+        builder.environment().put("DB_PASSWORD", mysql.getPassword());
+        builder.environment().put("REDIS_ADDRESS", address());
+        builder.redirectErrorStream(true).redirectOutput(output.toFile());
+        var process = builder.start();
+        var config = new Config(); config.useSingleServer().setAddress(address());
+        var observer = Redisson.create(config);
+        try {
+            long startupDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(90);
+            while (!java.nio.file.Files.readString(output).contains("CRASH_PROBE_READY_" + stage)
+                    && process.isAlive() && System.nanoTime() < startupDeadline) Thread.sleep(50);
+            assertTrue(java.nio.file.Files.readString(output).contains("CRASH_PROBE_READY_" + stage),
+                    () -> "Child did not reach crash barrier. Inspect " + output);
+            var lock = observer.getLock("lock:student:1000");
+            assertTrue(lock.isLocked());
+            assertTrue(lock.remainTimeToLive() > 0);
+            assertCourse(1, beforeCommit ? 0 : 1);
+            process.destroyForcibly();
+            assertTrue(process.waitFor(10, TimeUnit.SECONDS));
+            assertFalse(java.nio.file.Files.readString(output).contains("CRASH_PROBE_FINALLY_EXECUTED"));
+            long expiryDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
+            while (lock.isLocked() && System.nanoTime() < expiryDeadline) Thread.sleep(50);
+            assertFalse(lock.isLocked(), "Watchdog must stop renewing after JVM termination");
+            assertCourse(1, beforeCommit ? 0 : 1);
+            if (beforeCommit) {
+                assertNotNull(facade.enroll(1000L, 1L));
+            } else {
+                assertNotNull(service.findConfirmedEnrollment(1000L, 1L));
+                assertEquals("DUPLICATE_ENROLLMENT", assertThrows(EnrollmentException.class,
+                        () -> facade.enroll(1000L, 1L)).getCode());
+            }
+            assertCourse(1, 1);
+        } finally {
+            process.destroyForcibly();
+            process.waitFor(10, TimeUnit.SECONDS);
+            observer.shutdown();
+        }
+    }
 
     @BeforeEach
     void reset() {
@@ -144,6 +197,65 @@ class EnrollmentPessimisticIntegrationTest {
                 .content("{\"studentId\":1000,\"courseId\":1}"))
                 .andExpect(status().isCreated());
         assertCourse(1, 1);
+    }
+
+    @Test
+    void retryAfterCommittedResponseIsDiscardedDoesNotInsertTwice() throws Exception {
+        // Discard the first successful response after the service transaction commits.
+        // This models client uncertainty, not a real network disconnect.
+        Long committedId = facade.enroll(1000L, 1L);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .get("/api/enrollments/confirmation").param("studentId", "1000").param("courseId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enrollmentId").value(committedId));
+        mvc.perform(post("/api/enrollments").contentType("application/json")
+                .content("{\"studentId\":1000,\"courseId\":1}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_ENROLLMENT"));
+        assertCourse(1, 1);
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM enrollments WHERE student_id=1000", Integer.class));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void expiredStudentLeaseCannotCommitStaleValidation(boolean conflictingSchedule) throws Exception {
+        // Force a short lease only in this test. Production uses watchdog renewal.
+        // The interleaving is: A validates -> A loses lease -> B commits -> A resumes.
+        jdbc.update("UPDATE students SET max_credits=? WHERE id=1000", conflictingSchedule ? 18 : 3);
+        Long addedSchedule = null;
+        if (conflictingSchedule) {
+            jdbc.update("INSERT INTO course_schedules(course_id,day_of_week,start_time,end_time) "
+                    + "VALUES(2,'MONDAY','09:00:00','10:30:00')");
+            addedSchedule = jdbc.queryForObject("SELECT MAX(id) FROM course_schedules", Long.class);
+        }
+        var config = new Config(); config.useSingleServer().setAddress(address());
+        var oldClient = Redisson.create(config);
+        var oldLock = oldClient.getLock("lock:student:1000");
+        try {
+            assertTrue(oldLock.tryLock(1, 1, TimeUnit.SECONDS));
+            service.validateForEnrollment(1000L, 1L);
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (oldLock.isLocked() && System.nanoTime() < deadline) Thread.sleep(20);
+            assertFalse(oldLock.isLocked(), "The injected lease must actually expire");
+            assertNotNull(facade.enroll(1000L, 2L));
+            // A normal fresh validation would now reject this application.
+            var rejected = assertThrows(EnrollmentException.class,
+                    () -> service.validateForEnrollment(1000L, 1L));
+            assertEquals(conflictingSchedule ? "SCHEDULE_CONFLICT" : "CREDIT_LIMIT_EXCEEDED",
+                    rejected.getCode());
+            // But the suspended request resumes directly at the existing write method.
+            var lateRequest = assertThrows(EnrollmentException.class,
+                    () -> service.completeEnrollmentWithPessimisticLock(1000L, 1L));
+            assertEquals(rejected.getCode(), lateRequest.getCode());
+            assertCourse(1, 0);
+            assertCourse(2, 1);
+            assertEquals(1, jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM enrollments WHERE student_id=1000", Integer.class));
+        } finally {
+            oldClient.shutdown();
+            if (addedSchedule != null) jdbc.update("DELETE FROM course_schedules WHERE id=?", addedSchedule);
+        }
     }
 
     @Test

@@ -247,9 +247,9 @@ class EnrollmentServiceTest {
         when(enrollmentRepository.findValidationSummary(1L, 10L)).thenReturn(summary);
         when(course.isFull()).thenReturn(false, true, true);
         enrollmentService.validateForEnrollment(1L, 10L);
+        when(studentRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(student));
         assertEquals("COURSE_FULL", assertThrows(EnrollmentException.class,
                 () -> enrollmentService.completeEnrollment(1L, 10L)).getCode());
-        when(courseRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(course));
         assertEquals("COURSE_FULL", assertThrows(EnrollmentException.class,
                 () -> enrollmentService.completeEnrollmentWithPessimisticLock(1L, 10L)).getCode());
         verify(enrollmentRepository, never()).save(any());

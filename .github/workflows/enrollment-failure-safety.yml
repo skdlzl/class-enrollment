@@ -1,0 +1,38 @@
+name: Enrollment failure safety
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/redis-ingress-queue]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/enrollment-failure-safety.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/enrollment-failure-safety.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Unit tests and isolated MySQL Redis failure tests
+        working-directory: backend
+        run: >-
+          bash mvnw -B
+          '-Dtest=EnrollmentQueryControllerTest,EnrollmentServiceTest,EnrollmentWriteSafetyTest,EnrollmentPessimisticFacadeTest,EnrollmentRedissonFacadeTest,DatabaseOnlyFacadeTest,GatedCapacityPrecheckTest,EnrollmentPessimisticIntegrationTest#rollbackUndoesInsertAndCounterAndReleasesRowLock+retryAfterCommittedResponseIsDiscardedDoesNotInsertTwice+expiredStudentLeaseCannotCommitStaleValidation+killedJvmRollsBackOnlyBeforeCommitAndReleasesStudentLease+retainedStudentLockPreventsConcurrentCreditOverflow+independentClientsWithLocalGatePreserveCapacity+realDatabaseTimeoutReturns503AndNextHttpRequestCanSucceed'
+          test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: enrollment-failure-safety-reports
+          path: |
+            backend/target/surefire-reports/
+            backend/target/failure-probe-logs/

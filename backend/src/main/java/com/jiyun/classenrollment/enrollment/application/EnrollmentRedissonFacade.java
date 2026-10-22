@@ -138,7 +138,7 @@ public class EnrollmentRedissonFacade {
             }
 
             /*
-             * 학생 관련 검증은 학생 락으로 이미 보호됩니다.
+             * 학생 관련 사전 검증입니다. 최종 쓰기에서도 DB 락 안에서 재검사합니다.
              * 과목 락을 기다리기 전에 읽기 전용 검증을 끝내 과목 락 점유 시간을 줄입니다.
              */
             phaseStartedAt = System.nanoTime();
@@ -175,7 +175,7 @@ public class EnrollmentRedissonFacade {
             }
 
             /*
-             * 과목 락 안에서는 정원 확인과 저장만 수행합니다.
+             * 쓰기 트랜잭션은 학생 DB 락과 재검증 후 과목 DB 락을 획득합니다.
              * DB 커밋이 완료된 뒤 completeEnrollment()가 반환되므로
              * 그 다음에 과목 락을 해제합니다.
              */
@@ -228,12 +228,23 @@ public class EnrollmentRedissonFacade {
             failure.initCause(exception);
             throw failure;
 
+        } catch (org.springframework.transaction.TransactionException
+                 | org.springframework.dao.DataAccessResourceFailureException
+                 | org.springframework.dao.QueryTimeoutException exception) {
+            // A connection failure at COMMIT does not prove rollback. Do not auto-retry.
+            log.warn("ENROLLMENT_RESULT_UNKNOWN studentId={} courseId={}", studentId, courseId, exception);
+            EnrollmentException failure = new EnrollmentException("ENROLLMENT_RESULT_UNKNOWN",
+                    "처리 결과를 확인하지 못했습니다. 신청 내역을 먼저 확인해 주세요.",
+                    HttpStatus.SERVICE_UNAVAILABLE);
+            failure.initCause(exception);
+            throw failure;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException(
-                    "수강신청 락 대기 중 요청이 중단되었습니다.",
-                    exception
-            );
+            EnrollmentException failure = new EnrollmentException("LOCK_INTERRUPTED",
+                    "수강신청 대기가 중단됐습니다. 신청 내역을 확인해 주세요.",
+                    HttpStatus.SERVICE_UNAVAILABLE);
+            failure.initCause(exception);
+            throw failure;
 
         } catch (RedisException exception) {
             logTiming(
@@ -311,9 +322,9 @@ public class EnrollmentRedissonFacade {
             if (lock.isHeldByCurrentThread()) {
                 lock.unlock();
             }
-        } catch (RedisException exception) {
+        } catch (RedisException | IllegalMonitorStateException exception) {
             log.warn(
-                    "Redis 연결 문제로 수강신청 락을 즉시 해제하지 못했습니다.",
+                    "Redis 연결 문제 또는 락 만료로 해제하지 못했습니다. DB 처리 결과는 유지합니다.",
                     exception
             );
         }

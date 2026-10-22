@@ -24,8 +24,10 @@ server:
 
 redisson:
   address: ${REDIS_ADDRESS:redis://localhost:6379}
+  lock-watchdog-timeout-ms: 30000
 
-# Same JAR: REDIS is the control group. No local admission gate in either mode.
+# failure-safety-v1: every synchronous mode has final student/course DB guards.
+# REDIS/PESSIMISTIC now differ in Redis admission, not final DB safety.
 enrollment:
   course-lock-strategy: ${COURSE_LOCK_STRATEGY:PESSIMISTIC}
   capacity-precheck: ${CAPACITY_PRECHECK:true}
