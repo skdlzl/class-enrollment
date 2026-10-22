@@ -26,7 +26,7 @@ async function main(){
     const r=await http(`${base}/api/experiment/pool`);
     if(r.status!==200)throw Error(`${base}: experiment endpoint unavailable`);
     validateSyncLockMode(`sync-${strategy.toLowerCase()}-precheck`,r.body);
-    if(r.body.queryPoolEnabled||r.body.dbAdmission?.limit!==0)throw Error(`${base}: query pool and DB admission must be OFF`);
+    if(r.body.queryPoolEnabled||r.body.dbAdmission?.limit!==0||r.body.closedCourseHint?.enabled)throw Error(`${base}: query pool, DB admission and closed-course hint must be OFF`);
     const d=await http(`${base}/api/experiment/diagnostics`);
     if(!d.body?.enrollmentTimings?.enabled)throw Error(`${base}: phase timing must be enabled`);
     servers.push({base,...r.body});

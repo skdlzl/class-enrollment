@@ -36,6 +36,9 @@ public class EnrollmentService {
     private com.jiyun.classenrollment.experiment.EnrollmentTimings timings =
             new com.jiyun.classenrollment.experiment.EnrollmentTimings(false);
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private ClosedCourseHints closedCourseHints;
+
     private final StudentRepository studentRepository;
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
@@ -177,7 +180,7 @@ public class EnrollmentService {
     }
 
     /** One transaction: student lock -> validation -> course lock/current read -> write -> commit.
-     * No Redis calls. The student locking read precedes all snapshot reads.
+     * Optional closed hint is published only after commit. The student locking read precedes snapshot reads.
      */
     @Transactional
     public Long enrollWithDatabaseLocks(Long studentId, Long courseId) {
@@ -209,7 +212,9 @@ public class EnrollmentService {
                 return null;
             });
             validateCapacity(course);
-            return timings.measure("saveCall", () -> saveEnrollment(student, course));
+            Long id = timings.measure("saveCall", () -> saveEnrollment(student, course));
+            if (course.isFull() && closedCourseHints != null) closedCourseHints.markAfterCommit(courseId);
+            return id;
         }
     }
 

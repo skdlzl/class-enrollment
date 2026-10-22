@@ -58,9 +58,17 @@ public class EnrollmentRedissonFacade {
     private com.jiyun.classenrollment.experiment.EnrollmentTimings timings =
             new com.jiyun.classenrollment.experiment.EnrollmentTimings(false);
 
+    @Autowired
+    private ClosedCourseHints closedCourseHints;
+
+    private void rejectClosedCourse(Long courseId) {
+        if (closedCourseHints != null) closedCourseHints.rejectIfClosed(courseId);
+    }
+
     private final AtomicLong gateSamples = new AtomicLong();
 
     public Long enroll(Long studentId, Long courseId) {
+        rejectClosedCourse(courseId);
         if (!localGateEnabled) return enrollAfterGate(studentId, courseId);
         long started = System.nanoTime();
         try (var permit = localGate.acquire(courseId, localGateWaitMs)) {
@@ -144,6 +152,9 @@ public class EnrollmentRedissonFacade {
                 );
             }
 
+            // Recheck after student-lock waiting; newly closed courses skip validation/write.
+            rejectClosedCourse(courseId);
+
             // Only REDIS waits for an external course lock before the guarded write.
             // Mixed mode validates once inside the student DB lock, before taking
             // the course DB lock. A separate read-only validation would duplicate
@@ -211,6 +222,10 @@ public class EnrollmentRedissonFacade {
             return enrollmentId;
 
         } catch (EnrollmentException exception) {
+            // Transaction proxy has already rolled back any failed write. A stale mark is
+            // harmless because positive hints are checked against the primary DB.
+            if (closedCourseHints != null && "COURSE_FULL".equals(exception.getCode()))
+                closedCourseHints.mark(courseId);
             logTiming(
                     "BUSINESS_REJECTED_" + exception.getCode(),
                     studentId,

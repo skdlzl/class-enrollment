@@ -18,6 +18,8 @@ public class ExperimentController {
     private com.jiyun.classenrollment.enrollment.application.EnrollmentDbAdmission admission;
     @org.springframework.beans.factory.annotation.Autowired
     private EnrollmentTimings timings;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.jiyun.classenrollment.enrollment.application.ClosedCourseHints closedCourseHints;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     @org.springframework.beans.factory.annotation.Qualifier("catalogDataSource")
     private HikariDataSource catalogPool;
@@ -39,6 +41,7 @@ public class ExperimentController {
         var result = new java.util.LinkedHashMap<String,Object>(diagnostics.snapshot());
         result.put("dbAdmission", admission.snapshot());
         result.put("enrollmentTimings", timings.snapshot());
+        result.put("closedCourseHint", closedCourseHints.snapshot());
         return result;
     }
     @GetMapping("/api/experiment/read")
@@ -58,6 +61,7 @@ public class ExperimentController {
         result.put("queryPoolSize",catalogPool==null?0:catalogPool.getMaximumPoolSize());
         result.put("pools",catalogPool==null?Map.of("shared",write):Map.of("write",write,"catalog",read));
         result.put("dbAdmission",admission.snapshot());
+        result.put("closedCourseHint",closedCourseHints.snapshot());
         return result;
     }
     private Map<String,Integer> poolState(HikariDataSource source) {

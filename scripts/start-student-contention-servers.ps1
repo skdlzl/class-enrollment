@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory=$true)]
     [ValidateSet('PESSIMISTIC','DB_ONLY')]
-    [string]$Strategy
+    [string]$Strategy,
+    [switch]$ClosedCourseHint
 )
 $ErrorActionPreference = 'Stop'
 $backend = Join-Path (Split-Path $PSScriptRoot -Parent) 'backend'
@@ -24,7 +25,8 @@ foreach ($serverPort in @(8080,8081)) {
         '--enrollment.local-gate-enabled=false',
         '--enrollment.capacity-precheck=true',
         '--enrollment.db-admission.limit=0',
-        '--enrollment.query-pool.enabled=false'
+        '--enrollment.query-pool.enabled=false',
+        "--enrollment.closed-course-hint.enabled=$($ClosedCourseHint.IsPresent.ToString().ToLowerInvariant())"
     )
     Start-Process -FilePath 'java' -ArgumentList $serverArgs -WorkingDirectory $backend
 }
