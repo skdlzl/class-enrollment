@@ -1,0 +1,18 @@
+name: Student contention experiment checks
+on:
+  push:
+    branches: [feat/redis-ingress-queue]
+    paths: ['scripts/student-contention*', 'scripts/run-student-contention.mjs', '.github/workflows/student-contention.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check scripts/run-student-contention.mjs
+      - run: node --test scripts/student-contention.test.mjs scripts/enrollment-phase-summary.test.mjs
