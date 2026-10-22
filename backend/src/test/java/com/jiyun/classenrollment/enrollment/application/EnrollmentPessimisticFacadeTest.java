@@ -81,7 +81,7 @@ class EnrollmentPessimisticFacadeTest {
         assertEquals(99L, facade.enroll(1L, 10L));
         var order = inOrder(student, service);
         order.verify(student).tryLock(10, TimeUnit.SECONDS);
-        order.verify(service).validateForEnrollment(1L, 10L);
+        verify(service, never()).validateForEnrollment(anyLong(), anyLong());
         order.verify(service).completeEnrollmentWithPessimisticLock(1L, 10L);
         order.verify(student).isHeldByCurrentThread();
         order.verify(student).unlock();
@@ -109,18 +109,20 @@ class EnrollmentPessimisticFacadeTest {
     }
 
     @Test
-    void failedValidationDoesNotStartPessimisticWrite() throws Exception {
+    void guardedValidationFailureReleasesStudentRedisLockWithoutPrevalidation() throws Exception {
         var service = mock(EnrollmentService.class);
         var redis = mock(RedissonClient.class);
         var student = mock(RLock.class);
         when(redis.getLock("lock:student:1")).thenReturn(student);
         when(student.tryLock(10, TimeUnit.SECONDS)).thenReturn(true);
         when(student.isHeldByCurrentThread()).thenReturn(true);
-        doThrow(new EnrollmentException("CREDIT_LIMIT_EXCEEDED", "credit", HttpStatus.CONFLICT))
-                .when(service).validateForEnrollment(1L, 10L);
+        when(service.completeEnrollmentWithPessimisticLock(1L, 10L))
+                .thenThrow(new EnrollmentException("CREDIT_LIMIT_EXCEEDED", "credit", HttpStatus.CONFLICT));
         var facade = new EnrollmentRedissonFacade(service, redis, CourseLockStrategy.PESSIMISTIC);
-        assertThrows(EnrollmentException.class, () -> facade.enroll(1L, 10L));
-        verify(service, never()).completeEnrollmentWithPessimisticLock(1L, 10L);
+        var failure = assertThrows(EnrollmentException.class, () -> facade.enroll(1L, 10L));
+        assertEquals("CREDIT_LIMIT_EXCEEDED", failure.getCode());
+        verify(service).completeEnrollmentWithPessimisticLock(1L, 10L);
+        verify(service, never()).validateForEnrollment(anyLong(), anyLong());
         verify(student).unlock();
     }
 }

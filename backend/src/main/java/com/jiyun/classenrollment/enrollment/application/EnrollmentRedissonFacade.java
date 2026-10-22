@@ -137,18 +137,17 @@ public class EnrollmentRedissonFacade {
                 );
             }
 
-            /*
-             * 학생 관련 사전 검증입니다. 최종 쓰기에서도 DB 락 안에서 재검사합니다.
-             * 과목 락을 기다리기 전에 읽기 전용 검증을 끝내 과목 락 점유 시간을 줄입니다.
-             */
-            phaseStartedAt = System.nanoTime();
-            try {
-                enrollmentService.validateForEnrollment(studentId, courseId);
-            } finally {
-                validationMillis = elapsedMillis(phaseStartedAt);
-            }
-
+            // Only REDIS waits for an external course lock before the guarded write.
+            // Mixed mode validates once inside the student DB lock, before taking
+            // the course DB lock. A separate read-only validation would duplicate
+            // three queries and a connection acquisition without adding safety.
             if (courseLockStrategy == CourseLockStrategy.REDIS) {
+                phaseStartedAt = System.nanoTime();
+                try {
+                    enrollmentService.validateForEnrollment(studentId, courseId);
+                } finally {
+                    validationMillis = elapsedMillis(phaseStartedAt);
+                }
                 phaseStartedAt = System.nanoTime();
                 courseLockAcquired = courseLock.tryLock(
                         LOCK_WAIT_SECONDS,
