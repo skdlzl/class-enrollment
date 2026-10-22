@@ -13,6 +13,9 @@ import { observeJourney, assertSearchTargets } from './enrollment-journey.mjs';
 async function main(){
   const searchMode=process.argv.includes('--search');
   const gate=process.argv.includes('--gate');
+  const queryPoolIndex=process.argv.indexOf('--query-pool-size');
+  const queryPoolSize=queryPoolIndex<0?0:Number(process.argv[queryPoolIndex+1]);
+  if(!Number.isInteger(queryPoolSize)||queryPoolSize<0||queryPoolSize>9)throw Error('--query-pool-size must be 0..9');
   const admissionIndex=process.argv.indexOf('--db-concurrency');
   const dbConcurrency=admissionIndex<0?0:Number(process.argv[admissionIndex+1]);
   if(!Number.isInteger(dbConcurrency)||dbConcurrency<0||dbConcurrency>10)throw Error('--db-concurrency must be 0..10');
@@ -20,7 +23,7 @@ async function main(){
   const readRps=rpsIndex<0?(searchMode?50:10):Number(process.argv[rpsIndex+1]);
   if(!Number.isInteger(readRps)||readRps<1||readRps>200)throw Error('--read-rps must be 1..200');
   const strategy=process.argv[2], warmup=process.argv.includes('--warmup');
-  if(!['REDIS','PESSIMISTIC','DB_ONLY'].includes(strategy)||process.argv.slice(3).some((x,i)=>!['--warmup','--search','--read-rps','--gate','--db-concurrency'].includes(x)&&!['--read-rps','--db-concurrency'].includes(process.argv[i+2])))throw Error('Usage: node scripts/run-enrollment-journey.mjs REDIS|PESSIMISTIC|DB_ONLY [--warmup] [--search] [--read-rps 50] [--gate]');
+  if(!['REDIS','PESSIMISTIC','DB_ONLY'].includes(strategy)||process.argv.slice(3).some((x,i)=>!['--warmup','--search','--read-rps','--gate','--db-concurrency','--query-pool-size'].includes(x)&&!['--read-rps','--db-concurrency','--query-pool-size'].includes(process.argv[i+2])))throw Error('Usage: node scripts/run-enrollment-journey.mjs REDIS|PESSIMISTIC|DB_ONLY [--warmup] [--search] [--read-rps 50] [--gate]');
   if(strategy==='DB_ONLY'&&gate)throw Error('DB_ONLY comparison requires local gate OFF');
   const mode=`sync-${strategy.toLowerCase()}-precheck${gate?'-gate':''}`,bases=['http://localhost:8080','http://localhost:8081'];
   const servers=[];
@@ -29,6 +32,8 @@ async function main(){
     const state=await http(`${base}/api/experiment/pool`);
     if(state.status!==200)throw Error(`${base}: experiment endpoint unavailable`);
     validateSyncLockMode(mode,state.body);
+    if((state.body.queryPoolEnabled??false)!==(queryPoolSize>0)||(state.body.queryPoolSize??0)!==queryPoolSize)
+      throw Error(`${base}: query pool setting mismatch, expected ${queryPoolSize}`);
     if((state.body.dbAdmission?.limit??0)!==dbConcurrency)throw Error(`${base}: DB admission limit mismatch, expected ${dbConcurrency}`);
     if(servers.length && JSON.stringify([state.body.dbAdmission?.waitMs,state.body.dbAdmission?.maxWaiting])!==JSON.stringify([servers[0].dbAdmission?.waitMs,servers[0].dbAdmission?.maxWaiting]))throw Error('DB admission wait settings differ between servers');
     const phaseProbe=await http(`${base}/api/experiment/diagnostics`);
@@ -41,7 +46,7 @@ async function main(){
   }
   const run=`J${randomBytes(6).toString('hex')}`;
   const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-  const directory=resolve(root,'jmeter/results',`journey-${searchMode?'search-':''}${strategy}-db${dbConcurrency}-${gate?'gate-on-':''}${warmup?'warmup':'measured'}-${new Date().toISOString().replace(/[:.]/g,'-')}-${run}`);
+  const directory=resolve(root,'jmeter/results',`journey-${searchMode?'search-':''}${strategy}-db${dbConcurrency}-readpool${queryPoolSize}-${gate?'gate-on-':''}${warmup?'warmup':'measured'}-${new Date().toISOString().replace(/[:.]/g,'-')}-${run}`);
   mkdirSync(directory,{recursive:true});
   const save=(name,data)=>writeFileSync(resolve(directory,name),JSON.stringify(data,null,2));
   const studentsSql=Array.from({length:500},(_,i)=>`('${run}${i}','Journey ${i}','ACTIVE',18)`).join(',');
@@ -65,7 +70,7 @@ async function main(){
   const students=sql(`SELECT id FROM students WHERE student_number LIKE '${run}%' ORDER BY id`).split('\n').map(Number);
   const courseIds=sql(`SELECT id FROM courses WHERE department='${department}' AND course_code LIKE '${run}C%' ORDER BY id`).split('\n').map(Number);
   if(students.length!==500||courseIds.length!==5)throw Error('Fixture mismatch');
-  const config={mode,users:500,searchMode,gate,dbConcurrency,department,departments,courseIds,studentIndexes:Object.fromEntries(students.map((id,i)=>[id,i])),
+  const config={mode,users:500,searchMode,gate,dbConcurrency,queryPoolSize,department,departments,courseIds,studentIndexes:Object.fromEntries(students.map((id,i)=>[id,i])),
     collectPool:true,readSeconds:90,readRps,rampSeconds:5,deadlineMs:60000,httpTimeoutMs:10000,enrollmentDelayMs:5000};
   if(searchMode)config.readUrl=(base,i)=>`${base}/api/courses?${new URLSearchParams({year:'2026',semester:'2',department:departments[i%10],grade:String(Math.floor(i/10)%4+1),keyword:['자료구조','데이터베이스','운영체제','네트워크'][Math.floor(i/40)%4],size:'50'})}`;
   const version=searchMode?'journey-v3-search-10k':'journey-v2-isolated-client';
@@ -108,6 +113,14 @@ async function main(){
     clientConfirmed:outcomes.CONFIRMED??0,dbConfirmed:database.reduce((sum,d)=>sum+d.actual,0),
     backgroundReads:[...baseline.reads.map(r=>({phase:'Baseline',...r})),...mixed.reads.map(r=>({phase:'Mixed',...r}))].map(({samples,...r})=>r),
     pool:mixed.pools.map(p=>({base:p.base,failed:p.samples.filter(s=>s.code!==200).length,maxWaiting:Math.max(0,...p.samples.filter(s=>s.code===200).map(s=>s.waiting))})),diagnostics:mixed.diagnostics};
+  summary.poolDetails=mixed.pools.map(p=>{
+    const valid=p.samples.filter(s=>s.code===200);
+    return {base:p.base,failed:p.samples.length-valid.length,pools:Object.fromEntries(
+      [...new Set(valid.flatMap(s=>Object.keys(s.pools??{})))].map(name=>[name,{
+        maxActive:Math.max(0,...valid.map(s=>s.pools?.[name]?.active??0)),
+        maxWaiting:Math.max(0,...valid.map(s=>s.pools?.[name]?.waiting??0))
+      }]))};
+  });
   save('summary.json',summary);
   console.log('트랜잭션 단계별 평균 시간(ms), P95 아님:');console.table(summary.phaseTimings);
   console.table(failureGroups);console.log('사용자 HTTP 대기(연결 배정 이후에도 네트워크/서버 처리 포함):',JSON.stringify(journeyTiming,null,2));

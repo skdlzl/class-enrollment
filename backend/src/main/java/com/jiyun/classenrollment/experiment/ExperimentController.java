@@ -18,6 +18,9 @@ public class ExperimentController {
     private com.jiyun.classenrollment.enrollment.application.EnrollmentDbAdmission admission;
     @org.springframework.beans.factory.annotation.Autowired
     private EnrollmentTimings timings;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Qualifier("catalogDataSource")
+    private HikariDataSource catalogPool;
     private final JdbcTemplate jdbc;
     private final RequestDiagnostics diagnostics;
     private final HikariDataSource pool;
@@ -44,12 +47,23 @@ public class ExperimentController {
     }
     @GetMapping("/api/experiment/pool")
     public Map<String, Object> pool() {
-        var mx = pool.getHikariPoolMXBean();
-        var result = new java.util.LinkedHashMap<String,Object>(Map.of("active", mx.getActiveConnections(), "idle", mx.getIdleConnections(),
-                "waiting", mx.getThreadsAwaitingConnection(), "total", mx.getTotalConnections(),
-                "max", pool.getMaximumPoolSize(), "strategy", strategy, "gate", gate,
-                "precheck", precheck,"queueEnabled",queueEnabled,"batchReject",batchReject));
-        result.put("dbAdmission", admission.snapshot());
+        var write=poolState(pool);
+        var read=catalogPool==null?null:poolState(catalogPool);
+        var result = new java.util.LinkedHashMap<String,Object>();
+        for(String key:new String[]{"active","idle","waiting","total","max"})
+            result.put(key,write.get(key)+(read==null?0:read.get(key)));
+        result.put("strategy",strategy);result.put("gate",gate);result.put("precheck",precheck);
+        result.put("queueEnabled",queueEnabled);result.put("batchReject",batchReject);
+        result.put("queryPoolEnabled",catalogPool!=null);
+        result.put("queryPoolSize",catalogPool==null?0:catalogPool.getMaximumPoolSize());
+        result.put("pools",catalogPool==null?Map.of("shared",write):Map.of("write",write,"catalog",read));
+        result.put("dbAdmission",admission.snapshot());
         return result;
+    }
+    private Map<String,Integer> poolState(HikariDataSource source) {
+        var mx=source.getHikariPoolMXBean();
+        return Map.of("active",mx==null?0:mx.getActiveConnections(),"idle",mx==null?0:mx.getIdleConnections(),
+            "waiting",mx==null?0:mx.getThreadsAwaitingConnection(),"total",mx==null?0:mx.getTotalConnections(),
+            "max",source.getMaximumPoolSize());
     }
 }

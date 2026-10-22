@@ -10,6 +10,9 @@ import java.util.ArrayList;
 @RestController
 @RequestMapping("/api/courses")
 public class CourseQueryController {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Qualifier("catalogJdbcTemplate")
+    private JdbcTemplate catalogJdbc;
     private final JdbcTemplate jdbc;
     public CourseQueryController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
     @GetMapping
@@ -37,7 +40,7 @@ public class CourseQueryController {
                     .replace("_", "!_") + "%");
         }
         query.append(" ORDER BY id LIMIT ?"); params.add(size + 1);
-        List<Item> items = jdbc.query(query.toString(), (rs, row) -> new Item(rs.getLong("id"), rs.getString("course_code"), rs.getString("name"),
+        List<Item> items = (catalogJdbc == null ? jdbc : catalogJdbc).query(query.toString(), (rs, row) -> new Item(rs.getLong("id"), rs.getString("course_code"), rs.getString("name"),
                 rs.getString("professor"), rs.getString("department"), rs.getInt("credits"),
                 rs.getInt("capacity"), rs.getInt("enrolled_count"), rs.getInt("target_grade")), params.toArray());
         boolean more = items.size() > size;

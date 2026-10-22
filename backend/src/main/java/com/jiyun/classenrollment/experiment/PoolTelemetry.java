@@ -23,32 +23,40 @@ public class PoolTelemetry {
     });
     @org.springframework.beans.factory.annotation.Autowired
     private EnrollmentTimings timings;
-    private long count, nanos, maxNanos, timeouts;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Qualifier("catalogDataSource")
+    private HikariDataSource catalog;
+    private final java.util.Map<HikariDataSource, Counters> counters = new java.util.LinkedHashMap<>();
+    private static class Counters {
+        long count,nanos,maxNanos,timeouts;
+        synchronized void acquired(long value){count++;nanos+=value;maxNanos=Math.max(maxNanos,value);}
+        synchronized void timeout(){timeouts++;}
+        synchronized long[] drain(){long[] r={count,nanos,maxNanos,timeouts};count=0;nanos=0;maxNanos=0;timeouts=0;return r;}
+    }
     public PoolTelemetry(DataSource source) throws SQLException {
         this.source = source.unwrap(HikariDataSource.class);
     }
-    private synchronized void acquired(long value) { count++; nanos += value; maxNanos = Math.max(maxNanos, value); }
-    private synchronized void timeout() { timeouts++; }
-    private synchronized long[] drain() {
-        long[] result = {count,nanos,maxNanos,timeouts}; count=0; nanos=0; maxNanos=0; timeouts=0; return result;
-    }
     @PostConstruct void start() {
-        // Do not overwrite an existing metrics integration.
-        if (source.getMetricsTrackerFactory() != null || source.getMetricRegistry() != null) {
+        attach(source,catalog==null?"pool":"pool.write");
+        if(catalog!=null)attach(catalog,"pool.catalog");
+        scheduler.scheduleAtFixedRate(this::sample,1,1,TimeUnit.SECONDS);
+    }
+    private void attach(HikariDataSource dataSource,String label) {
+        if(dataSource.getMetricsTrackerFactory()!=null||dataSource.getMetricRegistry()!=null)
             throw new IllegalStateException("Experiment telemetry requires an unused Hikari metrics tracker");
-        }
-        source.setMetricsTrackerFactory((name, stats) -> new IMetricsTracker() {
-            @Override public void recordConnectionAcquiredNanos(long elapsed) { acquired(elapsed); timings.record("pool.acquire", elapsed, false); }
-            @Override public void recordConnectionUsageMillis(long elapsed) { timings.record("pool.usage", TimeUnit.MILLISECONDS.toNanos(elapsed), false); }
-            @Override public void recordConnectionTimeout() { timeout(); }
+        var metrics=new Counters();counters.put(dataSource,metrics);
+        dataSource.setMetricsTrackerFactory((name,stats)->new IMetricsTracker(){
+            @Override public void recordConnectionAcquiredNanos(long elapsed){metrics.acquired(elapsed);timings.record(label+".acquire",elapsed,false);}
+            @Override public void recordConnectionUsageMillis(long elapsed){timings.record(label+".usage",TimeUnit.MILLISECONDS.toNanos(elapsed),false);}
+            @Override public void recordConnectionTimeout(){metrics.timeout();}
         });
-        scheduler.scheduleAtFixedRate(this::sample, 1, 1, TimeUnit.SECONDS);
     }
     private void sample() {
-        try {
+        for(var entry:counters.entrySet())try {
+            var source=entry.getKey();
             var pool = source.getHikariPoolMXBean();
-            if (pool == null) return;
-            long[] m = drain();
+            if (pool == null) continue;
+            long[] m = entry.getValue().drain();
             log.info("POOL_SAMPLE pool={} max={} active={} idle={} waiting={} total={} acquireCount={} acquireTotalMs={} acquireMaxMs={} timeouts={}",
                 source.getPoolName(), source.getMaximumPoolSize(), pool.getActiveConnections(), pool.getIdleConnections(),
                 pool.getThreadsAwaitingConnection(), pool.getTotalConnections(), m[0], m[1]/1_000_000.0, m[2]/1_000_000.0, m[3]);
