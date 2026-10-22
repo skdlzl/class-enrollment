@@ -12,11 +12,14 @@ import { observeJourney, assertSearchTargets } from './enrollment-journey.mjs';
 async function main(){
   const searchMode=process.argv.includes('--search');
   const gate=process.argv.includes('--gate');
+  const admissionIndex=process.argv.indexOf('--db-concurrency');
+  const dbConcurrency=admissionIndex<0?0:Number(process.argv[admissionIndex+1]);
+  if(!Number.isInteger(dbConcurrency)||dbConcurrency<0||dbConcurrency>10)throw Error('--db-concurrency must be 0..10');
   const rpsIndex=process.argv.indexOf('--read-rps');
   const readRps=rpsIndex<0?(searchMode?50:10):Number(process.argv[rpsIndex+1]);
   if(!Number.isInteger(readRps)||readRps<1||readRps>200)throw Error('--read-rps must be 1..200');
   const strategy=process.argv[2], warmup=process.argv.includes('--warmup');
-  if(!['REDIS','PESSIMISTIC','DB_ONLY'].includes(strategy)||process.argv.slice(3).some((x,i)=>!['--warmup','--search','--read-rps','--gate'].includes(x)&&process.argv[i+2]!=='--read-rps'))throw Error('Usage: node scripts/run-enrollment-journey.mjs REDIS|PESSIMISTIC|DB_ONLY [--warmup] [--search] [--read-rps 50] [--gate]');
+  if(!['REDIS','PESSIMISTIC','DB_ONLY'].includes(strategy)||process.argv.slice(3).some((x,i)=>!['--warmup','--search','--read-rps','--gate','--db-concurrency'].includes(x)&&!['--read-rps','--db-concurrency'].includes(process.argv[i+2])))throw Error('Usage: node scripts/run-enrollment-journey.mjs REDIS|PESSIMISTIC|DB_ONLY [--warmup] [--search] [--read-rps 50] [--gate]');
   if(strategy==='DB_ONLY'&&gate)throw Error('DB_ONLY comparison requires local gate OFF');
   const mode=`sync-${strategy.toLowerCase()}-precheck${gate?'-gate':''}`,bases=['http://localhost:8080','http://localhost:8081'];
   const servers=[];
@@ -24,14 +27,17 @@ async function main(){
     console.log(`준비: ${base} 서버 설정 및 조회 API 확인`);
     const state=await http(`${base}/api/experiment/pool`);
     if(state.status!==200)throw Error(`${base}: experiment endpoint unavailable`);
-    validateSyncLockMode(mode,state.body);servers.push({base,...state.body});
+    validateSyncLockMode(mode,state.body);
+    if((state.body.dbAdmission?.limit??0)!==dbConcurrency)throw Error(`${base}: DB admission limit mismatch, expected ${dbConcurrency}`);
+    if(servers.length && JSON.stringify([state.body.dbAdmission?.waitMs,state.body.dbAdmission?.maxWaiting])!==JSON.stringify([servers[0].dbAdmission?.waitMs,servers[0].dbAdmission?.maxWaiting]))throw Error('DB admission wait settings differ between servers');
+    servers.push({base,...state.body});
     if(searchMode){const probe=await http(`${base}/api/courses?grade=5`);if(probe.status!==400)throw Error(`${base}: 검색 API가 추가된 JAR로 재빌드/재시작하세요.`);}
     const catalog=await http(`${base}/api/courses?year=2026&semester=2&department=CS&afterId=100000&size=20`);
     if(catalog.status!==200||catalog.body?.items?.length!==20)throw Error('기존 catalog 실험 데이터가 필요합니다');
   }
   const run=`J${randomBytes(6).toString('hex')}`;
   const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-  const directory=resolve(root,'jmeter/results',`journey-${searchMode?'search-':''}${strategy}-${gate?'gate-on-':''}${warmup?'warmup':'measured'}-${new Date().toISOString().replace(/[:.]/g,'-')}-${run}`);
+  const directory=resolve(root,'jmeter/results',`journey-${searchMode?'search-':''}${strategy}-db${dbConcurrency}-${gate?'gate-on-':''}${warmup?'warmup':'measured'}-${new Date().toISOString().replace(/[:.]/g,'-')}-${run}`);
   mkdirSync(directory,{recursive:true});
   const save=(name,data)=>writeFileSync(resolve(directory,name),JSON.stringify(data,null,2));
   const studentsSql=Array.from({length:500},(_,i)=>`('${run}${i}','Journey ${i}','ACTIVE',18)`).join(',');
@@ -55,7 +61,7 @@ async function main(){
   const students=sql(`SELECT id FROM students WHERE student_number LIKE '${run}%' ORDER BY id`).split('\n').map(Number);
   const courseIds=sql(`SELECT id FROM courses WHERE department='${department}' AND course_code LIKE '${run}C%' ORDER BY id`).split('\n').map(Number);
   if(students.length!==500||courseIds.length!==5)throw Error('Fixture mismatch');
-  const config={mode,users:500,searchMode,gate,department,departments,courseIds,studentIndexes:Object.fromEntries(students.map((id,i)=>[id,i])),
+  const config={mode,users:500,searchMode,gate,dbConcurrency,department,departments,courseIds,studentIndexes:Object.fromEntries(students.map((id,i)=>[id,i])),
     collectPool:true,readSeconds:90,readRps,rampSeconds:5,deadlineMs:60000,httpTimeoutMs:10000,enrollmentDelayMs:5000};
   if(searchMode)config.readUrl=(base,i)=>`${base}/api/courses?${new URLSearchParams({year:'2026',semester:'2',department:departments[i%10],grade:String(Math.floor(i/10)%4+1),keyword:['자료구조','데이터베이스','운영체제','네트워크'][Math.floor(i/40)%4],size:'50'})}`;
   const version=searchMode?'journey-v3-search-10k':'journey-v2-isolated-client';

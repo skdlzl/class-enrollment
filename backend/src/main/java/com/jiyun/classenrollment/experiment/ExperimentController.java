@@ -14,6 +14,8 @@ import java.util.Map;
 @RestController
 @ConditionalOnProperty(name="experiment.enabled", havingValue="true")
 public class ExperimentController {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.jiyun.classenrollment.enrollment.application.EnrollmentDbAdmission admission;
     private final JdbcTemplate jdbc;
     private final RequestDiagnostics diagnostics;
     private final HikariDataSource pool;
@@ -28,7 +30,11 @@ public class ExperimentController {
         this.pool = source.unwrap(HikariDataSource.class);
     }
     @GetMapping("/api/experiment/diagnostics")
-    public Map<String,Object> diagnostics() {return diagnostics.snapshot();}
+    public Map<String,Object> diagnostics() {
+        var result = new java.util.LinkedHashMap<String,Object>(diagnostics.snapshot());
+        result.put("dbAdmission", admission.snapshot());
+        return result;
+    }
     @GetMapping("/api/experiment/read")
     public Map<String, Object> read() {
         return jdbc.queryForMap("SELECT id, name FROM students WHERE id=1");
@@ -36,9 +42,11 @@ public class ExperimentController {
     @GetMapping("/api/experiment/pool")
     public Map<String, Object> pool() {
         var mx = pool.getHikariPoolMXBean();
-        return Map.of("active", mx.getActiveConnections(), "idle", mx.getIdleConnections(),
+        var result = new java.util.LinkedHashMap<String,Object>(Map.of("active", mx.getActiveConnections(), "idle", mx.getIdleConnections(),
                 "waiting", mx.getThreadsAwaitingConnection(), "total", mx.getTotalConnections(),
                 "max", pool.getMaximumPoolSize(), "strategy", strategy, "gate", gate,
-                "precheck", precheck,"queueEnabled",queueEnabled,"batchReject",batchReject);
+                "precheck", precheck,"queueEnabled",queueEnabled,"batchReject",batchReject));
+        result.put("dbAdmission", admission.snapshot());
+        return result;
     }
 }

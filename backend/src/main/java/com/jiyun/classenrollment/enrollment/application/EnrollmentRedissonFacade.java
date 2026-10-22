@@ -51,6 +51,9 @@ public class EnrollmentRedissonFacade {
     @Value("${enrollment.local-gate-wait-ms:10000}")
     private long localGateWaitMs = 10000;
     private final LocalCourseGate localGate = new LocalCourseGate();
+    @Autowired
+    private EnrollmentDbAdmission dbAdmission = new EnrollmentDbAdmission(0, 3000, 500);
+
     private final AtomicLong gateSamples = new AtomicLong();
 
     public Long enroll(Long studentId, Long courseId) {
@@ -99,7 +102,7 @@ public class EnrollmentRedissonFacade {
             if (courseLockStrategy == CourseLockStrategy.DB_ONLY) {
                 long started = System.nanoTime();
                 try {
-                    Long id = enrollmentService.enrollWithDatabaseLocks(studentId, courseId);
+                    Long id = dbAdmission.execute(() -> enrollmentService.enrollWithDatabaseLocks(studentId, courseId));
                     writeMillis = elapsedMillis(started);
                     logTiming("SUCCESS", studentId, courseId, 0, 0, 0, writeMillis, facadeStartedAt);
                     return id;
@@ -183,9 +186,9 @@ public class EnrollmentRedissonFacade {
             // wait, writes and commit. courseLockWaitMillis measures Redis ONLY.
             Long enrollmentId;
             try {
-                enrollmentId = courseLockStrategy == CourseLockStrategy.PESSIMISTIC
+                enrollmentId = dbAdmission.execute(() -> courseLockStrategy == CourseLockStrategy.PESSIMISTIC
                         ? enrollmentService.completeEnrollmentWithPessimisticLock(studentId, courseId)
-                        : enrollmentService.completeEnrollment(studentId, courseId);
+                        : enrollmentService.completeEnrollment(studentId, courseId));
             } finally {
                 writeMillis = elapsedMillis(phaseStartedAt);
             }
