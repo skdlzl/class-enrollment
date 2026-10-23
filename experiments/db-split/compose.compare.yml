@@ -1,0 +1,42 @@
+# A new Compose project is generated for every comparison session. No fixed/global volume names.
+x-mysql: &mysql
+  image: mysql:8.4
+  environment:
+    MYSQL_DATABASE: enrollment_experiment
+    MYSQL_USER: experiment
+    MYSQL_PASSWORD: experiment-local
+    MYSQL_ROOT_PASSWORD: experiment-root-local
+  healthcheck:
+    test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -uexperiment -pexperiment-local --silent']
+    interval: 3s
+    timeout: 3s
+    retries: 40
+services:
+  single:
+    <<: *mysql
+    profiles: [single]
+    cpus: 2.0
+    mem_limit: 2g
+    ports: ['127.0.0.1:53326:3306']
+    command: ['--innodb-buffer-pool-size=536870912', '--max-connections=100', '--innodb-lock-wait-timeout=10']
+    volumes: ['single-data:/var/lib/mysql']
+  academic:
+    <<: *mysql
+    profiles: [split]
+    cpus: 1.0
+    mem_limit: 1g
+    ports: ['127.0.0.1:53327:3306']
+    command: ['--innodb-buffer-pool-size=268435456', '--max-connections=50', '--innodb-lock-wait-timeout=10']
+    volumes: ['academic-data:/var/lib/mysql']
+  enrollment:
+    <<: *mysql
+    profiles: [split]
+    cpus: 1.0
+    mem_limit: 1g
+    ports: ['127.0.0.1:53328:3306']
+    command: ['--innodb-buffer-pool-size=268435456', '--max-connections=50', '--innodb-lock-wait-timeout=10']
+    volumes: ['enrollment-data:/var/lib/mysql']
+volumes:
+  single-data:
+  academic-data:
+  enrollment-data:

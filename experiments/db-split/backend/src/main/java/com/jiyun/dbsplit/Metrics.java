@@ -12,14 +12,22 @@ import java.util.function.Supplier;
 @Component
 public class Metrics implements BeanPostProcessor {
     private final boolean enabled;
-    private volatile HikariDataSource pool;
+    private final Map<String,HikariDataSource> pools=new ConcurrentHashMap<>();
     private final java.util.concurrent.ConcurrentLinkedDeque<Map<String,Object>> samples=new java.util.concurrent.ConcurrentLinkedDeque<>();
     @org.springframework.scheduling.annotation.Scheduled(fixedDelay=1000)
     public void samplePool(){
-        if(!enabled||pool==null||pool.getHikariPoolMXBean()==null)return;
-        var p=pool.getHikariPoolMXBean();
-        samples.add(Map.of("timestamp",System.currentTimeMillis(),"active",p.getActiveConnections(),"waiting",p.getThreadsAwaitingConnection()));
-        while(samples.size()>360)samples.pollFirst();
+        if(!enabled)return;
+        pools.forEach((name,ds)->{
+            var p=ds.getHikariPoolMXBean();if(p==null)return;
+            samples.add(Map.of("timestamp",System.currentTimeMillis(),"pool",name,"active",p.getActiveConnections(),"waiting",p.getThreadsAwaitingConnection()));
+        });
+        while(samples.size()>720)samples.pollFirst();
+    }
+    public List<Map<String,Object>> poolState(){
+        return pools.entrySet().stream().sorted(Map.Entry.comparingByKey()).map(e->{
+            var ds=e.getValue();var p=ds.getHikariPoolMXBean();
+            return Map.<String,Object>of("name",e.getKey(),"max",ds.getMaximumPoolSize(),"active",p==null?0:p.getActiveConnections(),"waiting",p==null?0:p.getThreadsAwaitingConnection(),"connectionTimeoutMs",ds.getConnectionTimeout());
+        }).toList();
     }
     public List<Map<String,Object>> poolSamples(){return List.copyOf(samples);}
     private final Map<String,Counter> counters=new ConcurrentHashMap<>();
@@ -33,10 +41,10 @@ public class Metrics implements BeanPostProcessor {
     public <T>T time(String name,Supplier<T> task){long s=System.nanoTime();boolean failed=true;
         try{T r=task.get();failed=false;return r;}finally{record(name,System.nanoTime()-s,failed);}}
     @Override public Object postProcessBeforeInitialization(Object bean,String name){
-        if(bean instanceof HikariDataSource ds && enabled){pool=ds;ds.setMetricsTrackerFactory((pool,stats)->new IMetricsTracker(){
-            public void recordConnectionAcquiredNanos(long n){record("sharedPool.acquire",n,false);}
-            public void recordConnectionUsageMillis(long ms){record("sharedPool.usage",ms*1000000,false);}
-            public void recordConnectionTimeout(){record("sharedPool.timeout",0,true);}
+        if(bean instanceof HikariDataSource ds){String prefix=ds.getPoolName();pools.put(prefix,ds);if(enabled)ds.setMetricsTrackerFactory((pool,stats)->new IMetricsTracker(){
+            public void recordConnectionAcquiredNanos(long n){record(prefix+".acquire",n,false);}
+            public void recordConnectionUsageMillis(long ms){record(prefix+".usage",ms*1000000,false);}
+            public void recordConnectionTimeout(){record(prefix+".timeout",0,true);}
         });}
         return bean;
     }

@@ -11,25 +11,34 @@ import java.util.*;
 
 @RestController
 public class ExperimentController {
-    private final JdbcTemplate jdbc;private final EnrollmentService service;private final FixtureService fixture;
-    private final Metrics metrics;private final HikariDataSource pool;private final String revision;
-    public ExperimentController(JdbcTemplate jdbc,EnrollmentService service,FixtureService fixture,Metrics metrics,
-        HikariDataSource pool,@Value("${experiment.revision}") String revision){
-        this.jdbc=jdbc;this.service=service;this.fixture=fixture;this.metrics=metrics;this.pool=pool;this.revision=revision;
+    private final JdbcTemplate jdbc, academic;private final EnrollmentService service;private final FixtureService fixture;
+    private final Metrics metrics;private final HikariDataSource pool;private final String revision,session,policy;
+    private final DatabaseConfig.Mode mode;
+    public ExperimentController(JdbcTemplate jdbc,@org.springframework.beans.factory.annotation.Qualifier("academicJdbc") JdbcTemplate academic,
+        EnrollmentService service,FixtureService fixture,Metrics metrics,
+        HikariDataSource pool,DatabaseConfig.Mode mode,@Value("${experiment.revision}") String revision,
+        @Value("${experiment.session:legacy}") String session,@Value("${experiment.dataset-policy:append}") String policy){
+        this.jdbc=jdbc;this.academic=academic;this.service=service;this.fixture=fixture;this.metrics=metrics;
+        this.pool=pool;this.mode=mode;this.revision=revision;this.session=session;this.policy=policy;
     }
     @PostMapping("/experiment/fixtures") public Map<String,Object> fixtures(){return fixture.create();}
+    @PostMapping("/experiment/fixtures/{runId}/reset") public Map<String,Object> reset(@PathVariable String runId){return fixture.reset(runId);}
     @GetMapping("/experiment/integrity") public Map<String,Object> integrity(@RequestParam String runId){return fixture.integrity(runId);}
     @GetMapping("/experiment/pool-samples") public List<Map<String,Object>> poolSamples(){return metrics.poolSamples();}
     @GetMapping("/experiment/state") public Map<String,Object> state(){
-        var p=pool.getHikariPoolMXBean();
-        return Map.of("version","db-split-stage-a-v1","layout","SINGLE","strategy","DB_ONLY","revision",revision,
-          "metrics",metrics.snapshot(),"pool",Map.of("max",pool.getMaximumPoolSize(),"active",p==null?0:p.getActiveConnections(),
-          "waiting",p==null?0:p.getThreadsAwaitingConnection(),"connectionTimeoutMs",pool.getConnectionTimeout()),
-          "isolation",pool.getTransactionIsolation(),"guards",List.of("student-db-lock","course-db-lock","unique-request","unique-enrollment"));
+        var result=new LinkedHashMap<String,Object>();
+        result.put("version","db-split-v2");result.put("mode",mode.name());result.put("layout",mode==DatabaseConfig.Mode.B?"SPLIT":"SINGLE");
+        result.put("strategy","DB_ONLY");result.put("revision",revision);result.put("session",session);result.put("datasetPolicy",policy);
+        result.put("metrics",metrics.snapshot());result.put("pools",metrics.poolState());
+        result.put("isolation",pool.getTransactionIsolation());
+        result.put("guards",List.of("student-db-lock","course-db-lock","unique-request","unique-enrollment"));
+        result.put("databases",Map.of("enrollment",jdbc.queryForMap("SELECT @@server_uuid AS serverUuid,DATABASE() AS databaseName"),
+            "academic",academic.queryForMap("SELECT @@server_uuid AS serverUuid,DATABASE() AS databaseName")));
+        return result;
     }
     @GetMapping("/api/subjects") public List<Map<String,Object>> subjects(@RequestParam String runId,
         @RequestParam(defaultValue="D0") String department,@RequestParam(defaultValue="0") long afterId){
-        return metrics.time("academicRead",()->jdbc.queryForList("SELECT id,code,name,description FROM subject WHERE run_id=? AND department=? AND id>? ORDER BY id LIMIT 50",runId,department,afterId));
+        return metrics.time("academicRead",()->academic.queryForList("SELECT id,code,name,description FROM subject WHERE run_id=? AND department=? AND id>? ORDER BY id LIMIT 50",runId,department,afterId));
     }
     @GetMapping("/api/offerings") public List<Map<String,Object>> offerings(@RequestParam String runId,
         @RequestParam(defaultValue="D0") String department,@RequestParam(defaultValue="1") int grade,

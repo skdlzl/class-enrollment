@@ -17,6 +17,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+@org.springframework.test.annotation.DirtiesContext(classMode=org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @Testcontainers
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT)
 class EnrollmentSafetyTest {
@@ -24,6 +25,7 @@ class EnrollmentSafetyTest {
  @DynamicPropertySource static void properties(DynamicPropertyRegistry r){
   r.add("spring.datasource.url",mysql::getJdbcUrl);r.add("spring.datasource.username",mysql::getUsername);r.add("spring.datasource.password",mysql::getPassword);
  }
+ @Autowired DatabaseConfig.Mode mode;
  @Autowired EnrollmentService service; @Autowired JdbcTemplate jdbc;
  @Autowired PlatformTransactionManager tx; @Autowired Metrics metrics; @Autowired FixtureService fixture;
  @Autowired TestRestTemplate http; @LocalServerPort int port;
@@ -84,7 +86,8 @@ class EnrollmentSafetyTest {
   for(int i=0;i<30 && metrics.poolSamples().isEmpty();i++)Thread.sleep(100);
   assertFalse(metrics.poolSamples().isEmpty(),"Scheduled pool probe must run");
   var phases=(Map<?,?>)metrics.snapshot().get("phases");
-  for(String name:List.of("sharedPool.acquire","sharedPool.usage","courseLock.sql","courseLock.holdUntilCompletion","enrollment.transactionProxy")){
+  String prefix=mode==DatabaseConfig.Mode.A?"sharedPool":"enrollmentPool";
+  for(String name:List.of(prefix+".acquire",prefix+".usage","courseLock.sql","courseLock.holdUntilCompletion","enrollment.transactionProxy")){
    assertTrue(phases.containsKey(name),name);assertTrue(((Number)((Map<?,?>)phases.get(name)).get("count")).longValue()>0,name);
   }
  }
