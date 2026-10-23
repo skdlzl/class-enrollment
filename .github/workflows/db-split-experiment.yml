@@ -1,0 +1,58 @@
+name: DB split experiment safety
+on:
+  push:
+    branches: [experiment/db-split]
+    paths: ['experiments/db-split/**', '.github/workflows/db-split-experiment.yml']
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: MySQL safety tests
+        run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml verify
+      - name: Install pinned JMeter
+        run: |
+          curl --fail --retry 3 --max-time 120 -L https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz -o /tmp/jmeter.tgz
+          tar -xzf /tmp/jmeter.tgz -C /tmp
+      - name: Real JMeter transport smoke
+        run: |
+          node experiments/db-split/scripts/mock-api.mjs &
+          mkdir -p /tmp/jmeter-smoke
+          sleep 1
+          for phase in baseline mixed; do
+            node experiments/db-split/scripts/create-plan.mjs /tmp/jmeter-smoke/$phase.jmx $phase --smoke
+            /tmp/apache-jmeter-5.6.3/bin/jmeter -n -t /tmp/jmeter-smoke/$phase.jmx -l /tmp/jmeter-smoke/$phase.jtl -j /tmp/jmeter-smoke/$phase.log -JrunId=smoke -Jjmeter.save.saveservice.output_format=xml -Jjmeter.save.saveservice.response_data=true -Jjmeter.save.saveservice.subresults=true
+          done
+          python experiments/db-split/scripts/check-smoke.py /tmp/jmeter-smoke
+      - name: PowerShell syntax and summary
+        shell: pwsh
+        run: |
+          Get-ChildItem experiments/db-split/scripts/*.ps1 | ForEach-Object {
+            $parseErrors=$null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($_.FullName,[ref]$null,[ref]$parseErrors)
+            if($parseErrors){throw ($parseErrors|Out-String)}
+          }
+          @{counterMismatches=0;creditViolations=0;scheduleViolations=0;studentsWithMultipleEnrollments=0;confirmed=2}|ConvertTo-Json|Set-Content /tmp/jmeter-smoke/database.json
+          $state=@(@{metrics=@{phases=@{}}},@{metrics=@{phases=@{}}})|ConvertTo-Json -Depth 10
+          $state|Set-Content /tmp/jmeter-smoke/mixed-before.json
+          $state|Set-Content /tmp/jmeter-smoke/mixed-after.json
+          ./experiments/db-split/scripts/summarize.ps1 -Directory /tmp/jmeter-smoke
+          $summary=Get-Content -Raw /tmp/jmeter-smoke/summary.json|ConvertFrom-Json
+          if($summary.outcomes.CONFIRMED -ne 2 -or $summary.submit.count -ne 2 -or $summary.journeyRead.count -ne 6 -or $summary.valid){throw 'Summary smoke failed'}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: db-split-verification
+          path: |
+            experiments/db-split/backend/target/surefire-reports
+            /tmp/jmeter-smoke

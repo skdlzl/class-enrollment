@@ -1,0 +1,25 @@
+server:
+  address: 127.0.0.1
+  port: 28080
+  tomcat:
+    threads:
+      max: 200
+spring:
+  application:
+    name: db-split-experiment
+  datasource:
+    url: ${EXPERIMENT_DB_URL:jdbc:mysql://127.0.0.1:53316/enrollment_experiment?characterEncoding=UTF-8&serverTimezone=UTC}
+    username: ${EXPERIMENT_DB_USER:experiment}
+    password: ${EXPERIMENT_DB_PASSWORD:experiment-local}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 10
+      connection-timeout: 10000
+      transaction-isolation: TRANSACTION_READ_COMMITTED
+      connection-init-sql: SET SESSION innodb_lock_wait_timeout=10
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+experiment:
+  revision: ${EXPERIMENT_REVISION:unknown}
+  metrics-enabled: true

@@ -7,3 +7,6 @@ backend/target/
 .env.*
 !.env.example
 frontend/node_modules/
+
+experiments/db-split/backend/target/
+experiments/db-split/results/
