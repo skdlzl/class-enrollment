@@ -58,7 +58,7 @@ public class DatabaseConfig {
         return Flyway.configure().dataSource(ds).locations(mode == Mode.B ? "classpath:db/enrollment" : "classpath:db/migration").load();
     }
     @Bean(initMethod="migrate") @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="experiment.mode",havingValue="B")
-    Flyway academicMigration(@Qualifier("academicJdbc") JdbcTemplate jdbc) {
-        return Flyway.configure().dataSource(jdbc.getDataSource()).locations("classpath:db/academic").load();
+    Flyway academicMigration(@Qualifier("academicDataSource") HikariDataSource ds) {
+        return Flyway.configure().dataSource(ds).locations("classpath:db/academic").load();
     }
 }

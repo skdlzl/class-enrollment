@@ -1,6 +1,7 @@
 param([Parameter(Mandatory=$true)][ValidateSet('A','B0','B')][string]$Mode,
       [ValidateRange(1,99)][int]$Round=1,[switch]$MetricsOff)
 $ErrorActionPreference='Stop'
+$Mode=$Mode.ToUpperInvariant()
 . "$PSScriptRoot\comparison-common.ps1"
 $jar=Join-Path $experimentRoot 'backend\target\db-split-experiment-0.0.1-SNAPSHOT.jar'
 $revision=(git -C $experimentRepo rev-parse HEAD).Trim()

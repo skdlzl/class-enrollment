@@ -44,6 +44,7 @@ jobs:
             [void][System.Management.Automation.Language.Parser]::ParseFile($_.FullName,[ref]$null,[ref]$parseErrors)
             if($parseErrors){throw ($parseErrors|Out-String)}
           }
+          ./experiments/db-split/scripts/check-preflight.ps1
           @{counterMismatches=0;creditViolations=0;scheduleViolations=0;studentsWithMultipleEnrollments=0;confirmed=2}|ConvertTo-Json|Set-Content /tmp/jmeter-smoke/database.json
           $state=@(@{metrics=@{phases=@{}}},@{metrics=@{phases=@{}}})|ConvertTo-Json -Depth 10
           $state|Set-Content /tmp/jmeter-smoke/mixed-before.json
