@@ -23,6 +23,8 @@ public class ExperimentController {
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     @org.springframework.beans.factory.annotation.Qualifier("catalogDataSource")
     private HikariDataSource catalogPool;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.jiyun.classenrollment.course.application.CourseSearchCache searchCache;
     private final JdbcTemplate jdbc;
     private final RequestDiagnostics diagnostics;
     private final HikariDataSource pool;
@@ -42,6 +44,7 @@ public class ExperimentController {
         result.put("dbAdmission", admission.snapshot());
         result.put("enrollmentTimings", timings.snapshot());
         result.put("closedCourseHint", closedCourseHints.snapshot());
+        result.put("searchCache",searchCache.snapshot());
         return result;
     }
     @GetMapping("/api/experiment/read")
@@ -62,6 +65,7 @@ public class ExperimentController {
         result.put("pools",catalogPool==null?Map.of("shared",write):Map.of("write",write,"catalog",read));
         result.put("dbAdmission",admission.snapshot());
         result.put("closedCourseHint",closedCourseHints.snapshot());
+        result.put("searchCache",searchCache.snapshot());
         return result;
     }
     private Map<String,Integer> poolState(HikariDataSource source) {

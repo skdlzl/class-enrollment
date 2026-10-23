@@ -10,6 +10,26 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class CourseQueryControllerTest {
+    @Test void cacheKeySeparatesAllSearchParametersAndValidationRunsFirst() {
+        JdbcTemplate jdbc=mock(JdbcTemplate.class);
+        var cache=mock(com.jiyun.classenrollment.course.application.CourseSearchCache.class);
+        var controller=new CourseQueryController(jdbc);
+        org.springframework.test.util.ReflectionTestUtils.setField(controller,"searchCache",cache);
+        controller.list(2026,2,"CS",0,20,1,"자료");
+        controller.list(2026,2,"CS",20,20,1,"자료");
+        controller.list(2026,2,"CS",0,20,2,"자료");
+        controller.list(2026,2,"EE",0,20,1,"자료");
+        controller.list(2026,1,"CS",0,20,1,"자료");
+        controller.list(2025,2,"CS",0,20,1,"자료");
+        controller.list(2026,2,"CS",0,50,1,"자료");
+        controller.list(2026,2,"CS",0,20,1,"운영");
+        var keys=org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(cache,times(8)).get(keys.capture(),any());
+        assertEquals(8,keys.getAllValues().stream().distinct().count());
+        assertThrows(ResponseStatusException.class,()->controller.list(2026,2,"CS",0,20,5,""));
+        verifyNoMoreInteractions(cache);verifyNoInteractions(jdbc);
+    }
+
     @Test void invalidGradeRejectedBeforeDatabaseAccess() {
         JdbcTemplate jdbc=mock(JdbcTemplate.class);
         assertThrows(ResponseStatusException.class,()->new CourseQueryController(jdbc).list(2026,2,"CS",0,20,5,""));

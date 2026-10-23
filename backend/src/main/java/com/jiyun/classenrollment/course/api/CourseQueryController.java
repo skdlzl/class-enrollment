@@ -13,6 +13,8 @@ public class CourseQueryController {
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     @org.springframework.beans.factory.annotation.Qualifier("catalogJdbcTemplate")
     private JdbcTemplate catalogJdbc;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.jiyun.classenrollment.course.application.CourseSearchCache searchCache;
     private final JdbcTemplate jdbc;
     public CourseQueryController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
     @GetMapping
@@ -28,6 +30,12 @@ public class CourseQueryController {
                 || (grade != null && (grade < 1 || grade > 4)) || keyword.length() > 100) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid course search parameters");
         }
+        // Length-prefixed strings avoid collisions between search fields.
+        String key=year+":"+semester+":"+department.length()+":"+department+":"+afterId+":"+size+":"+grade+":"+keyword.strip();
+        return searchCache==null?load(year,semester,department,afterId,size,grade,keyword):
+            searchCache.get(key,()->load(year,semester,department,afterId,size,grade,keyword));
+    }
+    private Page load(int year,int semester,String department,long afterId,int size,Integer grade,String keyword) {
         StringBuilder query = new StringBuilder("""
             SELECT id, course_code, name, professor, department, credits, capacity, enrolled_count, target_grade
             FROM courses WHERE academic_year=? AND semester=? AND department=? AND id>?
