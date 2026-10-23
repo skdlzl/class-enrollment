@@ -7,9 +7,9 @@ import org.apache.jmeter.samplers.SampleResult as JMeterSampleResult
 
 def client=props.computeIfAbsent('dbSplitHttpClient',{k->HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(Duration.ofSeconds(3)).build()})
 def json=new JsonSlurper()
-def root=vars.get('base')
+def root=args[1]
 def run=props.getProperty('runId')
-def kind=vars.get('kind')
+def kind=args[0]
 def student=ctx.getThreadNum()+1
 def requests=[]
 def call={String path,String method,Object body,String label ->
