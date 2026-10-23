@@ -30,9 +30,14 @@ foreach($part in @('baseline','mixed')){
  & node "$PSScriptRoot\create-plan.mjs" "$dir\$part.jmx" $part
  if($LASTEXITCODE -ne 0){throw 'Plan generation failed'}
  Save "$part-before.json" (@(28080,28081)|ForEach-Object {Invoke-RestMethod "http://127.0.0.1:$_/experiment/state"})
+ $phaseStarted=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
  $jmeterArgs=@('-n','-t',"$dir\$part.jmx",'-l',"$dir\$part.jtl",'-j',"$dir\$part.log","-JrunId=$($fixture.runId)",'-Jjmeter.save.saveservice.output_format=xml','-Jjmeter.save.saveservice.response_data=true','-Jjmeter.save.saveservice.subresults=true','-Jjmeter.save.saveservice.assertion_results_failure_message=true')
  & $Jmeter @jmeterArgs
  if($LASTEXITCODE -ne 0){throw "JMeter failed: see $part.log"}
+ Save "$part-pool.json" (@(28080,28081)|ForEach-Object {
+  $serverPort=$_
+  @{server=$serverPort;samples=@(Invoke-RestMethod "http://127.0.0.1:$serverPort/experiment/pool-samples"|ForEach-Object {$_}|Where-Object {$_.timestamp -ge $phaseStarted})}
+ })
  Save "$part-after.json" (@(28080,28081)|ForEach-Object {Invoke-RestMethod "http://127.0.0.1:$_/experiment/state"})
 }
 Save 'database.json' (Invoke-RestMethod "http://127.0.0.1:28080/experiment/integrity?runId=$($fixture.runId)")

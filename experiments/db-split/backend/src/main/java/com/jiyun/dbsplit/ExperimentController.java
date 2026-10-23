@@ -19,6 +19,7 @@ public class ExperimentController {
     }
     @PostMapping("/experiment/fixtures") public Map<String,Object> fixtures(){return fixture.create();}
     @GetMapping("/experiment/integrity") public Map<String,Object> integrity(@RequestParam String runId){return fixture.integrity(runId);}
+    @GetMapping("/experiment/pool-samples") public List<Map<String,Object>> poolSamples(){return metrics.poolSamples();}
     @GetMapping("/experiment/state") public Map<String,Object> state(){
         var p=pool.getHikariPoolMXBean();
         return Map.of("version","db-split-stage-a-v1","layout","SINGLE","strategy","DB_ONLY","revision",revision,

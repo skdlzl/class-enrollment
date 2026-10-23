@@ -22,6 +22,12 @@ foreach($part in @('baseline','mixed')){
 $db=Get-Content -Raw "$Directory\database.json"|ConvertFrom-Json
 $before=Get-Content -Raw "$Directory\mixed-before.json"|ConvertFrom-Json
 $after=Get-Content -Raw "$Directory\mixed-after.json"|ConvertFrom-Json
+$pool=@()
+if(Test-Path "$Directory\mixed-pool.json"){
+ foreach($p in (Get-Content -Raw "$Directory\mixed-pool.json"|ConvertFrom-Json)){
+  $pool+=@{server=$p.server;samples=@($p.samples).Count;maxWaiting=($p.samples.waiting|Measure-Object -Maximum).Maximum;maxActive=($p.samples.active|Measure-Object -Maximum).Maximum}
+ }
+}
 $metrics=@()
 for($i=0;$i -lt 2;$i++){
  foreach($property in $after[$i].metrics.phases.PSObject.Properties){
@@ -31,7 +37,7 @@ for($i=0;$i -lt 2;$i++){
  }
 }
 $valid=$journeys.Count -eq 500 -and @($journeys.studentId|Sort-Object -Unique).Count -eq 500 -and $db.counterMismatches -eq 0 -and $db.creditViolations -eq 0 -and $db.scheduleViolations -eq 0 -and $db.studentsWithMultipleEnrollments -eq 0 -and $db.confirmed -eq $outcomes.CONFIRMED -and !@($journeys|Where-Object {$_.outcome -in @('READ_FAILED','SUBMIT_UNKNOWN','SUBMIT_FAILED','DEADLINE')}).Count -and !@($readRows|Where-Object {$_.failed -gt 0 -or $_.actualRps -lt 24}).Count
-$result=@{version='db-split-stage-a-v1';valid=$valid;outcomes=$outcomes;successRate=$outcomes.CONFIRMED/500;successfulJourney=(Stats @($journeys|Where-Object {$_.outcome -eq 'CONFIRMED'}|ForEach-Object {$_.elapsedMs}));allJourney=(Stats @($journeys|ForEach-Object {$_.elapsedMs}));journeyRead=(Stats @($steps|Where-Object {$_.kind -eq 'journeyRead'}|ForEach-Object {$_.elapsedMs}));submit=(Stats @($steps|Where-Object {$_.kind -eq 'submit'}|ForEach-Object {$_.elapsedMs}));reads=$readRows;metrics=$metrics;database=$db;measurementNote='P95: observed samples only. Background threads are rate-paced closed loop, not guaranteed offered RPS. Lifetime maxima include warmup. No instrumentation-overhead equivalence assumed.'}
+$result=@{version='db-split-stage-a-v1';valid=$valid;outcomes=$outcomes;successRate=$outcomes.CONFIRMED/500;successfulJourney=(Stats @($journeys|Where-Object {$_.outcome -eq 'CONFIRMED'}|ForEach-Object {$_.elapsedMs}));allJourney=(Stats @($journeys|ForEach-Object {$_.elapsedMs}));journeyRead=(Stats @($steps|Where-Object {$_.kind -eq 'journeyRead'}|ForEach-Object {$_.elapsedMs}));submit=(Stats @($steps|Where-Object {$_.kind -eq 'submit'}|ForEach-Object {$_.elapsedMs}));reads=$readRows;pool=$pool;metrics=$metrics;database=$db;measurementNote='P95: observed samples only. Background threads are rate-paced closed loop, not guaranteed offered RPS. Lifetime maxima include warmup. No instrumentation-overhead equivalence assumed.'}
 $result|ConvertTo-Json -Depth 25|Set-Content -Encoding UTF8 "$Directory\summary.json"
 $journeys|ConvertTo-Json -Depth 20|Set-Content -Encoding UTF8 "$Directory\journeys.json"
 $outcomes|Format-Table

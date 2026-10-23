@@ -78,9 +78,11 @@ class EnrollmentSafetyTest {
   var r=request(1,1);service.enroll(r);service.cancel(r);service.cancel(r);
   assertEquals(0L,fixture.integrity(run).get("confirmed"));assertEquals("CANCELLED",service.enroll(r).status());consistent();
  }
- @Test void apiAndPoolInstrumentation(){
+ @Test void apiAndPoolInstrumentation() throws Exception {
   var response=http.postForEntity("http://127.0.0.1:"+port+"/api/enrollments",request(1,1),Map.class);
   assertEquals(201,response.getStatusCode().value());assertEquals("CONFIRMED",response.getBody().get("status"));
+  for(int i=0;i<30 && metrics.poolSamples().isEmpty();i++)Thread.sleep(100);
+  assertFalse(metrics.poolSamples().isEmpty(),"Scheduled pool probe must run");
   var phases=(Map<?,?>)metrics.snapshot().get("phases");
   for(String name:List.of("sharedPool.acquire","sharedPool.usage","courseLock.sql","courseLock.holdUntilCompletion","enrollment.transactionProxy")){
    assertTrue(phases.containsKey(name),name);assertTrue(((Number)((Map<?,?>)phases.get(name)).get("count")).longValue()>0,name);
