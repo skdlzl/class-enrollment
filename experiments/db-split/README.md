@@ -1,12 +1,12 @@
 # DB 배치와 연결 풀 분리 실험
 
-`experiment/db-split`의 독립 실험 모듈입니다. 기존 프론트와 큐·캐시 브랜치는 변경하지 않습니다. **현재 A, B0, B까지 구현했습니다. Redis 구성 C는 아직 없습니다.**
+`experiment/db-split`의 독립 실험 모듈입니다. 기존 프론트와 큐·캐시 브랜치는 변경하지 않습니다. **A, B0, B와 Redis 대기를 추가한 C를 구현했습니다.**
 
 실험 질문은 분리합니다.
 
 1. A → B0: 풀 분리와 앱 연결 수 증가가 조회에 어떤 영향을 주는가?
 2. B0 → B: 같은 풀 구성에서 MySQL을 분리하면 학사 조회와 신청이 어떻게 달라지는가?
-3. 후속 B → C: 같은 DB 배치와 안전장치에서 Redis 대기가 신청 DB의 연결 점유를 줄이는가?
+3. B → C: 같은 DB 배치와 안전장치에서 Redis 대기가 신청 DB의 연결 점유를 줄이는가?
 
 ## 고정한 자원 예산
 
@@ -17,6 +17,7 @@
 | A | CPU 2 / 메모리 2GiB 한 대 | 512MiB | 공유 10 | 20 |
 | B0 | A와 동일 | 512MiB | 학사 10 + 신청 10 | 40 |
 | B | 학사와 신청 각각 CPU 1 / 메모리 1GiB | 각 256MiB, 합계 512MiB | 학사 10 + 신청 10 | 40 |
+| C | B와 동일 + Redis CPU 0.5 / 메모리 256MiB | B와 동일 | 학사 10 + 신청 10 | 40 |
 
 MySQL `max_connections`는 A/B0=100, B=각 50으로 합계 100입니다. 실제 앱의 풀 예산과 구분합니다. JVM heap은 서버마다 512MiB, Tomcat 최대 스레드는 200, DB 연결 획득 제한과 MySQL 행 잠금 대기 제한은 각각 10초입니다. 격리 수준은 READ COMMITTED입니다.
 
@@ -26,9 +27,9 @@ B의 신청 DB는 A보다 CPU·메모리 예산이 절반입니다. 컨테이너
 
 - 학사 영역: `academic_student`, `subject`
 - 신청 영역: `student_term`, `offered_course`, `offering_schedule`, `enrollment`
-- A/B0는 같은 DB 안에 두 영역을 둡니다. B는 두 MySQL 인스턴스에 각각 필요한 테이블만 둡니다.
+- A/B0는 같은 DB 안에 두 영역을 둡니다. B/C는 두 MySQL 인스턴스에 각각 필요한 테이블만 둡니다.
 - 준비 단계에서 학사 DB의 학생 자격과 최대 학점을 읽어 `student_term`으로 복제합니다. 신청 기간 전에 확정한 자격 정보입니다.
-- **신청 중에는 학사 DB에 접근하지 않습니다.** 학생 행 잠금 → 학점·시간표 검증 → 과목 행 잠금 → 내역·인원·학점 갱신 → 커밋은 세 구성 모두 같은 `EnrollmentService`를 사용합니다.
+- **신청 중에는 학사 DB에 접근하지 않습니다.** 학생 행 잠금 → 학점·시간표 검증 → 과목 행 잠금 → 내역·인원·학점 갱신 → 커밋은 네 구성 모두 같은 `EnrollmentService`를 사용합니다.
 - 데이터 준비의 학사 저장과 신청 DB 저장은 분산 트랜잭션이 아닙니다. 준비 도중 실패하면 해당 볼륨을 보존하고 새 세션에서 시작합니다. 불완전한 데이터로 측정하지 않습니다.
 - 요청 ID 중복은 같은 결과를 반환합니다. 취소도 학생 → 과목 순서로 내역과 집계를 함께 변경합니다.
 - 기간 중 학적·학점·시간표 변경과 취소 후 새 요청 ID로 같은 과목에 재신청하는 기능은 이번 실험 범위에서 제외합니다.
@@ -125,3 +126,50 @@ B 점검이 끝나면 같은 최종 커밋에서 전체를 실행합니다. 기�
 단일 실행은 출력된 `.../B-measured-...` 폴더의 `summary.json`, `conditions.json`, `database.json`을 보내주세요. 자동 반복은 `results/suite-.../comparison.json` 하나에 각 회차의 조건과 요약을 모읍니다. 원시 JTL과 로그는 세션별로 보존됩니다.
 
 `valid=false`만 보고 정합성 실패로 판단하지 마세요. `integrityValid`, `outcomeCountValid`, `executionErrors`, `offeredLoadMet`, `fixedDatasetValid`를 따로 확인합니다.
+
+
+## C: Redis 대기 + 기존 DB 안전장치
+
+C는 **B와 같은 분리 DB**에서만 실행합니다. B0와 C를 직접 비교해 Redis 효과라고 해석하지 않습니다.
+기존 큐 워커, 비동기 접수, 로컬 대기열, 마감 캐시는 추가하지 않습니다.
+
+신청/취소 흐름:
+1. 학생 Redis 락 획득
+2. 과목 Redis 락 획득
+3. 기존 EnrollmentService 프록시 호출: 학생 DB 락 → 검증 → 과목 DB 락 → 저장 → 커밋/롤백
+4. 과목 Redis 락 → 학생 Redis 락 해제
+
+Redis 대기 중에는 트랜잭션을 시작하지 않습니다. DB 락과 유일 제약은 그대로 유지하므로 Redis 락 만료나 우회 호출이 발생해도 DB가 최종 정합성을 보호합니다.
+Redis 락 실패 시 DB 경로로 자동 우회하지 않습니다. 503 REDIS_LOCK_TIMEOUT / REDIS_UNAVAILABLE / REDIS_LOCK_INTERRUPTED로 구분합니다.
+커밋 후 unlock 실패는 이미 확정된 응답을 실패로 바꾸지 않고 별도 지표로 남깁니다.
+서버 강제 종료를 이 부하 실험으로 검증했다고 주장하지 않습니다.
+
+두 Redis 락의 획득 대기 예산은 합계 10초입니다. 고정 lease 대신 watchdog 30초를 사용합니다.
+Redisson 명령 타임아웃 3초와 네트워크 지연 때문에 실제 HTTP 응답이 정확히 10초에 끝난다는 보장은 없습니다.
+기존 클라이언트 HTTP 10초 제한과 최대 3회 신청 정책을 유지합니다. 응답 유실은 SUBMIT_UNKNOWN으로 보존합니다.
+
+비교 한계:
+- C의 과목 Redis 락은 검증과 DB 연결 획득까지 포함합니다. DB 과목 락만 교체한 실험이 아니라 **트랜잭션 진입 전 직렬화**의 효과와 비용을 비교합니다.
+- studentRedis.wait / courseRedis.wait와 각 holdUntilCompletion을 결과 metrics에 기록합니다. holdUntilCompletion은 락 획득 후 DB 완료까지이며 unlock 통신 시간은 제외합니다.
+- DB의 courseLock.sql에는 SQL 실행/통신 시간이 포함됩니다. 순수 DB 락 대기 시간으로 표기하지 않습니다.
+- Redis 자원 CPU 0.5 / 256MiB는 MySQL 예산 외 추가 비용이며 conditions.json에 별도로 기록됩니다. 동등한 전체 자원 실험이라고 주장하지 않습니다.
+- Redis를 외부에서 기다려도 HTTP 스레드는 점유합니다. 조회 응답 개선은 보장되지 않습니다.
+- Redis는 실험용 락만 저장합니다. Redis 재시작으로 락이 사라져도 DB 안전장치를 유지합니다.
+- run-suite.ps1의 A/B0/B 회전은 그대로입니다. C는 별도 실행하며 최종 B/C 비교는 같은 리비전에서 순서를 교대합니다.
+
+기존 비교 서버를 stop-comparison.ps1로 종료한 뒤 최신 코드를 빌드합니다.
+아래 명령은 한 줄씩 완료를 확인하며 실행합니다.
+
+```powershell
+git pull --ff-only
+& .\experiments\db-split\scripts\build.ps1
+& .\experiments\db-split\scripts\start-comparison.ps1 -Mode C -Round 1
+& .\experiments\db-split\scripts\run-comparison.ps1 -Jmeter $jmeter -Warmup
+& .\experiments\db-split\scripts\run-comparison.ps1 -Jmeter $jmeter
+& .\experiments\db-split\scripts\stop-comparison.ps1
+```
+
+C를 실행하는 목적은 성공률과 조회 응답을 유지하면서 신청 DB 연결 대기를 줄일 수 있는지 확인하는 것입니다.
+좋은 결과만 남기지 않고 타임아웃, 결과 불명, 실제 RPS, 정합성도 함께 비교합니다.
+
+Redisson 동작 참고: https://redisson.pro/docs/data-and-services/locks-and-synchronizers/

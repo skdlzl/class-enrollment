@@ -11,11 +11,11 @@ import java.util.*;
 
 @RestController
 public class ExperimentController {
-    private final JdbcTemplate jdbc, academic;private final EnrollmentService service;private final FixtureService fixture;
+    private final JdbcTemplate jdbc, academic;private final EnrollmentFacade service;private final FixtureService fixture;
     private final Metrics metrics;private final HikariDataSource pool;private final String revision,session,policy;
     private final DatabaseConfig.Mode mode;
     public ExperimentController(JdbcTemplate jdbc,@org.springframework.beans.factory.annotation.Qualifier("academicJdbc") JdbcTemplate academic,
-        EnrollmentService service,FixtureService fixture,Metrics metrics,
+        EnrollmentFacade service,FixtureService fixture,Metrics metrics,
         HikariDataSource pool,DatabaseConfig.Mode mode,@Value("${experiment.revision}") String revision,
         @Value("${experiment.session:legacy}") String session,@Value("${experiment.dataset-policy:append}") String policy){
         this.jdbc=jdbc;this.academic=academic;this.service=service;this.fixture=fixture;this.metrics=metrics;
@@ -27,8 +27,10 @@ public class ExperimentController {
     @GetMapping("/experiment/pool-samples") public List<Map<String,Object>> poolSamples(){return metrics.poolSamples();}
     @GetMapping("/experiment/state") public Map<String,Object> state(){
         var result=new LinkedHashMap<String,Object>();
-        result.put("version","db-split-v2");result.put("mode",mode.name());result.put("layout",mode==DatabaseConfig.Mode.B?"SPLIT":"SINGLE");
-        result.put("strategy","DB_ONLY");result.put("revision",revision);result.put("session",session);result.put("datasetPolicy",policy);
+        result.put("version","db-split-v2");result.put("mode",mode.name());result.put("layout",(mode==DatabaseConfig.Mode.B||mode==DatabaseConfig.Mode.C)?"SPLIT":"SINGLE");
+        result.put("strategy",mode==DatabaseConfig.Mode.C?"REDIS_GUARDED":"DB_ONLY");
+        result.put("inFlight",service.inFlight());
+        result.put("redisGuard",Map.of("enabled",mode==DatabaseConfig.Mode.C,"waitBudgetMs",10000,"watchdogMs",30000));result.put("revision",revision);result.put("session",session);result.put("datasetPolicy",policy);
         result.put("metrics",metrics.snapshot());result.put("pools",metrics.poolState());
         result.put("isolation",pool.getTransactionIsolation());
         result.put("guards",List.of("student-db-lock","course-db-lock","unique-request","unique-enrollment"));
@@ -58,16 +60,17 @@ public class ExperimentController {
         if(r.studentId()<1||r.courseId()<1||r.termId()!=202602)throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
     }
     @PostMapping("/api/enrollments") public ResponseEntity<EnrollmentService.Result> enroll(@RequestBody EnrollmentService.Request r){
-        validate(r);return ResponseEntity.status(201).body(metrics.time("enrollment.transactionProxy",()->service.enroll(r)));
+        validate(r);return ResponseEntity.status(201).body(service.enroll(r));
     }
     @PostMapping("/api/cancellations") public EnrollmentService.Result cancel(@RequestBody EnrollmentService.Request r){
-        validate(r);return metrics.time("cancellation.transactionProxy",()->service.cancel(r));
+        validate(r);return service.cancel(r);
     }
     @GetMapping("/api/enrollments/{id}") public ResponseEntity<?> result(@PathVariable String id){
         var rows=jdbc.queryForList("SELECT request_id,status,student_id,course_id FROM enrollment WHERE request_id=?",id);
         // A temporary 404 is not proof that an in-flight transaction will never commit.
         return rows.isEmpty()?ResponseEntity.notFound().build():ResponseEntity.ok(rows.get(0));
     }
+    @ExceptionHandler(EnrollmentFacade.Unavailable.class) ResponseEntity<?> unavailable(EnrollmentFacade.Unavailable e){return ResponseEntity.status(503).body(Map.of("code",e.code));}
     @ExceptionHandler(EnrollmentService.Rejected.class) ResponseEntity<?> rejected(EnrollmentService.Rejected e){return ResponseEntity.status(409).body(Map.of("code",e.code));}
     @ExceptionHandler(DuplicateKeyException.class) ResponseEntity<?> duplicate(DuplicateKeyException e){return ResponseEntity.status(409).body(Map.of("code","REQUEST_OR_ENROLLMENT_CONFLICT"));}
     @ExceptionHandler({DataAccessException.class,TransactionException.class}) ResponseEntity<?> unknown(RuntimeException e){

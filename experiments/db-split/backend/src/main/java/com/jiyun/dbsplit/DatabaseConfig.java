@@ -11,7 +11,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @Configuration
 public class DatabaseConfig {
-    public enum Mode { A, B0, B }
+    public enum Mode { A, B0, B, C }
     @Bean Mode experimentMode(Environment env) {
         return Mode.valueOf(env.getProperty("experiment.mode", "A"));
     }
@@ -33,10 +33,10 @@ public class DatabaseConfig {
     }
     @Bean @org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${experiment.mode:A}' != 'A'")
     HikariDataSource academicDataSource(Environment env, Mode mode) {
-        if(mode == Mode.B && env.getProperty("experiment.academic.url") == null)
+        if((mode == Mode.B || mode == Mode.C) && env.getProperty("experiment.academic.url") == null)
             throw new IllegalArgumentException("B requires an explicit academic database URL");
-        var ds = pool(env, mode == Mode.B ? "experiment.academic" : "spring.datasource", "academicPool");
-        if(mode == Mode.B && ds.getJdbcUrl().equals(env.getRequiredProperty("spring.datasource.url")))
+        var ds = pool(env, (mode == Mode.B || mode == Mode.C) ? "experiment.academic" : "spring.datasource", "academicPool");
+        if((mode == Mode.B || mode == Mode.C) && ds.getJdbcUrl().equals(env.getRequiredProperty("spring.datasource.url")))
             throw new IllegalArgumentException("B must use separate database endpoints");
         return ds;
     }
@@ -55,9 +55,9 @@ public class DatabaseConfig {
         return new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource()));
     }
     @Bean(initMethod="migrate") Flyway enrollmentMigration(@Qualifier("enrollmentDataSource") HikariDataSource ds, Mode mode) {
-        return Flyway.configure().dataSource(ds).locations(mode == Mode.B ? "classpath:db/enrollment" : "classpath:db/migration").load();
+        return Flyway.configure().dataSource(ds).locations((mode == Mode.B || mode == Mode.C) ? "classpath:db/enrollment" : "classpath:db/migration").load();
     }
-    @Bean(initMethod="migrate") @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="experiment.mode",havingValue="B")
+    @Bean(initMethod="migrate") @org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${experiment.mode:A}' == 'B' or '${experiment.mode:A}' == 'C'")
     Flyway academicMigration(@Qualifier("academicDataSource") HikariDataSource ds) {
         return Flyway.configure().dataSource(ds).locations("classpath:db/academic").load();
     }

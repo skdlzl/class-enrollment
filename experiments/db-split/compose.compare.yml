@@ -36,6 +36,18 @@ services:
     ports: ['127.0.0.1:53328:3306']
     command: ['--innodb-buffer-pool-size=268435456', '--max-connections=50', '--innodb-lock-wait-timeout=10']
     volumes: ['enrollment-data:/var/lib/mysql']
+  redis:
+    image: redis:7.4.2
+    profiles: [redis]
+    cpus: 0.5
+    mem_limit: 256m
+    ports: ['127.0.0.1:56379:6379']
+    command: ['redis-server', '--save', '', '--appendonly', 'no', '--maxmemory', '192mb', '--maxmemory-policy', 'noeviction']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      timeout: 3s
+      retries: 20
 volumes:
   single-data:
   academic-data:

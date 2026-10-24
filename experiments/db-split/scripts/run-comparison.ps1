@@ -12,17 +12,25 @@ if(!(Get-Command $Jmeter -ErrorAction SilentlyContinue)){throw 'Pass -Jmeter wit
 $jmeterVersion=(& $Jmeter -v | Out-String)
 if($jmeterVersion -notmatch '5\.6\.3'){throw 'Use JMeter 5.6.3'}
 $states=@(Get-ComparisonStates);Assert-ComparisonStates $context $states
-$services=if($context.mode -eq 'B'){@('academic','enrollment')}else{@('single')}
+$services=if($context.mode -in @('B','C')){@('academic','enrollment')}else{@('single')}
 $resources=@()
 foreach($service in $services){
  $container=(& docker compose -p $context.session -f "$experimentRoot\compose.compare.yml" ps -q $service | Out-String).Trim()
  if($LASTEXITCODE -ne 0 -or !$container){throw "Missing container: $service"}
  $inspect=(& docker inspect $container | ConvertFrom-Json)[0]
- $cpu=if($context.mode -eq 'B'){1000000000}else{2000000000};$memory=if($context.mode -eq 'B'){1073741824}else{2147483648}
+ $cpu=if($context.mode -in @('B','C')){1000000000}else{2000000000};$memory=if($context.mode -in @('B','C')){1073741824}else{2147483648}
  if($inspect.HostConfig.NanoCpus -ne $cpu -or $inspect.HostConfig.Memory -ne $memory){throw 'MySQL resource budget mismatch'}
  $resources+=@{service=$service;image=$inspect.Image;nanoCpus=$inspect.HostConfig.NanoCpus;memoryBytes=$inspect.HostConfig.Memory;command=$inspect.Config.Cmd;mounts=@($inspect.Mounts|Select-Object Name,Destination)}
 }
 if(@($resources.image|Select-Object -Unique).Count -ne 1){throw 'MySQL image versions differ'}
+$redisResource=$null
+if($context.mode -eq 'C'){
+ $redisId=(& docker compose -p $context.session -f "$experimentRoot/compose.compare.yml" ps -q redis | Out-String).Trim()
+ if(!$redisId){throw 'Missing Redis container'}
+ $ri=(& docker inspect $redisId | ConvertFrom-Json)[0]
+ if($ri.HostConfig.NanoCpus -ne 500000000 -or $ri.HostConfig.Memory -ne 268435456){throw 'Redis resource budget mismatch'}
+ $redisResource=@{image=$ri.Image;nanoCpus=$ri.HostConfig.NanoCpus;memoryBytes=$ri.HostConfig.Memory;command=$ri.Config.Cmd}
+}
 $fixture=Invoke-RestMethod -Method Post 'http://127.0.0.1:28080/experiment/fixtures' -TimeoutSec 180
 Wait-ComparisonIdle $context
 # Only this session's fixed dataset is reset. Old experiment DBs are never targeted.
@@ -39,7 +47,7 @@ $dir=Join-Path $context.directory ("$($context.mode)-$phase-"+(Get-Date -Format 
 New-Item -ItemType Directory -Path $dir -Force|Out-Null
 function Save($name,$value){Write-ComparisonJson (Join-Path $dir $name) $value}
 Save 'database-before.json' $databaseBefore
-Save 'conditions.json' @{version='db-split-v2';mode=$context.mode;round=$context.round;session=$context.session;revision=$revision;warmup=$Warmup.IsPresent;states=$states;fixture=$fixture;durationSeconds=90;readRpsPerTypePerServer=25;users=500;rampSeconds=5;readWorkersPerTypePerServer=25;resourceBudget=@{containers=$resources;totalMySqlCpus=2;totalMySqlMemoryBytes=2147483648;totalBufferPoolBytes=536870912;javaHeapPerServer='512m';connectionsPerApp=$(if($context.mode -eq 'A'){10}else{20});hostCpus=[Environment]::ProcessorCount};jmeterVersion=$jmeterVersion;workload='Same JMeter closed-loop plan for A/B0/B. Total background target 100 RPS. Report observed RPS and target shortfall; not scheduled skipped requests.'}
+Save 'conditions.json' @{version='db-split-v2';mode=$context.mode;round=$context.round;session=$context.session;revision=$revision;warmup=$Warmup.IsPresent;states=$states;fixture=$fixture;durationSeconds=90;readRpsPerTypePerServer=25;users=500;rampSeconds=5;readWorkersPerTypePerServer=25;resourceBudget=@{containers=$resources;redis=$redisResource;totalMySqlCpus=2;totalMySqlMemoryBytes=2147483648;totalBufferPoolBytes=536870912;javaHeapPerServer='512m';connectionsPerApp=$(if($context.mode -eq 'A'){10}else{20});hostCpus=[Environment]::ProcessorCount};jmeterVersion=$jmeterVersion;workload='Same JMeter closed-loop plan for A/B0/B/C. Total background target 100 RPS. Report observed RPS and target shortfall; not scheduled skipped requests.'}
 # Consume the measurement slot BEFORE load: failed runs must not be silently overwritten by reruns.
 if(!$Warmup){$context.measured=$true;Write-ComparisonJson $contextPath $context;Write-ComparisonJson "$($context.directory)\context.json" $context}
 foreach($part in @('baseline','mixed')){

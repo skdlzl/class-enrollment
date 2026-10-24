@@ -9,6 +9,6 @@ foreach($p in $context.processes){
   Stop-Process -Id $p.id
  }
 }
-& docker compose -p $context.session -f "$experimentRoot\compose.compare.yml" --profile single --profile split stop
+& docker compose -p $context.session -f "$experimentRoot\compose.compare.yml" --profile single --profile split --profile redis stop
 if($LASTEXITCODE -ne 0){throw 'Container stop failed'}
 Write-Host 'Servers and comparison containers stopped. Volumes and result files are preserved.'
