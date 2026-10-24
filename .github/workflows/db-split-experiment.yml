@@ -54,6 +54,12 @@ jobs:
           $summary=Get-Content -Raw /tmp/jmeter-smoke/summary.json|ConvertFrom-Json
           if(@($summary.pool).Count -ne 4 -or @($summary.pool|Where-Object {$_.name -eq 'enrollmentPool' -and $_.maxWaiting -eq 12}).Count -ne 1){throw 'Pool summary grouping failed'}
           if($summary.outcomes.CONFIRMED -ne 2 -or $summary.submit.count -ne 2 -or $summary.journeyRead.count -ne 6 -or $summary.valid){throw 'Summary smoke failed'}
+          $db=Get-Content -Raw /tmp/jmeter-smoke/database.json|ConvertFrom-Json
+          $db.confirmed=3
+          $db|ConvertTo-Json|Set-Content /tmp/jmeter-smoke/database.json
+          ./experiments/db-split/scripts/summarize.ps1 -Directory /tmp/jmeter-smoke
+          $mismatch=Get-Content -Raw /tmp/jmeter-smoke/summary.json|ConvertFrom-Json
+          if(!$mismatch.integrityValid -or $mismatch.responseCountMatchesDatabase -or $mismatch.valid){throw 'DB integrity and response count must be separate'}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

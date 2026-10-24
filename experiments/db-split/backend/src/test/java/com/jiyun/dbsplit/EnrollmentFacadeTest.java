@@ -13,11 +13,21 @@ class EnrollmentFacadeTest {
   service=mock(EnrollmentService.class,withSettings().mockMaker("mock-maker-subclass"));redis=mock(RedissonClient.class,withSettings().mockMaker("mock-maker-subclass"));
   student=mock(RLock.class,withSettings().mockMaker("mock-maker-subclass"));course=mock(RLock.class,withSettings().mockMaker("mock-maker-subclass"));
   ObjectProvider<RedissonClient> provider=mock(ObjectProvider.class,withSettings().mockMaker("mock-maker-subclass"));when(provider.getIfAvailable()).thenReturn(redis);
-  facade=new EnrollmentFacade(service,new Metrics(true),provider);
+  facade=new EnrollmentFacade(service,new Metrics(true),provider,DatabaseConfig.Mode.C);
   when(redis.getLock(facade.studentKey(request))).thenReturn(student);
   when(redis.getLock(facade.courseKey(request))).thenReturn(course);
   when(student.tryLock(anyLong(),eq(TimeUnit.NANOSECONDS))).thenReturn(true);
   when(course.tryLock(anyLong(),eq(TimeUnit.NANOSECONDS))).thenReturn(true);
+ }
+ @Test @SuppressWarnings("unchecked") void hybridSkipsCourseRedisAndRetainsStudentLock() throws Exception {
+  ObjectProvider<RedissonClient> provider=mock(ObjectProvider.class);when(provider.getIfAvailable()).thenReturn(redis);
+  var hybrid=new EnrollmentFacade(service,new Metrics(true),provider,DatabaseConfig.Mode.D);
+  when(service.enroll(request)).thenReturn(new EnrollmentService.Result("request","CONFIRMED"));
+  assertEquals("CONFIRMED",hybrid.enroll(request).status());
+  verify(redis,never()).getLock(hybrid.courseKey(request));verifyNoInteractions(course);
+  var order=inOrder(student,service);
+  order.verify(student).tryLock(anyLong(),eq(TimeUnit.NANOSECONDS));
+  order.verify(service).enroll(request);order.verify(student).unlock();
  }
  @Test void timeoutNeverEntersDbAndReleasesStudent() throws Exception {
   when(course.tryLock(anyLong(),eq(TimeUnit.NANOSECONDS))).thenReturn(false);

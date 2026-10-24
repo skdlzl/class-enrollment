@@ -17,7 +17,7 @@ for($round=1;$round -le $Rounds;$round++){
   $conditions=Get-Content -Encoding UTF8 -Raw (Join-Path $measured.FullName 'conditions.json')|ConvertFrom-Json
   $results+=@{mode=$mode;round=$round;directory=$measured.FullName;summary=$summary;conditions=$conditions}
   Write-ComparisonJson "$suiteDir\comparison.json" @{results=$results;plannedRounds=$Rounds;orderPolicy='rotate A/B0/B; include every run, including target shortfall'}
-  if(!$summary.integrityValid -or !$summary.outcomeCountValid -or $summary.executionErrors -gt 0 -or !$summary.fixedDatasetValid){throw "Execution/integrity problem. Results preserved at $suiteDir. Inspect before continuing; this session remains running."}
+  if(!$summary.integrityValid -or !$summary.responseCountMatchesDatabase -or !$summary.outcomeCountValid -or $summary.executionErrors -gt 0 -or !$summary.fixedDatasetValid){throw "Execution/integrity problem. Results preserved at $suiteDir. Inspect before continuing; this session remains running."}
   & "$PSScriptRoot\stop-comparison.ps1"
  }
 }

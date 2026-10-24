@@ -38,7 +38,8 @@ for($i=0;$i -lt 2;$i++){
   $metrics+=@{server=28080+$i;phase=$property.Name;count=$count;failures=$a.failures-$b.failures;totalMs=$total;meanMs=$(if($count){$total/$count}else{$null});lifetimeMaxMs=$a.lifetimeMaxMs}
  }
 }
-$integrityValid=$db.counterMismatches -eq 0 -and $db.creditViolations -eq 0 -and $db.scheduleViolations -eq 0 -and $db.studentsWithMultipleEnrollments -eq 0 -and $db.confirmed -eq $outcomes.CONFIRMED
+$integrityValid=$db.counterMismatches -eq 0 -and $db.creditViolations -eq 0 -and $db.scheduleViolations -eq 0 -and $db.studentsWithMultipleEnrollments -eq 0
+$responseCountMatchesDatabase=$db.confirmed -eq $outcomes.CONFIRMED
 $outcomeCountValid=$journeys.Count -eq 500 -and @($journeys.studentId|Sort-Object -Unique).Count -eq 500
 $executionErrors=@($journeys|Where-Object {$_.outcome -in @('READ_FAILED','SUBMIT_UNKNOWN','SUBMIT_FAILED','DEADLINE')}).Count+($readRows.failed|Measure-Object -Sum).Sum
 $offeredLoadMet=!@($readRows|Where-Object {$_.actualRps -lt 24}).Count
@@ -46,8 +47,8 @@ $conditions=$null
 if(Test-Path "$Directory\conditions.json"){$conditions=Get-Content -Encoding UTF8 -Raw "$Directory\conditions.json"|ConvertFrom-Json}
 $fixedDatasetValid=$null
 if($conditions.version -eq 'db-split-v2'){$fixedDatasetValid=$db.totalCatalogRows -eq 10000 -and $db.totalSubjectRows -eq 10000 -and $db.totalStudentRows -eq 500}
-$valid=$integrityValid -and $outcomeCountValid -and $executionErrors -eq 0 -and $offeredLoadMet -and $fixedDatasetValid -ne $false
-$result=@{version='db-split-v2';mode=$conditions.mode;round=$conditions.round;session=$conditions.session;revision=$conditions.revision;warmup=$conditions.warmup;valid=$valid;integrityValid=$integrityValid;outcomeCountValid=$outcomeCountValid;executionErrors=$executionErrors;offeredLoadMet=$offeredLoadMet;fixedDatasetValid=$fixedDatasetValid;outcomes=$outcomes;successRate=$outcomes.CONFIRMED/500;successfulJourney=(Stats @($journeys|Where-Object {$_.outcome -eq 'CONFIRMED'}|ForEach-Object {$_.elapsedMs}));allJourney=(Stats @($journeys|ForEach-Object {$_.elapsedMs}));journeyRead=(Stats @($steps|Where-Object {$_.kind -eq 'journeyRead'}|ForEach-Object {$_.elapsedMs}));submit=(Stats @($steps|Where-Object {$_.kind -eq 'submit'}|ForEach-Object {$_.elapsedMs}));reads=$readRows;pool=$pool;metrics=$metrics;database=$db;measurementNote='P95: observed samples only. Background threads are rate-paced closed loop, not guaranteed offered RPS. Lifetime maxima include warmup. No instrumentation-overhead equivalence assumed.'}
+$valid=$integrityValid -and $responseCountMatchesDatabase -and $outcomeCountValid -and $executionErrors -eq 0 -and $offeredLoadMet -and $fixedDatasetValid -ne $false
+$result=@{version='db-split-v2';mode=$conditions.mode;round=$conditions.round;session=$conditions.session;revision=$conditions.revision;warmup=$conditions.warmup;valid=$valid;integrityValid=$integrityValid;responseCountMatchesDatabase=$responseCountMatchesDatabase;outcomeCountValid=$outcomeCountValid;executionErrors=$executionErrors;offeredLoadMet=$offeredLoadMet;fixedDatasetValid=$fixedDatasetValid;outcomes=$outcomes;successRate=$outcomes.CONFIRMED/500;successfulJourney=(Stats @($journeys|Where-Object {$_.outcome -eq 'CONFIRMED'}|ForEach-Object {$_.elapsedMs}));allJourney=(Stats @($journeys|ForEach-Object {$_.elapsedMs}));journeyRead=(Stats @($steps|Where-Object {$_.kind -eq 'journeyRead'}|ForEach-Object {$_.elapsedMs}));submit=(Stats @($steps|Where-Object {$_.kind -eq 'submit'}|ForEach-Object {$_.elapsedMs}));reads=$readRows;pool=$pool;metrics=$metrics;database=$db;measurementNote='P95: observed samples only. Background threads are rate-paced closed loop, not guaranteed offered RPS. Lifetime maxima include warmup. No instrumentation-overhead equivalence assumed.'}
 $result|ConvertTo-Json -Depth 25|Set-Content -Encoding UTF8 "$Directory\summary.json"
 $journeys|ConvertTo-Json -Depth 20|Set-Content -Encoding UTF8 "$Directory\journeys.json"
 $outcomes|Format-Table

@@ -27,10 +27,10 @@ public class ExperimentController {
     @GetMapping("/experiment/pool-samples") public List<Map<String,Object>> poolSamples(){return metrics.poolSamples();}
     @GetMapping("/experiment/state") public Map<String,Object> state(){
         var result=new LinkedHashMap<String,Object>();
-        result.put("version","db-split-v2");result.put("mode",mode.name());result.put("layout",(mode==DatabaseConfig.Mode.B||mode==DatabaseConfig.Mode.C)?"SPLIT":"SINGLE");
-        result.put("strategy",mode==DatabaseConfig.Mode.C?"REDIS_GUARDED":"DB_ONLY");
+        result.put("version","db-split-v2");result.put("mode",mode.name());result.put("layout",(mode==DatabaseConfig.Mode.B||mode==DatabaseConfig.Mode.C||mode==DatabaseConfig.Mode.D)?"SPLIT":"SINGLE");
+        result.put("strategy",mode==DatabaseConfig.Mode.C?"REDIS_GUARDED":mode==DatabaseConfig.Mode.D?"HYBRID_GUARDED":"DB_ONLY");
         result.put("inFlight",service.inFlight());
-        result.put("redisGuard",Map.of("enabled",mode==DatabaseConfig.Mode.C,"waitBudgetMs",10000,"watchdogMs",30000));result.put("revision",revision);result.put("session",session);result.put("datasetPolicy",policy);
+        result.put("redisGuard",Map.of("enabled",mode==DatabaseConfig.Mode.C||mode==DatabaseConfig.Mode.D,"student",mode==DatabaseConfig.Mode.C||mode==DatabaseConfig.Mode.D,"course",mode==DatabaseConfig.Mode.C,"waitBudgetMs",10000,"watchdogMs",30000));result.put("revision",revision);result.put("session",session);result.put("datasetPolicy",policy);
         result.put("metrics",metrics.snapshot());result.put("pools",metrics.poolState());
         result.put("isolation",pool.getTransactionIsolation());
         result.put("guards",List.of("student-db-lock","course-db-lock","unique-request","unique-enrollment"));

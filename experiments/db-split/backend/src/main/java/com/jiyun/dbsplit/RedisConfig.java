@@ -3,11 +3,11 @@ import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
 import org.springframework.context.annotation.*;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.core.env.Environment;
 
 @Configuration
-@ConditionalOnProperty(name="experiment.mode",havingValue="C")
+@ConditionalOnExpression("'${experiment.mode:A}' == 'C' or '${experiment.mode:A}' == 'D'")
 public class RedisConfig {
     @Bean(destroyMethod="shutdown") RedissonClient redisson(Environment env) {
         var config=new Config();

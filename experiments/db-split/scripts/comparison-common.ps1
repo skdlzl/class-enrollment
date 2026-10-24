@@ -12,15 +12,16 @@ function Get-ComparisonStates {
  @(28080,28081)|ForEach-Object {Invoke-RestMethod "http://127.0.0.1:$_/experiment/state" -TimeoutSec 15}
 }
 function Assert-ComparisonStates($context,$states){
- $strategy=if($context.mode -eq 'C'){'REDIS_GUARDED'}else{'DB_ONLY'}
+ $strategy=if($context.mode -eq 'C'){'REDIS_GUARDED'}elseif($context.mode -eq 'D'){'HYBRID_GUARDED'}else{'DB_ONLY'}
  foreach($s in $states){
   if($s.version -ne 'db-split-v2' -or $s.mode -ne $context.mode -or $s.session -ne $context.session -or $s.revision -ne $context.revision -or $s.datasetPolicy -ne 'fixed' -or $s.strategy -ne $strategy -or $s.isolation -ne 'TRANSACTION_READ_COMMITTED'){throw 'Server configuration mismatch'}
-  if($context.mode -eq 'C' -and (!$s.redisGuard.enabled -or $s.redisGuard.waitBudgetMs -ne 10000 -or $s.redisGuard.watchdogMs -ne 30000)){throw 'Redis guard configuration mismatch'}
+  if($context.mode -in @('C','D') -and (!$s.redisGuard.enabled -or $s.redisGuard.waitBudgetMs -ne 10000 -or $s.redisGuard.watchdogMs -ne 30000)){throw 'Redis guard configuration mismatch'}
+  if($context.mode -in @('C','D') -and (!$s.redisGuard.student -or $s.redisGuard.course -ne ($context.mode -eq 'C'))){throw 'Redis lock scope mismatch'}
   $expected=if($context.mode -eq 'A'){@('sharedPool')}else{@('academicPool','enrollmentPool')}
   if((($s.pools.name|Sort-Object) -join ',') -ne (($expected|Sort-Object) -join ',')){throw 'Pool layout mismatch'}
   foreach($p in $s.pools){if($p.max -ne 10 -or $p.connectionTimeoutMs -ne 10000){throw 'Pool budget mismatch'}}
   $same=$s.databases.academic.serverUuid -eq $s.databases.enrollment.serverUuid
-  if(($context.mode -in @('B','C') -and $same) -or ($context.mode -notin @('B','C') -and !$same)){throw 'Physical database layout mismatch'}
+  if(($context.mode -in @('B','C','D') -and $same) -or ($context.mode -notin @('B','C','D') -and !$same)){throw 'Physical database layout mismatch'}
  }
  if($states.Count -ne 2 -or $states[0].metrics.enabled -ne $states[1].metrics.enabled){throw 'Both servers must use the same metrics setting'}
  foreach($domain in @('academic','enrollment')){

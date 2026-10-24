@@ -14,10 +14,11 @@ public class EnrollmentFacade {
     }
     private final EnrollmentService service;
     private final Metrics metrics;
+    private final DatabaseConfig.Mode mode;
     private final RedissonClient redis;
     private final AtomicInteger inFlight=new AtomicInteger();
-    public EnrollmentFacade(EnrollmentService service,Metrics metrics,ObjectProvider<RedissonClient> clients){
-        this.service=service;this.metrics=metrics;this.redis=clients.getIfAvailable();
+    public EnrollmentFacade(EnrollmentService service,Metrics metrics,ObjectProvider<RedissonClient> clients,DatabaseConfig.Mode mode){
+        this.service=service;this.metrics=metrics;this.redis=clients.getIfAvailable();this.mode=mode;
     }
     public int inFlight(){return inFlight.get();}
     public EnrollmentService.Result enroll(EnrollmentService.Request r){
@@ -33,6 +34,7 @@ public class EnrollmentFacade {
         try{
             if(redis==null)return action.get();
             long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(10);
+            if(mode==DatabaseConfig.Mode.D)return locked(studentKey(r),"studentRedis",deadline,action);
             return locked(studentKey(r),"studentRedis",deadline,
                 ()->locked(courseKey(r),"courseRedis",deadline,action));
         }finally{inFlight.decrementAndGet();}
