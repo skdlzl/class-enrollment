@@ -14,7 +14,8 @@ public class EnrollmentService {
         public final String code;public Rejected(String code){super(code);this.code=code;}
     }
     private final JdbcTemplate jdbc;private final Metrics metrics;
-    public EnrollmentService(JdbcTemplate jdbc,Metrics metrics){this.jdbc=jdbc;this.metrics=metrics;}
+    private final com.jiyun.dbsplit.notification.NotificationOutbox outbox;
+    public EnrollmentService(JdbcTemplate jdbc,Metrics metrics,com.jiyun.dbsplit.notification.NotificationOutbox outbox){this.jdbc=jdbc;this.metrics=metrics;this.outbox=outbox;}
     private Map<String,Object> student(Request r){
         var rows=metrics.time("studentLock.sql",()->jdbc.queryForList("SELECT status,max_credits,enrolled_credits FROM student_term WHERE run_id=? AND student_id=? AND term_id=? FOR UPDATE",r.runId(),r.studentId(),r.termId()));
         if(rows.isEmpty())throw new Rejected("STUDENT_NOT_FOUND");return rows.get(0);
@@ -56,6 +57,7 @@ public class EnrollmentService {
         jdbc.update("INSERT INTO enrollment(request_id,run_id,student_id,term_id,course_id) VALUES(?,?,?,?,?)",r.requestId(),r.runId(),r.studentId(),r.termId(),r.courseId());
         jdbc.update("UPDATE offered_course SET enrolled_count=enrolled_count+1 WHERE run_id=? AND id=?",r.runId(),r.courseId());
         jdbc.update("UPDATE student_term SET enrolled_credits=enrolled_credits+? WHERE run_id=? AND student_id=? AND term_id=?",credits,r.runId(),r.studentId(),r.termId());
+        outbox.enqueue(r,"CONFIRMED");
         return new Result(r.requestId(),"CONFIRMED");
     }
     @Transactional
@@ -69,6 +71,7 @@ public class EnrollmentService {
         jdbc.update("UPDATE enrollment SET status='CANCELLED' WHERE request_id=?",id);
         jdbc.update("UPDATE offered_course SET enrolled_count=enrolled_count-1 WHERE run_id=? AND id=?",r.runId(),r.courseId());
         jdbc.update("UPDATE student_term SET enrolled_credits=enrolled_credits-? WHERE run_id=? AND student_id=? AND term_id=?",credits,r.runId(),r.studentId(),r.termId());
+        outbox.enqueue(new Request(id,r.runId(),r.studentId(),r.termId(),r.courseId()),"CANCELLED");
         return new Result(id,"CANCELLED");
     }
 }

@@ -51,4 +51,18 @@ class EnrollmentFacadeTest {
   assertEquals("REDIS_UNAVAILABLE",assertThrows(EnrollmentFacade.Unavailable.class,()->facade.enroll(request)).code);
   verifyNoInteractions(service);
  }
+ @Test void lockHandleFailureReleasesPreviouslyAcquiredStudentLock(){
+  when(redis.getLock(facade.courseKey(request))).thenThrow(new IllegalStateException("client shut down"));
+  assertEquals("REDIS_UNAVAILABLE",assertThrows(EnrollmentFacade.Unavailable.class,()->facade.enroll(request)).code);
+  verifyNoInteractions(service);verify(student).unlock();verifyNoInteractions(course);assertEquals(0,facade.inFlight());
+ }
+ @Test void interruptedWaitRestoresInterruptAndReleasesStudent() throws Exception {
+  when(course.tryLock(anyLong(),eq(TimeUnit.NANOSECONDS))).thenThrow(new InterruptedException("interrupted"));
+  try {
+   assertEquals("REDIS_LOCK_INTERRUPTED",assertThrows(EnrollmentFacade.Unavailable.class,()->facade.enroll(request)).code);
+   assertTrue(Thread.currentThread().isInterrupted());
+   verifyNoInteractions(service);verify(student).unlock();verify(course,never()).unlock();assertEquals(0,facade.inFlight());
+  } finally {Thread.interrupted();}
+ }
+
 }

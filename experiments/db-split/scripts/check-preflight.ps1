@@ -1,17 +1,17 @@
 # CI-only checks of configuration validation. No servers are started or stopped.
 $ErrorActionPreference='Stop'
 . "$PSScriptRoot\comparison-common.ps1"
-foreach($mode in @('A','B0','B','C','D')){
+foreach($mode in @('A','B0','B','C','D','E')){
  $context=@{mode=$mode;revision='test';session='test'}
  $names=if($mode -eq 'A'){@('sharedPool')}else{@('academicPool','enrollmentPool')}
- $academicUuid=if($mode -in @('B','C','D')){'second'}else{'first'}
- $state=@{version='db-split-v2';mode=$mode;session='test';revision='test';datasetPolicy='fixed';strategy=$(if($mode -eq 'C'){'REDIS_GUARDED'}elseif($mode -eq 'D'){'HYBRID_GUARDED'}else{'DB_ONLY'});redisGuard=@{enabled=($mode -in @('C','D'));student=($mode -in @('C','D'));course=($mode -eq 'C');waitBudgetMs=10000;watchdogMs=30000};isolation='TRANSACTION_READ_COMMITTED';metrics=@{enabled=$true};pools=@($names|ForEach-Object {@{name=$_;max=10;connectionTimeoutMs=10000;active=0;waiting=0}});databases=@{enrollment=@{serverUuid='first'};academic=@{serverUuid=$academicUuid}}}|ConvertTo-Json -Depth 10|ConvertFrom-Json
+ $academicUuid=if($mode -in @('B','C','D','E')){'second'}else{'first'}
+ $state=@{version='db-split-v2';mode=$mode;session='test';revision='test';datasetPolicy='fixed';strategy=$(if($mode -eq 'E'){'SETNX_GUARDED'}elseif($mode -eq 'C'){'REDIS_GUARDED'}elseif($mode -eq 'D'){'HYBRID_GUARDED'}else{'DB_ONLY'});redisGuard=@{enabled=($mode -in @('C','D','E'));student=($mode -in @('C','D','E'));course=($mode -in @('C','E'));waitBudgetMs=10000;watchdogMs=$(if($mode -eq 'E'){0}else{30000});leaseMs=30000;pollMinMs=20;pollMaxMs=40};isolation='TRANSACTION_READ_COMMITTED';metrics=@{enabled=$true};pools=@($names|ForEach-Object {@{name=$_;max=10;connectionTimeoutMs=10000;active=0;waiting=0}});databases=@{enrollment=@{serverUuid='first'};academic=@{serverUuid=$academicUuid}}}|ConvertTo-Json -Depth 10|ConvertFrom-Json
  Assert-ComparisonStates $context @($state,$state)
  $state.pools[0].max=11
  $rejected=$false
  try{Assert-ComparisonStates $context @($state,$state)}catch{$rejected=$true}
  if(!$rejected){throw 'Preflight accepted an incorrect pool budget'}
- if($mode -in @('C','D')){
+ if($mode -in @('C','D','E')){
   $state.pools[0].max=10
   $state.redisGuard.course=!$state.redisGuard.course
   $rejected=$false
@@ -19,4 +19,4 @@ foreach($mode in @('A','B0','B','C','D')){
   if(!$rejected){throw 'Preflight accepted an incorrect Redis lock scope'}
  }
 }
-Write-Host 'Preflight accepted A/B0/B/C/D and rejected invalid budgets.'
+Write-Host 'Preflight accepted A/B0/B/C/D/E and rejected invalid budgets.'

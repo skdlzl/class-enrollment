@@ -1,0 +1,74 @@
+package com.jiyun.dbsplit.notification;
+
+import com.jiyun.dbsplit.Metrics;
+import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import java.util.concurrent.TimeUnit;
+
+@Component
+public class NotificationWorker {
+    public enum Strategy { DB_INLINE, DB_CLAIM, REDIS_OUTBOX }
+    private final NotificationStore store;private final NotificationGateway gateway;
+    private final RedissonClient redis;private final Metrics metrics;private final TransactionTemplate tx;
+    private final boolean enabled,automatic;private final Strategy strategy;private final long leaseMs;private final int maxAttempts;
+    public NotificationWorker(NotificationStore store,NotificationGateway gateway,ObjectProvider<RedissonClient> clients,
+        Metrics metrics,PlatformTransactionManager manager,
+        @Value("${experiment.notifications.enabled:false}") boolean enabled,
+        @Value("${experiment.notifications.auto:false}") boolean automatic,
+        @Value("${experiment.notifications.strategy:DB_CLAIM}") Strategy strategy,
+        @Value("${experiment.notifications.lease-ms:30000}") long leaseMs,
+        @Value("${experiment.notifications.max-attempts:5}") int maxAttempts){
+        this.store=store;this.gateway=gateway;this.redis=clients.getIfAvailable();this.metrics=metrics;
+        this.tx=new TransactionTemplate(manager);this.enabled=enabled;this.automatic=automatic;
+        this.strategy=strategy;this.leaseMs=leaseMs;this.maxAttempts=maxAttempts;
+        if(leaseMs<1||maxAttempts<1)throw new IllegalArgumentException("Invalid notification limits");
+        if(enabled&&strategy==Strategy.REDIS_OUTBOX&&redis==null)throw new IllegalStateException("Redis notification guard missing");
+    }
+    @Scheduled(fixedDelayString="${experiment.notifications.poll-ms:500}")
+    public void tick(){
+        if(!enabled||!automatic)return;
+        try{for(String id:store.candidates(10))process(id);}
+        catch(RuntimeException e){metrics.record("notification.workerFailure",0,true);}
+    }
+    public boolean process(String id){return process(id,strategy);}
+    // Public for the isolated comparison harness. Never exposed as an HTTP strategy selector.
+    public boolean process(String id,Strategy selected){
+        if(!enabled)return false;
+        if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())
+            throw new IllegalStateException("Notification worker must run outside caller transactions");
+        if(selected==Strategy.DB_INLINE){
+            // Deliberately slow comparator: external HTTP under a DB row lock/connection.
+            return Boolean.TRUE.equals(tx.execute(s->{store.lockForInline(id);return deliver(id);}));
+        }
+        if(selected==Strategy.DB_CLAIM)return deliver(id);
+        if(redis==null)throw new IllegalStateException("Redis required");
+        var lock=redis.getLock("notification:"+id);
+        boolean acquired=false;
+        try{
+            acquired=lock.tryLock(0,leaseMs,TimeUnit.MILLISECONDS);
+            if(!acquired)return false;
+            return deliver(id);
+        }catch(InterruptedException e){Thread.currentThread().interrupt();return false;}
+        finally{
+            if(acquired){try{lock.unlock();}catch(RuntimeException e){metrics.record("notification.unlockFailure",0,true);}}
+        }
+    }
+    private boolean deliver(String id){
+        var job=store.claim(id,leaseMs);
+        if(job==null)return false;
+        if(job.attempts()>maxAttempts){store.retry(job,"ATTEMPT_LIMIT_UNKNOWN",true,maxAttempts);return false;}
+        long start=System.nanoTime();boolean success=false;
+        try{
+            gateway.send(job);
+            success=store.sent(job);
+            return success;
+        }catch(NotificationGateway.DeliveryFailure e){store.retry(job,e.code,e.permanent,maxAttempts);return false;}
+        finally{metrics.record("notification.delivery",System.nanoTime()-start,!success);}
+        // If process/DB fails after the provider accepted, the lease expires and the same key is retried.
+    }
+}

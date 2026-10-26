@@ -14,10 +14,12 @@ public class ExperimentController {
     private final JdbcTemplate jdbc, academic;private final EnrollmentFacade service;private final FixtureService fixture;
     private final Metrics metrics;private final HikariDataSource pool;private final String revision,session,policy;
     private final DatabaseConfig.Mode mode;
+    private final org.springframework.core.env.Environment environment;
     public ExperimentController(JdbcTemplate jdbc,@org.springframework.beans.factory.annotation.Qualifier("academicJdbc") JdbcTemplate academic,
         EnrollmentFacade service,FixtureService fixture,Metrics metrics,
         HikariDataSource pool,DatabaseConfig.Mode mode,@Value("${experiment.revision}") String revision,
-        @Value("${experiment.session:legacy}") String session,@Value("${experiment.dataset-policy:append}") String policy){
+        @Value("${experiment.session:legacy}") String session,@Value("${experiment.dataset-policy:append}") String policy,org.springframework.core.env.Environment environment){
+        this.environment=environment;
         this.jdbc=jdbc;this.academic=academic;this.service=service;this.fixture=fixture;this.metrics=metrics;
         this.pool=pool;this.mode=mode;this.revision=revision;this.session=session;this.policy=policy;
     }
@@ -27,10 +29,11 @@ public class ExperimentController {
     @GetMapping("/experiment/pool-samples") public List<Map<String,Object>> poolSamples(){return metrics.poolSamples();}
     @GetMapping("/experiment/state") public Map<String,Object> state(){
         var result=new LinkedHashMap<String,Object>();
-        result.put("version","db-split-v2");result.put("mode",mode.name());result.put("layout",(mode==DatabaseConfig.Mode.B||mode==DatabaseConfig.Mode.C||mode==DatabaseConfig.Mode.D)?"SPLIT":"SINGLE");
-        result.put("strategy",mode==DatabaseConfig.Mode.C?"REDIS_GUARDED":mode==DatabaseConfig.Mode.D?"HYBRID_GUARDED":"DB_ONLY");
+        result.put("version","db-split-v2");result.put("mode",mode.name());result.put("layout",(mode==DatabaseConfig.Mode.B||mode==DatabaseConfig.Mode.C||mode==DatabaseConfig.Mode.D||mode==DatabaseConfig.Mode.E)?"SPLIT":"SINGLE");
+        result.put("strategy",mode==DatabaseConfig.Mode.E?"SETNX_GUARDED":mode==DatabaseConfig.Mode.C?"REDIS_GUARDED":mode==DatabaseConfig.Mode.D?"HYBRID_GUARDED":"DB_ONLY");
         result.put("inFlight",service.inFlight());
-        result.put("redisGuard",Map.of("enabled",mode==DatabaseConfig.Mode.C||mode==DatabaseConfig.Mode.D,"student",mode==DatabaseConfig.Mode.C||mode==DatabaseConfig.Mode.D,"course",mode==DatabaseConfig.Mode.C,"waitBudgetMs",10000,"watchdogMs",30000));result.put("revision",revision);result.put("session",session);result.put("datasetPolicy",policy);
+        result.put("notifications",Map.of("enabled",environment.getProperty("experiment.notifications.enabled",Boolean.class,false),"auto",environment.getProperty("experiment.notifications.auto",Boolean.class,false),"strategy",environment.getProperty("experiment.notifications.strategy","DB_CLAIM")));
+        result.put("redisGuard",Map.of("enabled",mode==DatabaseConfig.Mode.C||mode==DatabaseConfig.Mode.D||mode==DatabaseConfig.Mode.E,"student",mode==DatabaseConfig.Mode.C||mode==DatabaseConfig.Mode.D||mode==DatabaseConfig.Mode.E,"course",mode==DatabaseConfig.Mode.C||mode==DatabaseConfig.Mode.E,"waitBudgetMs",10000,"watchdogMs",mode==DatabaseConfig.Mode.E?0:30000,"leaseMs",mode==DatabaseConfig.Mode.E?30000:0,"pollMinMs",mode==DatabaseConfig.Mode.E?20:0,"pollMaxMs",mode==DatabaseConfig.Mode.E?40:0));result.put("revision",revision);result.put("session",session);result.put("datasetPolicy",policy);
         result.put("metrics",metrics.snapshot());result.put("pools",metrics.poolState());
         result.put("isolation",pool.getTransactionIsolation());
         result.put("guards",List.of("student-db-lock","course-db-lock","unique-request","unique-enrollment"));

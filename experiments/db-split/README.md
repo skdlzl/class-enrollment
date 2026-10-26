@@ -195,3 +195,11 @@ C와 달리 서버 상태 redisGuard.course=false를 양 서버에서 사전 검
 - valid: 위 두 항목과 실행 오류, 부하 충족, 데이터 조건을 모두 확인
 
 기존 결과 JSON은 다시 쓰지 않습니다. 이전 integrityValid에는 응답 집계 일치까지 포함됐으므로 해석 시 구분합니다.
+
+## E 및 B/C/E 반복 비교
+
+[SET NX 구성과 자동 실행 안내](SETNX-COMPARISON.md)를 참고하세요. `scripts/run-bce-rounds.ps1`은 B/C/E를 각 3회 비교합니다.
+
+## 외부 알림과 트랜잭션 경계
+
+[알림 Outbox와 세 가지 워커 구성](NOTIFICATIONS.md)을 추가했습니다. 기본 OFF이며 기존 신청 성능 비교와 별도 실행합니다. `scripts/run-notification-tests.ps1`로 안전성 테스트와 소규모 알림 비교를 실행합니다.

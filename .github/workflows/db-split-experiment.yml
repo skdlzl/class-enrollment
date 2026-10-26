@@ -66,4 +66,5 @@ jobs:
           name: db-split-verification
           path: |
             experiments/db-split/backend/target/surefire-reports
+            experiments/db-split/backend/target/notification-comparison.json
             /tmp/jmeter-smoke
