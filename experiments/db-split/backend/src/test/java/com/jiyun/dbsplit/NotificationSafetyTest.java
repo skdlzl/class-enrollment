@@ -197,4 +197,9 @@ class NotificationSafetyTest extends EnrollmentSafetyTest {
  }
  static double p95(List<Double> values){var sorted=new ArrayList<>(values);Collections.sort(sorted);return sorted.isEmpty()?0:sorted.get((int)Math.ceil(sorted.size()*.95)-1);}
 
+ @Test @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named="notification.load",matches="true")
+ void compareNotificationLoad() throws Exception {
+  NotificationLoadHarness.run(pool,redis,run);
+ }
+
 }

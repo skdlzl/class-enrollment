@@ -57,3 +57,31 @@ cd C:\portfolio\class-enrollment
 ## 수동으로 기능 활성화
 
 별도 실험 서버에서 `experiment.notifications.enabled=true`, `experiment.notifications.auto=true`, `experiment.notifications.strategy=REDIS_OUTBOX`, `experiment.notifications.url=<테스트 공급자 /send URL>`, `experiment.redis.address=<Redis URL>`를 지정합니다. 실제 계정 연결 전 공급자 멱등 계약과 payload/응답 규약을 맞춰야 합니다. 기본 OFF로 유지해 기존 신청 실험 결과를 보존합니다.
+
+## 1,000건 부하와 중복 선점 비교
+
+```powershell
+& .\experiments\db-split\scripts\run-notification-load.ps1
+```
+
+기본 조건: 고유 알림 1,000건을 초당 200건 도착 계획으로 투입, worker threads 16, DB pool 10, 공급자 100ms. DB_CLAIM과 REDIS_OUTBOX를 정상/중복 시나리오 각각 3회 비교합니다. 매 구성 10건 예열 뒤 측정하며 순서를 교차합니다. 전체 12회 측정입니다. 기존 12건 실험 결과는 덮어쓰지 않습니다.
+
+- UNIQUE: 고유 알림마다 처리 시도 1번. 실행당 1,000시도.
+- DUPLICATE: 같은 고유 알림마다 처리 시도 2번. 실행당 2,000시도. 각 쌍을 같은 도착 시점에 제출합니다.
+- 이 중복률은 실제 운영 데이터가 아닌 통제한 경합 조건입니다. 신규 DB 폴링으로 후보를 발견하는 비용은 이 비교에 포함하지 않습니다.
+- 외부 호출 중 중복 실행이 겹쳤는지는 notification.redisBusy와 notification.claimRejected를 통해 확인합니다. 완료된 이벤트에 대한 늦은 중복 시도는 Redis 락도 통과할 수 있으므로 항상 DB 접근이 제거되는 것은 아닙니다.
+
+결과는 `notification-load-*.zip`입니다. 성공한 고유 이벤트의 **예정 도착부터 완료까지**를 측정해 실행기 큐 대기를 숨기지 않습니다. tasks에 queueWaitMs/startLagMs/elapsedMs를 기록하고 실패율, 실제 조회 RPS, 공급자 호출 수와 고유 접수 수, DB 연결 획득/점유, peak waiting도 보존합니다. 배경 조회는 SELECT 1이며 고정 50RPS가 보장되는 방식이 아닙니다.
+
+`metricsAfter - metricsBefore`로 측정 구간을 계산합니다.
+
+- notification.processAttempt: 워커 실행 시도 수
+- notification.claimUpdateAttempt: DB 선점 UPDATE 시도 수(전체 SQL 수가 아님)
+- notification.claimAcquired / claimRejected / claimError: 선점 성공/경합 또는 이미 완료/예외
+- notification.redisBusy: Redis에서 락 획득을 못해 DB로 들어가지 않은 시도
+- notification.redisAcquired: Redis 락 획득 수
+- notification.providerCall: 외부 호출 시도 수
+
+단일 JVM의 워커 스레드 실험입니다. 2대 애플리케이션 실서버 실험이나 운영 부하를 재현했다고 표현하지 않습니다. Testcontainers의 DB/Redis 자원 예산은 운영 예산으로 제한하지 않습니다. 중복 시나리오에서만 개선되면 해당 조건으로 결론을 한정합니다. 성능 실패/응답 불명도 보존하며 고유 알림 처리가 미완료이거나 예외가 나면 다음 측정을 중단합니다. 자동 절전 방지는 제공하지만 수동 절전은 하지 않습니다.
+
+CI는 같은 실행기를 32건/1회로 검사합니다. 1,000건/3회 결과와 섞지 않습니다. 다른 비교 스크립트와 동시에 실행하지 마세요.

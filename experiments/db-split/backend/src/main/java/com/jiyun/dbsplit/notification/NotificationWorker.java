@@ -39,6 +39,7 @@ public class NotificationWorker {
     // Public for the isolated comparison harness. Never exposed as an HTTP strategy selector.
     public boolean process(String id,Strategy selected){
         if(!enabled)return false;
+        metrics.record("notification.processAttempt",0,false);
         if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())
             throw new IllegalStateException("Notification worker must run outside caller transactions");
         if(selected==Strategy.DB_INLINE){
@@ -51,7 +52,8 @@ public class NotificationWorker {
         boolean acquired=false;
         try{
             acquired=lock.tryLock(0,leaseMs,TimeUnit.MILLISECONDS);
-            if(!acquired)return false;
+            if(!acquired){metrics.record("notification.redisBusy",0,false);return false;}
+            metrics.record("notification.redisAcquired",0,false);
             return deliver(id);
         }catch(InterruptedException e){Thread.currentThread().interrupt();return false;}
         finally{
@@ -59,11 +61,17 @@ public class NotificationWorker {
         }
     }
     private boolean deliver(String id){
-        var job=store.claim(id,leaseMs);
-        if(job==null)return false;
+        long claimStart=System.nanoTime();
+        NotificationStore.Job job;
+        try{job=store.claim(id,leaseMs);}
+        catch(RuntimeException e){metrics.record("notification.claimError",0,true);throw e;}
+        finally{metrics.record("notification.claimUpdateAttempt",System.nanoTime()-claimStart,false);}
+        if(job==null){metrics.record("notification.claimRejected",0,false);return false;}
+        metrics.record("notification.claimAcquired",0,false);
         if(job.attempts()>maxAttempts){store.retry(job,"ATTEMPT_LIMIT_UNKNOWN",true,maxAttempts);return false;}
         long start=System.nanoTime();boolean success=false;
         try{
+            metrics.record("notification.providerCall",0,false);
             gateway.send(job);
             success=store.sent(job);
             return success;

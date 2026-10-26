@@ -20,6 +20,8 @@ jobs:
           node-version: '22'
       - name: MySQL safety tests
         run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml verify
+      - name: Notification load harness smoke
+        run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml "-Dtest=NotificationSafetyTest#compareNotificationLoad" -Dnotification.load=true -Dnotification.load.messages=32 -Dnotification.load.rounds=1 test
       - name: Compose budget configuration
         run: docker compose -p ci-check -f experiments/db-split/compose.compare.yml --profile single --profile split --profile redis config --quiet
       - name: Install pinned JMeter
@@ -67,4 +69,5 @@ jobs:
           path: |
             experiments/db-split/backend/target/surefire-reports
             experiments/db-split/backend/target/notification-comparison.json
+            experiments/db-split/backend/target/notification-load.json
             /tmp/jmeter-smoke
