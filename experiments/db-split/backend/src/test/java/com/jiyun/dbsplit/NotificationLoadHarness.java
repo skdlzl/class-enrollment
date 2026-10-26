@@ -40,7 +40,7 @@ class NotificationLoadHarness {
   for(int round=1;round<=rounds;round++){
    String[] scenarios=round%2==1?new String[]{"UNIQUE","DUPLICATE"}:new String[]{"DUPLICATE","UNIQUE"};
    for(int scenarioIndex=0;scenarioIndex<2;scenarioIndex++)for(int offset=0;offset<2;offset++){
-    var strategy=((round+scenarioIndex+offset)%2==1)?NotificationWorker.Strategy.DB_CLAIM:NotificationWorker.Strategy.REDIS_OUTBOX;
+    var strategy=((round+offset)%2==1)?NotificationWorker.Strategy.DB_CLAIM:NotificationWorker.Strategy.REDIS_OUTBOX;
     String scenario=scenarios[scenarioIndex];
     var row=measure(source,redis,run,round,scenario,strategy,messages,threads,poolSize,delay,rps,scenario.equals("UNIQUE")?1:duplicates);
     rows.add(row);save(report);
