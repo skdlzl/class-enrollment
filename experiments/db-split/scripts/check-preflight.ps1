@@ -20,3 +20,13 @@ foreach($mode in @('A','B0','B','C','D','E')){
  }
 }
 Write-Host 'Preflight accepted A/B0/B/C/D/E and rejected invalid budgets.'
+foreach($strategy in @('PESSIMISTIC','REDIS','OPTIMISTIC')){
+ $context=@{mode='B';revision='test';session='test';lockStrategy=$strategy;eligibilityUrl='http://127.0.0.1:12345/eligibility'}
+ $state=@{pid=101;version='db-split-v2';mode='B';session='test';revision='test';datasetPolicy='fixed';strategy="LOCK_API_$strategy";lockApi=@{strategy=$strategy;url=$context.eligibilityUrl;requestBudgetMs=10000;apiTimeoutMs=2000;maxOptimisticAttempts=5};isolation='TRANSACTION_READ_COMMITTED';metrics=@{enabled=$true};pools=@(@{name='academicPool';max=10;connectionTimeoutMs=10000},@{name='enrollmentPool';max=10;connectionTimeoutMs=10000});databases=@{academic=@{serverUuid='a'};enrollment=@{serverUuid='b'}}}|ConvertTo-Json -Depth 10|ConvertFrom-Json
+ $other=$state|ConvertTo-Json -Depth 10|ConvertFrom-Json;$other.pid=102
+ Assert-ComparisonStates $context @($state,$other)
+ $other.lockApi.strategy='OFF';$rejected=$false
+ try{Assert-ComparisonStates $context @($state,$other)}catch{$rejected=$true}
+ if(!$rejected){throw 'Preflight accepted mismatched lock strategies'}
+}
+Write-Host 'Lock/API preflight requires two different JVMs with the same strategy.'

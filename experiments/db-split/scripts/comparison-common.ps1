@@ -13,7 +13,12 @@ function Get-ComparisonStates {
 }
 function Assert-ComparisonStates($context,$states){
  $strategy=if($context.mode -eq 'E'){'SETNX_GUARDED'}elseif($context.mode -eq 'C'){'REDIS_GUARDED'}elseif($context.mode -eq 'D'){'HYBRID_GUARDED'}else{'DB_ONLY'}
+ $lockApi=$context.lockStrategy -and $context.lockStrategy -ne 'OFF'
+ if($lockApi){$strategy='LOCK_API_'+$context.lockStrategy}
  foreach($s in $states){
+  if($lockApi){
+   if($s.lockApi.strategy -ne $context.lockStrategy -or $s.lockApi.url -ne $context.eligibilityUrl -or $s.lockApi.requestBudgetMs -ne 10000 -or $s.lockApi.maxOptimisticAttempts -ne 5 -or $s.lockApi.apiTimeoutMs -ne 2000){throw 'Lock/API strategy or budget mismatch'}
+  }elseif($s.lockApi -and $s.lockApi.strategy -ne 'OFF'){throw 'Unexpected lock/API comparison enabled'}
   if($s.notifications.enabled){throw 'Notifications must be disabled for enrollment-only comparison'}
   if($s.version -ne 'db-split-v2' -or $s.mode -ne $context.mode -or $s.session -ne $context.session -or $s.revision -ne $context.revision -or $s.datasetPolicy -ne 'fixed' -or $s.strategy -ne $strategy -or $s.isolation -ne 'TRANSACTION_READ_COMMITTED'){throw 'Server configuration mismatch'}
   if($context.mode -eq 'E' -and ($s.redisGuard.leaseMs -ne 30000 -or $s.redisGuard.pollMinMs -ne 20 -or $s.redisGuard.pollMaxMs -ne 40)){throw 'SET NX lease/poll mismatch'}
@@ -25,6 +30,7 @@ function Assert-ComparisonStates($context,$states){
   $same=$s.databases.academic.serverUuid -eq $s.databases.enrollment.serverUuid
   if(($context.mode -in @('B','C','D','E') -and $same) -or ($context.mode -notin @('B','C','D','E') -and !$same)){throw 'Physical database layout mismatch'}
  }
+ if($lockApi -and ($states.Count -ne 2 -or !$states[0].pid -or !$states[1].pid -or $states[0].pid -eq $states[1].pid)){throw 'Two distinct server JVMs required'}
  if($states.Count -ne 2 -or $states[0].metrics.enabled -ne $states[1].metrics.enabled){throw 'Both servers must use the same metrics setting'}
  foreach($domain in @('academic','enrollment')){
   if($states[0].databases.$domain.serverUuid -ne $states[1].databases.$domain.serverUuid){throw 'Servers are connected to different datasets'}

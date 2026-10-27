@@ -24,7 +24,7 @@ foreach($service in $services){
 }
 if(@($resources.image|Select-Object -Unique).Count -ne 1){throw 'MySQL image versions differ'}
 $redisResource=$null
-if($context.mode -in @('C','D','E')){
+if($context.mode -in @('C','D','E') -or $context.lockStrategy -eq 'REDIS'){
  $redisId=(& docker compose -p $context.session -f "$experimentRoot/compose.compare.yml" ps -q redis | Out-String).Trim()
  if(!$redisId){throw 'Missing Redis container'}
  $ri=(& docker inspect $redisId | ConvertFrom-Json)[0]
@@ -47,7 +47,7 @@ $dir=Join-Path $context.directory ("$($context.mode)-$phase-"+(Get-Date -Format 
 New-Item -ItemType Directory -Path $dir -Force|Out-Null
 function Save($name,$value){Write-ComparisonJson (Join-Path $dir $name) $value}
 Save 'database-before.json' $databaseBefore
-Save 'conditions.json' @{version='db-split-v2';mode=$context.mode;round=$context.round;session=$context.session;revision=$revision;warmup=$Warmup.IsPresent;states=$states;fixture=$fixture;durationSeconds=90;readRpsPerTypePerServer=25;users=500;rampSeconds=5;readWorkersPerTypePerServer=25;resourceBudget=@{containers=$resources;redis=$redisResource;totalMySqlCpus=2;totalMySqlMemoryBytes=2147483648;totalBufferPoolBytes=536870912;javaHeapPerServer='512m';connectionsPerApp=$(if($context.mode -eq 'A'){10}else{20});hostCpus=[Environment]::ProcessorCount};jmeterVersion=$jmeterVersion;workload='Same JMeter closed-loop plan for A/B0/B/C/D/E. Total background target 100 RPS. Report observed RPS and target shortfall; not scheduled skipped requests.'}
+Save 'conditions.json' @{version='db-split-v2';mode=$context.mode;lockStrategy=$context.lockStrategy;eligibilityUrl=$context.eligibilityUrl;round=$context.round;session=$context.session;revision=$revision;warmup=$Warmup.IsPresent;states=$states;fixture=$fixture;durationSeconds=90;readRpsPerTypePerServer=25;users=500;rampSeconds=5;readWorkersPerTypePerServer=25;resourceBudget=@{containers=$resources;redis=$redisResource;totalMySqlCpus=2;totalMySqlMemoryBytes=2147483648;totalBufferPoolBytes=536870912;javaHeapPerServer='512m';connectionsPerApp=$(if($context.mode -eq 'A'){10}else{20});hostCpus=[Environment]::ProcessorCount};jmeterVersion=$jmeterVersion;workload='Same JMeter closed-loop plan for A/B0/B/C/D/E. Total background target 100 RPS. Report observed RPS and target shortfall; not scheduled skipped requests.'}
 # Consume the measurement slot BEFORE load: failed runs must not be silently overwritten by reruns.
 if(!$Warmup){$context.measured=$true;Write-ComparisonJson $contextPath $context;Write-ComparisonJson "$($context.directory)\context.json" $context}
 foreach($part in @('baseline','mixed')){

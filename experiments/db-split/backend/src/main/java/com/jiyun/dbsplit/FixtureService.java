@@ -71,8 +71,8 @@ public class FixtureService {
             jdbc.queryForList("SELECT student_id FROM student_term WHERE run_id=? ORDER BY student_id FOR UPDATE",run);
             jdbc.queryForList("SELECT id FROM offered_course WHERE run_id=? ORDER BY id FOR UPDATE",run);
             jdbc.update("DELETE FROM enrollment WHERE run_id=?",run);
-            jdbc.update("UPDATE student_term SET enrolled_credits=0 WHERE run_id=?",run);
-            jdbc.update("UPDATE offered_course SET enrolled_count=0 WHERE run_id=?",run);
+            jdbc.update("UPDATE student_term SET enrolled_credits=0,version=version+1 WHERE run_id=?",run);
+            jdbc.update("UPDATE offered_course SET enrolled_count=0,version=version+1 WHERE run_id=?",run);
             return descriptor(run);
         });
     }

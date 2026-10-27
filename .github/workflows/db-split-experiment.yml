@@ -20,6 +20,8 @@ jobs:
           node-version: '22'
       - name: MySQL safety tests
         run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml verify
+      - name: Three lock strategies on two Spring Boot servers
+        run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml "-Dtest=LockApiTwoServerTest" -Dlock.api.two-server=true test
       - name: Two-JVM notification load smoke
         run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml "-Dtest=NotificationSafetyTest#compareNotificationLoad" -Dnotification.load=true -Dnotification.load.messages=32 -Dnotification.load.rounds=1 test
       - name: Compose budget configuration
@@ -71,4 +73,6 @@ jobs:
             experiments/db-split/backend/target/notification-comparison.json
             experiments/db-split/backend/target/notification-load.json
             experiments/db-split/backend/target/notification-servers
+            experiments/db-split/backend/target/lock-api-servers
+            experiments/db-split/backend/target/lock-api-two-server.json
             /tmp/jmeter-smoke

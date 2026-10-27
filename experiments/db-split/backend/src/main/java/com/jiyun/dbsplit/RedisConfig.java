@@ -7,7 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.core.env.Environment;
 
 @Configuration
-@ConditionalOnExpression("'${experiment.mode:A}' == 'C' or '${experiment.mode:A}' == 'D' or '${experiment.mode:A}' == 'E' or ('${experiment.notifications.enabled:false}' == 'true' and '${experiment.notifications.strategy:DB_CLAIM}' == 'REDIS_OUTBOX')")
+@ConditionalOnExpression("'${experiment.mode:A}' == 'C' or '${experiment.mode:A}' == 'D' or '${experiment.mode:A}' == 'E' or '${experiment.lock-api.strategy:OFF}' == 'REDIS' or ('${experiment.notifications.enabled:false}' == 'true' and '${experiment.notifications.strategy:DB_CLAIM}' == 'REDIS_OUTBOX')")
 public class RedisConfig {
     @Bean(destroyMethod="shutdown") RedissonClient redisson(Environment env) {
         var config=new Config();
