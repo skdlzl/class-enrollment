@@ -12,8 +12,12 @@ $owned=@(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object {
 })
 foreach($process in $owned){
  Stop-Process -Id $process.ProcessId -ErrorAction SilentlyContinue
- if(Get-Process -Id $process.ProcessId -ErrorAction SilentlyContinue){
+ try {
   Wait-Process -Id $process.ProcessId -Timeout 30 -ErrorAction Stop
+ } catch {
+  # The JVM may exit between Stop-Process and Wait-Process resolving its PID.
+  # Only an already absent process is success; preserve timeout/access errors.
+  if($_.FullyQualifiedErrorId -notlike 'NoProcessFoundForGivenId,*'){throw}
  }
 }
 & docker compose -p $context.session -f "$experimentRoot\compose.compare.yml" --profile single --profile split --profile redis stop
