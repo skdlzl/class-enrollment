@@ -20,8 +20,9 @@ foreach($process in $owned){
   if($_.FullyQualifiedErrorId -notlike 'NoProcessFoundForGivenId,*'){throw}
  }
 }
-& docker compose -p $context.session -f "$experimentRoot\compose.compare.yml" --profile single --profile split --profile redis stop
-if($LASTEXITCODE -ne 0){throw 'Container stop failed'}
+# Remove this session's containers/network, but never its named DB volumes.
+& docker compose -p $context.session -f "$experimentRoot\compose.compare.yml" --profile single --profile split --profile redis down
+if($LASTEXITCODE -ne 0){throw 'Container/network cleanup failed'}
 # Process termination and Docker port release can finish asynchronously.
 $deadline=(Get-Date).AddSeconds(30)
 do {
@@ -32,4 +33,4 @@ do {
  if((Get-Date) -ge $deadline){throw "Ports still occupied: $($occupied -join ', '). No unrelated processes were stopped."}
  Start-Sleep -Milliseconds 500
 } while($true)
-Write-Host 'Servers and comparison containers stopped. Volumes and result files are preserved.'
+Write-Host 'Servers stopped. Session containers and network removed. Volumes and result files are preserved.'
