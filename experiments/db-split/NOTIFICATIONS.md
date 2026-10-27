@@ -64,14 +64,14 @@ cd C:\portfolio\class-enrollment
 & .\experiments\db-split\scripts\run-notification-load.ps1
 ```
 
-기본 조건: 고유 알림 1,000건을 초당 200건 도착 계획으로 투입, worker threads 16, DB pool 10, 공급자 100ms. DB_CLAIM과 REDIS_OUTBOX를 정상/중복 시나리오 각각 3회 비교합니다. 매 구성 10건 예열 뒤 측정하며 순서를 교차합니다. 전체 12회 측정입니다. 기존 12건 실험 결과는 덮어쓰지 않습니다.
+기본 조건: **서로 다른 JVM의 알림 HTTP 서버 2개**. 고유 알림 1,000건을 합계 초당 200건 도착 계획으로 투입합니다. 서버별 워커 8개(합계 16개)와 DB 풀 10개(합계 20개)를 사용합니다. 공급자 지연은 100ms입니다. 두 서버는 같은 DB와 Redis를 공유합니다. Redis 방식에서는 클라이언트도 JVM마다 별도로 생성합니다. DB_CLAIM과 REDIS_OUTBOX를 정상/중복 시나리오 각각 3회 비교합니다. 매 구성 서버별 10건 예열 뒤 측정하며 순서를 교차합니다. 전체 12회 측정입니다. 기존 12건 실험 결과는 덮어쓰지 않습니다.
 
 - UNIQUE: 고유 알림마다 처리 시도 1번. 실행당 1,000시도.
-- DUPLICATE: 같은 고유 알림마다 처리 시도 2번. 실행당 2,000시도. 각 쌍을 같은 도착 시점에 제출합니다.
+- DUPLICATE: 같은 고유 알림마다 처리 시도 2번. 실행당 2,000시도. 각 쌍을 같은 도착 시점에 서로 다른 서버로 제출합니다. UNIQUE는 두 서버에 번갈아 분배합니다.
 - 이 중복률은 실제 운영 데이터가 아닌 통제한 경합 조건입니다. 신규 DB 폴링으로 후보를 발견하는 비용은 이 비교에 포함하지 않습니다.
 - 외부 호출 중 중복 실행이 겹쳤는지는 notification.redisBusy와 notification.claimRejected를 통해 확인합니다. 완료된 이벤트에 대한 늦은 중복 시도는 Redis 락도 통과할 수 있으므로 항상 DB 접근이 제거되는 것은 아닙니다.
 
-결과는 `notification-load-*.zip`입니다. 성공한 고유 이벤트의 **예정 도착부터 완료까지**를 측정해 실행기 큐 대기를 숨기지 않습니다. tasks에 queueWaitMs/startLagMs/elapsedMs를 기록하고 실패율, 실제 조회 RPS, 공급자 호출 수와 고유 접수 수, DB 연결 획득/점유, peak waiting도 보존합니다. 배경 조회는 SELECT 1이며 고정 50RPS가 보장되는 방식이 아닙니다.
+결과는 `notification-load-*.zip`입니다. 성공한 고유 이벤트의 **예정 도착부터 완료까지**를 측정해 실행기 큐 대기를 숨기지 않습니다. tasks에 queueWaitMs/startLagMs/elapsedMs를 기록하고 실패율, 실제 조회 RPS, 공급자 호출 수와 고유 접수 수, DB 연결 획득/점유, peak waiting도 보존합니다. 배경 조회는 각 서버에 HTTP로 요청하는 SELECT 1입니다. 서버별 20ms 대기 후 다음 요청을 보내므로 고정 50RPS를 보장하지 않습니다. 이 응답 시간에는 HTTP 전송도 포함됩니다.
 
 `metricsAfter - metricsBefore`로 측정 구간을 계산합니다.
 
@@ -82,6 +82,13 @@ cd C:\portfolio\class-enrollment
 - notification.redisAcquired: Redis 락 획득 수
 - notification.providerCall: 외부 호출 시도 수
 
-단일 JVM의 워커 스레드 실험입니다. 2대 애플리케이션 실서버 실험이나 운영 부하를 재현했다고 표현하지 않습니다. Testcontainers의 DB/Redis 자원 예산은 운영 예산으로 제한하지 않습니다. 중복 시나리오에서만 개선되면 해당 조건으로 결론을 한정합니다. 성능 실패/응답 불명도 보존하며 고유 알림 처리가 미완료이거나 예외가 나면 다음 측정을 중단합니다. 자동 절전 방지는 제공하지만 수동 절전은 하지 않습니다.
+**이전 단일 JVM 측정과 별도 실험입니다.** 서버별 프로세스 PID와 처리 건수 및 DB 연결 지표를 저장하고 두 서버가 모두 처리했는지 검증합니다. 같은 PC에서 실행하는 독립 JVM 2개이므로 물리 서버 2대나 운영 네트워크 환경을 재현한 것은 아닙니다. 실제 NotificationWorker를 호출하는 테스트 전용 HTTP 서버이며 전체 Spring Boot 수강신청 API는 실행하지 않습니다. 이전 실행은 총 풀 10개였고 이번 실행은 총 20개이므로 이전 수치와 직접 비교하지 않습니다. 이번 두 전략끼리는 동일한 자원 설정입니다. Testcontainers의 DB/Redis 자원 예산은 운영 예산으로 제한하지 않습니다. 중복 시나리오에서만 개선되면 해당 조건으로 결론을 한정합니다. 성능 실패/응답 불명도 보존하며 고유 알림 처리가 미완료이거나 예외가 나면 다음 측정을 중단합니다. 자동 절전 방지는 제공하지만 수동 절전은 하지 않습니다.
 
 CI는 같은 실행기를 32건/1회로 검사합니다. 1,000건/3회 결과와 섞지 않습니다. 다른 비교 스크립트와 동시에 실행하지 마세요.
+
+서버 포트는 OS가 빈 포트를 자동 배정합니다. 실행기는 자신이 생성한 자식 프로세스만 종료하고 종료가 안 되면 해당 PID만 강제 종료합니다. 부모 실행기가 사라진 경우 자식 서버도 종료합니다. 별도 서버 시작/종료 명령은 필요 없습니다. 결과 ZIP의 `notification-servers`에 서버별 로그와 준비 상태를 보존합니다. 기본 자식 JVM 힙은 각각 128~256MiB입니다.
+
+```powershell
+# 기본값. WorkersPerServer와 PoolSizePerServer는 서버 한 대 기준입니다.
+& .\experiments\db-split\scripts\run-notification-load.ps1 -WorkersPerServer 8 -PoolSizePerServer 10
+```

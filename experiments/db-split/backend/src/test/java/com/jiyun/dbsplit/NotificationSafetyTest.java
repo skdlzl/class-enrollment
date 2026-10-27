@@ -199,7 +199,7 @@ class NotificationSafetyTest extends EnrollmentSafetyTest {
 
  @Test @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named="notification.load",matches="true")
  void compareNotificationLoad() throws Exception {
-  NotificationLoadHarness.run(pool,redis,run);
+  NotificationLoadHarness.run(pool,"redis://"+redisContainer.getHost()+":"+redisContainer.getMappedPort(6379),run);
  }
 
 }
