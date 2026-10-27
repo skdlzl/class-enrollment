@@ -28,6 +28,9 @@ public class ExperimentController {
     @PostMapping("/experiment/fixtures") public Map<String,Object> fixtures(){return fixture.create();}
     @PostMapping("/experiment/fixtures/{runId}/reset") public Map<String,Object> reset(@PathVariable String runId){return fixture.reset(runId);}
     @GetMapping("/experiment/integrity") public Map<String,Object> integrity(@RequestParam String runId){return fixture.integrity(runId);}
+    @GetMapping("/experiment/enrollment-records") public List<Map<String,Object>> enrollmentRecords(@RequestParam String runId){
+        return jdbc.queryForList("SELECT request_id,student_id,course_id,status FROM enrollment WHERE run_id=?",runId);
+    }
     @GetMapping("/experiment/pool-samples") public List<Map<String,Object>> poolSamples(){return metrics.poolSamples();}
     @GetMapping("/experiment/state") public Map<String,Object> state(){
         var result=new LinkedHashMap<String,Object>();
@@ -43,8 +46,9 @@ public class ExperimentController {
         result.put("guards",List.of("student-db-lock","course-db-lock","unique-request","unique-enrollment"));
         result.put("databases",Map.of("enrollment",jdbc.queryForMap("SELECT @@server_uuid AS serverUuid,DATABASE() AS databaseName"),
             "academic",academic.queryForMap("SELECT @@server_uuid AS serverUuid,DATABASE() AS databaseName")));
-        if(lockApi.enabled())result.put("redisGuard",Map.of("enabled","REDIS".equals(lockApi.state().get("strategy")),"student","REDIS".equals(lockApi.state().get("strategy")),"course","REDIS".equals(lockApi.state().get("strategy")),"waitBudgetMs",10000,"watchdogMs",30000));
+        if(lockApi.enabled())result.put("redisGuard",Map.of("enabled",Set.of("REDIS","HYBRID").contains(lockApi.state().get("strategy")),"student",Set.of("REDIS","HYBRID").contains(lockApi.state().get("strategy")),"course","REDIS".equals(lockApi.state().get("strategy")),"waitBudgetMs",10000,"watchdogMs",30000));
         if(lockApi.enabled())result.put("guards",List.of("lock-api-"+lockApi.state().get("strategy"),"unique-request","unique-enrollment","db-check-constraints"));
+        if("HYBRID".equals(lockApi.state().get("strategy")))result.put("guards",List.of("student-redis-lock","student-db-revalidation","course-db-lock","unique-request","unique-enrollment","db-check-constraints"));
         return result;
     }
     @GetMapping("/api/subjects") public List<Map<String,Object>> subjects(@RequestParam String runId,

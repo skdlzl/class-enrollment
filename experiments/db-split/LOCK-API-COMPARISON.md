@@ -1,3 +1,51 @@
+# LOCK-API-v2: 외부 자격 조회와 혼합 락 비교
+
+기본 자동 실행은 PESSIMISTIC / REDIS / HYBRID를 회차마다 순서를 바꾸어 3회 측정합니다.
+각 실행은 새 데이터 볼륨에서 예열 후 본 측정을 수행합니다. OPTIMISTIC 구현과 안전성 테스트는 보존합니다.
+
+| 구성 | 외부 API 대기 | 최종 저장 |
+| --- | --- | --- |
+| PESSIMISTIC | 학생 DB 락과 연결 유지 | 학생 검증 후 과목 DB 락 |
+| REDIS | 학생 Redis 락 유지. DB 연결 반환 | 과목 Redis 락 후 짧은 DB 트랜잭션 |
+| HYBRID | 학생 Redis 락 유지. DB 연결 반환 | 학생 DB 락으로 재검증 후 과목 DB 락과 저장 |
+
+HYBRID는 과목 Redis 락 대기를 없앱니다. 학생 DB 락은 Redis 소유권이 유실되어 요청이 겹쳐도
+학점과 시간표를 보호하기 위한 짧은 최종 안전장치입니다. 학생 → 과목 순서를 유지하며 DB 커밋 후 Redis 락을 해제합니다.
+외부 자격 API가 반환한 정보가 저장 직전 변경되는 문제까지 해결하지는 않습니다.
+세 구성의 안전 보장이 동일하지는 않습니다. 순수 REDIS는 기존처럼 lease 유실 구간을 DB 학생 락으로 방어하지 않습니다.
+PESSIMISTIC도 API를 트랜잭션 밖으로 옮기고 재검증할 수 있으므로 이번 차이를 Redis 자체의 우위로 일반화하지 않습니다.
+
+## 측정 수정
+
+- opt-in LOCK-API 구성의 클라이언트 HTTP 제한은 모두 30초입니다. 서버 대기 예산은 기존 10초입니다.
+- 서버 예산은 SQL을 강제로 취소하는 하드 데드라인이 아닙니다. 30초 후에도 응답 불명이 생길 수 있습니다.
+- 타임아웃 확대만으로 완료율이 오를 수 있으므로 v1과 개선율을 직접 계산하지 않습니다. 세 구성을 v2에서 다시 비교합니다.
+- 요청 오류에 예외 종류를 기록합니다. 응답 불명 요청은 임의로 재전송하지 않습니다.
+- 두 서버가 유휴 상태가 된 뒤 request ID별 DB 신청 내역을 저장하고 대조합니다.
+- summary의 outcomes와 successfulJourney는 실제 사용자 응답을 유지합니다. DB에서 뒤늦게 확인한 성공을 사용자 성공이나 P95에 합치지 않습니다.
+- reconciliation.json의 confirmedAfterUnknown은 뒤늦게 확인한 저장 건수입니다. unknownWithoutStoredRecord는 관측 시점 미저장 건수입니다.
+- drained-after.json은 유휴 확인 후 서버 상태이며 기존 mixed-after.json은 측정 구간 직후 상태입니다.
+- valid:false 결과도 보존하며 정합성 오류가 있으면 자동 비교를 중단합니다.
+
+## 실행
+
+Docker Desktop 실행 후 PowerShell에서:
+
+```powershell
+cd C:\portfolio\class-enrollment
+git switch experiment/db-split
+git pull --ff-only
+& .\experiments\db-split\scripts\run-lock-api-comparison.ps1
+```
+
+결과는 새 LOCK-API-3rounds-* 폴더와 ZIP에 저장됩니다. v1 결과에 이어서 실행하지 않습니다.
+서버 2개와 MySQL 2개 및 1만 과목 검색 흐름은 그대로입니다. 외부 API는 기본 100ms 지연의 읽기 전용 모의 자격 API입니다.
+완료율 개선은 아직 가설이며 실제 측정 결과로 판단합니다.
+
+---
+
+## v1 구현 기록 (아래 자동 실행 설명은 당시 기준)
+
 # 외부 자격 확인이 포함된 수강신청 락 비교
 
 ## 비교 질문

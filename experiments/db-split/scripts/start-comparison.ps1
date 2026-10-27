@@ -1,6 +1,6 @@
 param([Parameter(Mandatory=$true)][ValidateSet('A','B0','B','C','D','E')][string]$Mode,
       [ValidateRange(1,99)][int]$Round=1,[switch]$MetricsOff,
-      [ValidateSet('OFF','REDIS','PESSIMISTIC','OPTIMISTIC')][string]$LockStrategy='OFF',
+      [ValidateSet('OFF','REDIS','PESSIMISTIC','OPTIMISTIC','HYBRID')][string]$LockStrategy='OFF',
       [string]$EligibilityUrl='')
 $ErrorActionPreference='Stop'
 $Mode=$Mode.ToUpperInvariant()
@@ -27,14 +27,14 @@ $context=@{session=$session;mode=$Mode;round=$Round;revision=$revision;directory
 Write-ComparisonJson $contextPath $context
 Write-ComparisonJson "$dir\context.json" $context
 $profile=if($Mode -in @('B','C','D','E')){'split'}else{'single'}
-$extraProfiles=@();if($Mode -in @('C','D','E') -or $LockStrategy -eq 'REDIS'){$extraProfiles=@('--profile','redis')}
+$extraProfiles=@();if($Mode -in @('C','D','E') -or $LockStrategy -in @('REDIS','HYBRID')){$extraProfiles=@('--profile','redis')}
 & docker compose -p $session -f "$experimentRoot\compose.compare.yml" --profile $profile @extraProfiles up -d --wait
 if($LASTEXITCODE -ne 0){throw "MySQL startup failed. Session retained: $session"}
 $enrollmentPort=if($Mode -in @('B','C','D','E')){53328}else{53326}
 foreach($serverPort in @(28080,28081)){
  $javaArgs=@('-Xms512m','-Xmx512m','-jar',('"'+$jar+'"'),"--server.port=$serverPort","--experiment.revision=$revision","--experiment.mode=$Mode","--experiment.session=$session",'--experiment.dataset-policy=fixed',"--experiment.metrics-enabled=$((!$MetricsOff.IsPresent).ToString().ToLowerInvariant())","--spring.datasource.url=jdbc:mysql://127.0.0.1:$enrollmentPort/enrollment_experiment?characterEncoding=UTF-8&serverTimezone=UTC",'--spring.datasource.username=experiment','--spring.datasource.password=experiment-local')
  if($Mode -in @('B','C','D','E')){$javaArgs+=@('--experiment.academic.url=jdbc:mysql://127.0.0.1:53327/enrollment_experiment?characterEncoding=UTF-8&serverTimezone=UTC','--experiment.academic.username=experiment','--experiment.academic.password=experiment-local')}
- if($Mode -in @('C','D','E') -or $LockStrategy -eq 'REDIS'){$javaArgs+=@('--experiment.redis.address=redis://127.0.0.1:56379')}
+ if($Mode -in @('C','D','E') -or $LockStrategy -in @('REDIS','HYBRID')){$javaArgs+=@('--experiment.redis.address=redis://127.0.0.1:56379')}
  if($LockStrategy -ne 'OFF'){$javaArgs+=@("--experiment.lock-api.strategy=$LockStrategy","--experiment.lock-api.url=$EligibilityUrl")}
  $process=Start-Process java -ArgumentList $javaArgs -WorkingDirectory $experimentRoot -RedirectStandardOutput "$dir\server-$serverPort.log" -RedirectStandardError "$dir\server-$serverPort.err.log" -PassThru
  $context.processes+=@{id=$process.Id;port=$serverPort}

@@ -16,7 +16,7 @@ import java.util.function.Supplier;
 /** Isolated opt-in comparison. OFF leaves the historical guarded paths unchanged. */
 @Service
 public class LockApiEnrollment {
- public enum Strategy { OFF, REDIS, PESSIMISTIC, OPTIMISTIC }
+ public enum Strategy { OFF, REDIS, PESSIMISTIC, OPTIMISTIC, HYBRID }
  public static class Unavailable extends RuntimeException {public final String code;public Unavailable(String code){super(code);this.code=code;}}
  static class VersionConflict extends RuntimeException {}
  private final JdbcTemplate jdbc;private final Metrics metrics;private final TransactionTemplate tx;
@@ -28,7 +28,7 @@ public class LockApiEnrollment {
   strategy=Strategy.valueOf(env.getProperty("experiment.lock-api.strategy","OFF"));url=env.getProperty("experiment.lock-api.url","");
   if(strategy!=Strategy.OFF&&(mode!=DatabaseConfig.Mode.B||url.isBlank()||env.getProperty("experiment.notifications.enabled",Boolean.class,false)))
    throw new IllegalArgumentException("Lock/API comparison requires split mode B, explicit eligibility URL and notifications OFF");
-  if(strategy==Strategy.REDIS&&redis==null)throw new IllegalArgumentException("Redis client required");
+  if((strategy==Strategy.REDIS||strategy==Strategy.HYBRID)&&redis==null)throw new IllegalArgumentException("Redis client required");
   gateway=new EligibilityGateway(url,metrics);tx=new TransactionTemplate(manager);tx.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
  }
  public boolean enabled(){return strategy!=Strategy.OFF;}
@@ -47,6 +47,17 @@ public class LockApiEnrollment {
      budget(deadline);if(!studentLock.isHeldByCurrentThread()||!courseLock.isHeldByCurrentThread())throw new Unavailable("REDIS_OWNERSHIP_LOST");
      var course=course(r,false);capacity(course);write(r,student,course,credits,false);return confirmed(r);
     }));
+   });
+   else if(strategy==Strategy.HYBRID)result=locked(key(r,"student",r.studentId()),"studentRedis",deadline,studentLock->{
+    var known=known(r);if(known!=null)return known;
+    gateway.check(r,deadline);
+    // External I/O holds no DB connection. Revalidate under DB guards so a lost
+    // Redis lease cannot let overlapping writers violate student invariants.
+    return transaction(()->{
+     budget(deadline);var student=student(r,true);var existing=known(r);if(existing!=null)return existing;
+     int credits=validate(r,student);var course=course(r,true);capacity(course);
+     budget(deadline);write(r,student,course,credits,false);return confirmed(r);
+    });
    });
    else if(strategy==Strategy.PESSIMISTIC)result=transaction(()->{
     var student=student(r,true);var known=known(r);if(known!=null)return known;

@@ -39,8 +39,8 @@ function Assert-SuiteResult($path,$mode,$round,$warmup){
 try{
  if($Resume){
   $manifest=Read-SuiteJson "$Bundle\suite.json"
-  if($manifest.revision -ne $revision -or $manifest.plan -ne 'LOCK-API-v1' -or $manifest.apiDelayMs -ne $ApiDelayMs){throw 'Suite revision or plan mismatch'}
- }else{Write-ComparisonJson "$Bundle\suite.json" @{revision=$revision;plan='LOCK-API-v1';rounds=3;strategies=@('PESSIMISTIC','REDIS','OPTIMISTIC');apiDelayMs=$ApiDelayMs}}
+  if($manifest.revision -ne $revision -or $manifest.plan -ne 'LOCK-API-v2' -or $manifest.apiDelayMs -ne $ApiDelayMs){throw 'Suite revision or plan mismatch'}
+ }else{Write-ComparisonJson "$Bundle\suite.json" @{revision=$revision;plan='LOCK-API-v2';rounds=3;strategies=@('PESSIMISTIC','REDIS','HYBRID');apiDelayMs=$ApiDelayMs}}
  Start-Transcript -Path "$Bundle\run-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"|Out-Null
  $transcript=$true
  if(!('Experiment.Power' -as [type])){Add-Type -Namespace Experiment -Name Power -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint flags);'}
@@ -61,7 +61,7 @@ try{
  if(!$ready -or $ready.pid -ne $mock.Id -or $ready.delayMs -ne $ApiDelayMs){throw 'Eligibility mock identity mismatch'}
  $mockBase="http://127.0.0.1:$($ready.port)"
  Write-ComparisonJson "$Bundle\mock-start.json" (Invoke-RestMethod "$mockBase/state")
- $modes=@('PESSIMISTIC','REDIS','OPTIMISTIC')
+ $modes=@('PESSIMISTIC','REDIS','HYBRID')
  for($round=1;$round -le 3;$round++){
   for($offset=0;$offset -lt 3;$offset++){
    $mode=$modes[($round-1+$offset)%3]
@@ -86,7 +86,7 @@ try{
      if($result.Count -ne 1){throw "Result directory mismatch: $($context.directory)"}
      $dest="$Bundle\$round-$mode-$phase"
      New-Item -ItemType Directory -Path $dest|Out-Null
-     foreach($file in @('summary.json','conditions.json','database.json','baseline-before.json','baseline-after.json','mixed-before.json','mixed-after.json','mixed-pool.json','journeys.json')){Copy-Item (Join-Path $result[0].FullName $file) $dest}
+     foreach($file in @('summary.json','conditions.json','database.json','baseline-before.json','baseline-after.json','mixed-before.json','mixed-after.json','mixed-pool.json','journeys.json','enrollment-records.json','drained-after.json','reconciliation.json')){Copy-Item (Join-Path $result[0].FullName $file) $dest}
      $result[0].FullName|Set-Content "$dest\source-path.txt" -Encoding UTF8
      Write-ComparisonJson "$dest\eligibility-before.json" $mockBefore
      Write-ComparisonJson "$dest\eligibility-after.json" (Invoke-RestMethod "$mockBase/state")
@@ -100,7 +100,7 @@ try{
  }
  $rows=@(Get-ChildItem $Bundle -Directory -Filter '*-measured'|Sort-Object Name|ForEach-Object {
   $s=Read-SuiteJson "$($_.FullName)\summary.json";$c=Read-SuiteJson "$($_.FullName)\conditions.json"
-  [pscustomobject]@{Run=$_.Name;Mode=$c.lockStrategy;Valid=$s.valid;Confirmed=$s.outcomes.CONFIRMED;Unknown=$s.outcomes.SUBMIT_UNKNOWN;JourneyP95=$s.successfulJourney.p95Ms;ApiCalls=(Sum-Metric $s 'eligibility.calls' 'count');OptimisticConflicts=(Sum-Metric $s 'optimistic.conflict' 'count');OptimisticRetries=(Sum-Metric $s 'optimistic.retry' 'count');DbConnectionUsageMs=(Sum-Metric $s 'enrollmentPool.usage' 'totalMs');DbConnectionAcquireMs=(Sum-Metric $s 'enrollmentPool.acquire' 'totalMs')}
+  [pscustomobject]@{Run=$_.Name;Mode=$c.lockStrategy;Valid=$s.valid;Confirmed=$s.outcomes.CONFIRMED;DbConfirmed=$s.database.confirmed;ReconciledUnknown=$s.reconciliation.confirmedAfterUnknown;Unknown=$s.outcomes.SUBMIT_UNKNOWN;JourneyP95=$s.successfulJourney.p95Ms;ApiCalls=(Sum-Metric $s 'eligibility.calls' 'count');OptimisticConflicts=(Sum-Metric $s 'optimistic.conflict' 'count');OptimisticRetries=(Sum-Metric $s 'optimistic.retry' 'count');DbConnectionUsageMs=(Sum-Metric $s 'enrollmentPool.usage' 'totalMs');DbConnectionAcquireMs=(Sum-Metric $s 'enrollmentPool.acquire' 'totalMs')}
  })
  $rows|Format-Table -AutoSize
  $rows|Export-Csv "$Bundle\runs.csv" -NoTypeInformation -Encoding UTF8

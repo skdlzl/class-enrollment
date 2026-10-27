@@ -100,6 +100,24 @@ class LockApiSafetyTest extends EnrollmentSafetyTest {
    }finally{api.release.countDown();executor.shutdownNow();}
   }
  }
+ @Test void hybridRevalidatesWhenRedisLeaseIsLostDuringApi()throws Exception{
+  try(var api=new Api()){
+   jdbc.update("UPDATE student_term SET max_credits=3 WHERE run_id=? AND student_id=1",run);
+   api.entered=new CountDownLatch(2);api.release=new CountDownLatch(1);
+   var f=facade(LockApiEnrollment.Strategy.HYBRID,api,jdbc);var executor=Executors.newFixedThreadPool(2);
+   try{
+    var a=executor.submit(()->{try{return f.enroll(request(1,1)).status();}catch(EnrollmentService.Rejected e){return e.code;}});
+    long limit=System.nanoTime()+TimeUnit.SECONDS.toNanos(1);
+    while(api.calls.get()<1 && System.nanoTime()<limit)Thread.sleep(5);
+    assertEquals(1,api.calls.get());
+    assertTrue(redis.getLock("lock-api:"+run+":202602:student:1").forceUnlock());
+    var b=executor.submit(()->{try{return f.enroll(request(1,2)).status();}catch(EnrollmentService.Rejected e){return e.code;}});
+    assertTrue(api.entered.await(1,TimeUnit.SECONDS));api.release.countDown();
+    var outcomes=List.of(a.get(10,TimeUnit.SECONDS),b.get(10,TimeUnit.SECONDS));
+    assertEquals(1,Collections.frequency(outcomes,"CONFIRMED"));assertEquals(1,Collections.frequency(outcomes,"CREDIT_LIMIT_EXCEEDED"));consistent();
+   }finally{api.release.countDown();executor.shutdownNow();}
+  }
+ }
  @Test void optimisticConflictRetriesExternalCheckAndWholeTransaction()throws Exception{
   try(var api=new Api()){
    api.entered=new CountDownLatch(2);api.release=new CountDownLatch(1);var f=facade(LockApiEnrollment.Strategy.OPTIMISTIC,api,jdbc);

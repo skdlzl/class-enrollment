@@ -66,7 +66,7 @@ class LockApiTwoServerTest {
  }
  @Test void bothRealServersEnforceCreditAndExposeSameStrategy()throws Exception{
   var rows=new ArrayList<Map<String,Object>>();
-  for(String strategy:List.of("PESSIMISTIC","REDIS","OPTIMISTIC")){
+  for(String strategy:List.of("PESSIMISTIC","REDIS","OPTIMISTIC","HYBRID")){
    String run=UUID.randomUUID().toString();jdbc.update("INSERT INTO experiment_run(run_id) VALUES(?)",run);
    jdbc.update("INSERT INTO student_term(run_id,student_id,term_id,status,max_credits) VALUES(?,1,202602,'ACTIVE',3)",run);
    for(int course=1;course<=2;course++){

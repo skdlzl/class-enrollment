@@ -14,9 +14,9 @@ def student=ctx.getThreadNum()+1
 def requests=[]
 def call={String path,String method,Object body,String label ->
     def sample=new JMeterSampleResult();sample.setSampleLabel(label);sample.setDataType(JMeterSampleResult.TEXT);sample.sampleStart()
-    def result=[status:0,body:null]
+    def result=[status:0,body:null,error:null]
     try {
-        def builder=HttpRequest.newBuilder(URI.create(root+path)).timeout(Duration.ofSeconds(10))
+        def builder=HttpRequest.newBuilder(URI.create(root+path)).timeout(Duration.ofSeconds(Long.parseLong(props.getProperty('httpTimeoutSeconds','10'))))
         if(method=='POST')builder.header('Content-Type','application/json').POST(HttpRequest.BodyPublishers.ofString(JsonOutput.toJson(body)))
         else builder.GET()
         def response=client.send(builder.build(),HttpResponse.BodyHandlers.ofString())
@@ -24,11 +24,11 @@ def call={String path,String method,Object body,String label ->
         try{result.body=json.parseText(response.body())}catch(Exception ignored){}
         sample.setResponseCode(result.status.toString());sample.setSuccessful(result.status<400)
         sample.setResponseMessage(result.body instanceof Map?(result.body.code?:'OK'):'OK')
-    }catch(Exception e){sample.setResponseCode('CLIENT_UNKNOWN');sample.setResponseMessage(e.class.simpleName);sample.setSuccessful(false)}
+    }catch(Exception e){result.error=e.class.simpleName;sample.setResponseCode('CLIENT_UNKNOWN');sample.setResponseMessage(e.class.simpleName);sample.setSuccessful(false)}
     finally{sample.sampleEnd()}
     sample.setResponseData(JsonOutput.toJson([status:result.status,code:result.body instanceof Map?result.body.code:null,requestId:body?.requestId]),'UTF-8')
     SampleResult.addSubResult(sample)
-    requests.add([kind:label,status:result.status,code:result.body instanceof Map?result.body.code:null,elapsedMs:sample.time,startedAt:sample.startTime,requestId:body?.requestId])
+    requests.add([kind:label,status:result.status,error:result.error,code:result.body instanceof Map?result.body.code:null,elapsedMs:sample.time,startedAt:sample.startTime,requestId:body?.requestId])
     return result
 }
 if(kind!='journey'){

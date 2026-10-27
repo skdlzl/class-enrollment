@@ -11,6 +11,7 @@ if($Warmup -and $context.warmedUp){throw 'Warmup already completed. Start a new 
 if(!(Get-Command $Jmeter -ErrorAction SilentlyContinue)){throw 'Pass -Jmeter with the path to JMeter 5.6.3 jmeter.bat'}
 $jmeterVersion=(& $Jmeter -v | Out-String)
 if($jmeterVersion -notmatch '5\.6\.3'){throw 'Use JMeter 5.6.3'}
+$httpTimeoutSeconds=if($context.lockStrategy -and $context.lockStrategy -ne 'OFF'){30}else{10}
 $states=@(Get-ComparisonStates);Assert-ComparisonStates $context $states
 $services=if($context.mode -in @('B','C','D','E')){@('academic','enrollment')}else{@('single')}
 $resources=@()
@@ -24,7 +25,7 @@ foreach($service in $services){
 }
 if(@($resources.image|Select-Object -Unique).Count -ne 1){throw 'MySQL image versions differ'}
 $redisResource=$null
-if($context.mode -in @('C','D','E') -or $context.lockStrategy -eq 'REDIS'){
+if($context.mode -in @('C','D','E') -or $context.lockStrategy -in @('REDIS','HYBRID')){
  $redisId=(& docker compose -p $context.session -f "$experimentRoot/compose.compare.yml" ps -q redis | Out-String).Trim()
  if(!$redisId){throw 'Missing Redis container'}
  $ri=(& docker inspect $redisId | ConvertFrom-Json)[0]
@@ -47,7 +48,7 @@ $dir=Join-Path $context.directory ("$($context.mode)-$phase-"+(Get-Date -Format 
 New-Item -ItemType Directory -Path $dir -Force|Out-Null
 function Save($name,$value){Write-ComparisonJson (Join-Path $dir $name) $value}
 Save 'database-before.json' $databaseBefore
-Save 'conditions.json' @{version='db-split-v2';mode=$context.mode;lockStrategy=$context.lockStrategy;eligibilityUrl=$context.eligibilityUrl;round=$context.round;session=$context.session;revision=$revision;warmup=$Warmup.IsPresent;states=$states;fixture=$fixture;durationSeconds=90;readRpsPerTypePerServer=25;users=500;rampSeconds=5;readWorkersPerTypePerServer=25;resourceBudget=@{containers=$resources;redis=$redisResource;totalMySqlCpus=2;totalMySqlMemoryBytes=2147483648;totalBufferPoolBytes=536870912;javaHeapPerServer='512m';connectionsPerApp=$(if($context.mode -eq 'A'){10}else{20});hostCpus=[Environment]::ProcessorCount};jmeterVersion=$jmeterVersion;workload='Same JMeter closed-loop plan for A/B0/B/C/D/E. Total background target 100 RPS. Report observed RPS and target shortfall; not scheduled skipped requests.'}
+Save 'conditions.json' @{version='db-split-v2';mode=$context.mode;lockStrategy=$context.lockStrategy;eligibilityUrl=$context.eligibilityUrl;round=$context.round;session=$context.session;revision=$revision;warmup=$Warmup.IsPresent;states=$states;fixture=$fixture;durationSeconds=90;httpTimeoutSeconds=$httpTimeoutSeconds;readRpsPerTypePerServer=25;users=500;rampSeconds=5;readWorkersPerTypePerServer=25;resourceBudget=@{containers=$resources;redis=$redisResource;totalMySqlCpus=2;totalMySqlMemoryBytes=2147483648;totalBufferPoolBytes=536870912;javaHeapPerServer='512m';connectionsPerApp=$(if($context.mode -eq 'A'){10}else{20});hostCpus=[Environment]::ProcessorCount};jmeterVersion=$jmeterVersion;workload='Same JMeter closed-loop plan for A/B0/B/C/D/E. Total background target 100 RPS. Report observed RPS and target shortfall; not scheduled skipped requests.'}
 # Consume the measurement slot BEFORE load: failed runs must not be silently overwritten by reruns.
 if(!$Warmup){$context.measured=$true;Write-ComparisonJson $contextPath $context;Write-ComparisonJson "$($context.directory)\context.json" $context}
 foreach($part in @('baseline','mixed')){
@@ -56,7 +57,7 @@ foreach($part in @('baseline','mixed')){
  if($LASTEXITCODE -ne 0){throw 'Plan generation failed'}
  Save "$part-before.json" (@(Get-ComparisonStates))
  $phaseStarted=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
- $jmeterArgs=@('-n','-t',"$dir\$part.jmx",'-l',"$dir\$part.jtl",'-j',"$dir\$part.log","-JrunId=$($fixture.runId)",'-Jjmeter.save.saveservice.output_format=xml','-Jjmeter.save.saveservice.response_data=true','-Jjmeter.save.saveservice.subresults=true')
+ $jmeterArgs=@('-n','-t',"$dir\$part.jmx",'-l',"$dir\$part.jtl",'-j',"$dir\$part.log","-JrunId=$($fixture.runId)","-JhttpTimeoutSeconds=$httpTimeoutSeconds",'-Jjmeter.save.saveservice.output_format=xml','-Jjmeter.save.saveservice.response_data=true','-Jjmeter.save.saveservice.subresults=true')
  & $Jmeter @jmeterArgs
  if($LASTEXITCODE -ne 0){throw "JMeter failed. Inspect $part.log"}
  Save "$part-pool.json" (@(28080,28081)|ForEach-Object {
@@ -66,6 +67,9 @@ foreach($part in @('baseline','mixed')){
  Save "$part-after.json" (@(Get-ComparisonStates))
 }
 Wait-ComparisonIdle $context
+Save 'drained-after.json' (@(Get-ComparisonStates))
+$records=@(Invoke-RestMethod "http://127.0.0.1:28080/experiment/enrollment-records?runId=$($fixture.runId)" -TimeoutSec 30 | ForEach-Object {$_})
+ConvertTo-Json -InputObject $records -Depth 10 | Set-Content -Encoding UTF8 "$dir\enrollment-records.json"
 Save 'database.json' (Invoke-RestMethod "http://127.0.0.1:28080/experiment/integrity?runId=$($fixture.runId)" -TimeoutSec 30)
 & "$PSScriptRoot\summarize.ps1" -Directory $dir
 if(!(Test-Path "$dir\summary.json")){throw 'Summary generation failed. Do not rerun load; preserve JTL files.'}

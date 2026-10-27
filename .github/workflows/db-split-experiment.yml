@@ -20,7 +20,7 @@ jobs:
           node-version: '22'
       - name: MySQL safety tests
         run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml verify
-      - name: Three lock strategies on two Spring Boot servers
+      - name: Lock strategies including guarded hybrid on two Spring Boot servers
         run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml "-Dtest=LockApiTwoServerTest" -Dlock.api.two-server=true test
       - name: Two-JVM notification load smoke
         run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml "-Dtest=NotificationSafetyTest#compareNotificationLoad" -Dnotification.load=true -Dnotification.load.messages=32 -Dnotification.load.rounds=1 test
@@ -64,6 +64,7 @@ jobs:
           ./experiments/db-split/scripts/summarize.ps1 -Directory /tmp/jmeter-smoke
           $mismatch=Get-Content -Raw /tmp/jmeter-smoke/summary.json|ConvertFrom-Json
           if(!$mismatch.integrityValid -or $mismatch.responseCountMatchesDatabase -or $mismatch.valid){throw 'DB integrity and response count must be separate'}
+          ./experiments/db-split/scripts/check-reconciliation.ps1 -Directory /tmp/jmeter-smoke
       - uses: actions/upload-artifact@v4
         if: always()
         with:

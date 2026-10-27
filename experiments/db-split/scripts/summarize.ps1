@@ -38,6 +38,24 @@ for($i=0;$i -lt 2;$i++){
   $metrics+=@{server=28080+$i;phase=$property.Name;count=$count;failures=$a.failures-$b.failures;totalMs=$total;meanMs=$(if($count){$total/$count}else{$null});lifetimeMaxMs=$a.lifetimeMaxMs}
  }
 }
+# Reconcile only after both application instances have drained. Raw outcomes and
+# successful-response latency remain unchanged; DB confirmation is a separate fact.
+$reconciliation=@{available=$false;confirmedAfterUnknown=0;unknownWithoutStoredRecord=0;recordsMatchDatabase=$false;details=@()}
+if(Test-Path "$Directory\enrollment-records.json"){
+ $records=@(Get-Content -Raw -Encoding UTF8 "$Directory\enrollment-records.json"|ConvertFrom-Json)
+ $byRequest=@{};foreach($record in $records){$byRequest[[string]$record.request_id]=$record}
+ $details=@();$confirmedAfterUnknown=0;$unknownWithoutStoredRecord=0
+ foreach($journey in @($journeys|Where-Object {$_.outcome -eq 'SUBMIT_UNKNOWN'})){
+  $submitted=@($journey.requests|Where-Object {$_.kind -eq 'submit' -and $_.requestId}|Select-Object -Last 1)
+  $record=$null;$requestId=$null
+  if($submitted.Count){$requestId=[string]$submitted[0].requestId;$record=$byRequest[$requestId]}
+  $confirmed=$record -and $record.status -eq 'CONFIRMED' -and $record.student_id -eq $journey.studentId
+  if($confirmed){$confirmedAfterUnknown++}else{$unknownWithoutStoredRecord++}
+  $details+=@{studentId=$journey.studentId;requestId=$requestId;storedConfirmation=[bool]$confirmed}
+ }
+ $reconciliation=@{available=$true;confirmedAfterUnknown=$confirmedAfterUnknown;unknownWithoutStoredRecord=$unknownWithoutStoredRecord;recordsMatchDatabase=@($records|Where-Object {$_.status -eq 'CONFIRMED'}).Count -eq $db.confirmed;details=$details}
+ $reconciliation|ConvertTo-Json -Depth 12|Set-Content -Encoding UTF8 "$Directory\reconciliation.json"
+}
 $integrityValid=$db.counterMismatches -eq 0 -and $db.creditViolations -eq 0 -and $db.scheduleViolations -eq 0 -and $db.studentsWithMultipleEnrollments -eq 0
 $responseCountMatchesDatabase=$db.confirmed -eq $outcomes.CONFIRMED
 $outcomeCountValid=$journeys.Count -eq 500 -and @($journeys.studentId|Sort-Object -Unique).Count -eq 500
@@ -48,7 +66,7 @@ if(Test-Path "$Directory\conditions.json"){$conditions=Get-Content -Encoding UTF
 $fixedDatasetValid=$null
 if($conditions.version -eq 'db-split-v2'){$fixedDatasetValid=$db.totalCatalogRows -eq 10000 -and $db.totalSubjectRows -eq 10000 -and $db.totalStudentRows -eq 500}
 $valid=$integrityValid -and $responseCountMatchesDatabase -and $outcomeCountValid -and $executionErrors -eq 0 -and $offeredLoadMet -and $fixedDatasetValid -ne $false
-$result=@{version='db-split-v2';mode=$conditions.mode;lockStrategy=$conditions.lockStrategy;round=$conditions.round;session=$conditions.session;revision=$conditions.revision;warmup=$conditions.warmup;valid=$valid;integrityValid=$integrityValid;responseCountMatchesDatabase=$responseCountMatchesDatabase;outcomeCountValid=$outcomeCountValid;executionErrors=$executionErrors;offeredLoadMet=$offeredLoadMet;fixedDatasetValid=$fixedDatasetValid;outcomes=$outcomes;successRate=$outcomes.CONFIRMED/500;successfulJourney=(Stats @($journeys|Where-Object {$_.outcome -eq 'CONFIRMED'}|ForEach-Object {$_.elapsedMs}));allJourney=(Stats @($journeys|ForEach-Object {$_.elapsedMs}));journeyRead=(Stats @($steps|Where-Object {$_.kind -eq 'journeyRead'}|ForEach-Object {$_.elapsedMs}));submit=(Stats @($steps|Where-Object {$_.kind -eq 'submit'}|ForEach-Object {$_.elapsedMs}));reads=$readRows;pool=$pool;metrics=$metrics;database=$db;measurementNote='P95: observed samples only. Background threads are rate-paced closed loop, not guaranteed offered RPS. Lifetime maxima include warmup. No instrumentation-overhead equivalence assumed.'}
+$result=@{version='db-split-v2';mode=$conditions.mode;lockStrategy=$conditions.lockStrategy;round=$conditions.round;session=$conditions.session;revision=$conditions.revision;warmup=$conditions.warmup;valid=$valid;integrityValid=$integrityValid;responseCountMatchesDatabase=$responseCountMatchesDatabase;outcomeCountValid=$outcomeCountValid;executionErrors=$executionErrors;offeredLoadMet=$offeredLoadMet;fixedDatasetValid=$fixedDatasetValid;outcomes=$outcomes;successRate=$outcomes.CONFIRMED/500;successfulJourney=(Stats @($journeys|Where-Object {$_.outcome -eq 'CONFIRMED'}|ForEach-Object {$_.elapsedMs}));allJourney=(Stats @($journeys|ForEach-Object {$_.elapsedMs}));journeyRead=(Stats @($steps|Where-Object {$_.kind -eq 'journeyRead'}|ForEach-Object {$_.elapsedMs}));submit=(Stats @($steps|Where-Object {$_.kind -eq 'submit'}|ForEach-Object {$_.elapsedMs}));reads=$readRows;pool=$pool;metrics=$metrics;database=$db;reconciliation=$reconciliation;measurementNote='P95: observed samples only. Background threads are rate-paced closed loop, not guaranteed offered RPS. Lifetime maxima include warmup. No instrumentation-overhead equivalence assumed.'}
 $result|ConvertTo-Json -Depth 25|Set-Content -Encoding UTF8 "$Directory\summary.json"
 $journeys|ConvertTo-Json -Depth 20|Set-Content -Encoding UTF8 "$Directory\journeys.json"
 $outcomes|Format-Table
