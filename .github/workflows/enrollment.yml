@@ -43,6 +43,8 @@ jobs:
       - run: docker compose up -d --wait mysql redis external
       - run: pip install requests pymysql
       - run: python scripts/benchmark.py --requests 12000 --concurrency 128 --rounds 3
+      - run: mkdir -p results && docker compose logs --no-color > results/services.log
+        if: always()
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -8,6 +8,7 @@ spring:
     hikari:
       maximum-pool-size: 20
       connection-timeout: 1000
+      initialization-fail-timeout: 60000
       connection-init-sql: SET SESSION innodb_lock_wait_timeout=1
   data:
     redis:

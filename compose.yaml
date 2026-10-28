@@ -13,7 +13,7 @@ services:
     volumes:
       - class-enrollment-mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_password"]
+      test: ["CMD", "mysql", "--protocol=TCP", "-h", "127.0.0.1", "-uclass_user", "-pclass_password", "class_enrollment", "-e", "SELECT 1"]
       interval: 5s
       timeout: 3s
       retries: 20
