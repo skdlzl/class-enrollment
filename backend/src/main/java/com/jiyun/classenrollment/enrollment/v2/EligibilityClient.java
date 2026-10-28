@@ -23,10 +23,13 @@ public class EligibilityClient {
         var request = HttpRequest.newBuilder(URI.create(url + "/eligibility?student=" + student + "&course=" + course))
             .timeout(Duration.ofMillis(remaining)).GET().build();
         try {
-            var result = client.send(request, HttpResponse.BodyHandlers.discarding());
+            var result = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            // We only need the status. Do not wait indefinitely for an irrelevant response body.
+            try (var body = result.body()) {
             if (result.statusCode() == 403) throw new com.jiyun.classenrollment.common.error.EnrollmentException(
                 "EXTERNAL_INELIGIBLE", "외부 학사 검증 거절", org.springframework.http.HttpStatus.CONFLICT);
             if (result.statusCode() != 204) throw RedisGate.failure("EXTERNAL_BAD_RESPONSE");
+            }
         } catch (HttpConnectTimeoutException e) { throw RedisGate.failure("EXTERNAL_CONNECT_TIMEOUT"); }
         catch (HttpTimeoutException e) { throw RedisGate.failure("EXTERNAL_RESPONSE_TIMEOUT"); }
         catch (IOException e) { throw RedisGate.failure("EXTERNAL_IO_ERROR"); }

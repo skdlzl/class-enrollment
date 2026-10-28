@@ -22,6 +22,24 @@ class EligibilityClientTest {
             assertEquals("EXTERNAL_RESPONSE_TIMEOUT",ex.getCode());
         } finally { server.stop(0); }
     }
+    @Test void unexpectedStatusDoesNotWaitForAnUnfinishedBody() throws Exception {
+        var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        server.createContext("/eligibility",exchange -> {
+            try {
+                exchange.sendResponseHeaders(200,100);
+                exchange.getResponseBody().flush();
+                Thread.sleep(2000);
+            } catch(InterruptedException e) { Thread.currentThread().interrupt(); }
+            finally { exchange.close(); }
+        });
+        server.start();
+        try {
+            var client=new EligibilityClient("http://127.0.0.1:"+server.getAddress().getPort(),1000);
+            assertTimeout(java.time.Duration.ofMillis(1500), () ->
+                assertEquals("EXTERNAL_BAD_RESPONSE",assertThrows(EnrollmentException.class,
+                    ()->client.verify(1,1,System.nanoTime()+TimeUnit.SECONDS.toNanos(5))).getCode()));
+        } finally { server.stop(0); }
+    }
     @Test void externalDenialIsBusinessFailure() throws Exception {
         var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
         server.createContext("/eligibility",exchange -> { exchange.sendResponseHeaders(403,-1);exchange.close(); });
