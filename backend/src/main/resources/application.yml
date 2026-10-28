@@ -5,6 +5,16 @@ spring:
     url: ${DB_URL:jdbc:mysql://localhost:3306/class_enrollment?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
     username: ${DB_USERNAME:class_user}
     password: ${DB_PASSWORD:class_password}
+    hikari:
+      maximum-pool-size: 20
+      connection-timeout: 1000
+      connection-init-sql: SET SESSION innodb_lock_wait_timeout=1
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 300ms
+      connect-timeout: 300ms
   jpa:
     hibernate:
       ddl-auto: validate
@@ -18,3 +28,21 @@ spring:
 
 server:
   port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  metrics:
+    distribution:
+      percentiles:
+        enrollment.requests: 0.5,0.95,0.99
+        enrollment.stage: 0.5,0.95,0.99
+
+enrollment:
+  strategy: ${ENROLLMENT_STRATEGY:REDIS}
+  external-url: ${EXTERNAL_URL:http://localhost:8090}
+  external-timeout-ms: ${EXTERNAL_TIMEOUT_MS:600}
+  lease-ms: ${LEASE_MS:3000}
+  budget-ms: ${REQUEST_BUDGET_MS:5000}

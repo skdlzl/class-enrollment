@@ -7,3 +7,6 @@ backend/target/
 .env.*
 !.env.example
 
+
+results/
+__pycache__/
