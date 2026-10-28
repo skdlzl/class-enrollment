@@ -6,6 +6,7 @@ param(
  [ValidateRange(1,1000)][int]$ProviderDelayMs=1000,
  [ValidateRange(1,2000)][int]$UniqueRps=200,
  [ValidateRange(2,4)][int]$DuplicateCopies=2,
+ [switch]$Sensitivity,
  [string]$OutputDirectory=''
 )
 $ErrorActionPreference='Stop'
@@ -24,8 +25,10 @@ try{
  $powerEnabled=$true
  # Avoid old app JVMs competing with the new isolated Testcontainers test.
  if(Test-Path $contextPath){& "$PSScriptRoot\stop-comparison.ps1"}
- Write-ComparisonJson "$OutputDirectory\conditions.json" @{revision=$revision;messages=$Messages;rounds=$Rounds;servers=2;workersPerServer=$WorkersPerServer;poolSizePerServer=$PoolSizePerServer;totalWorkers=($WorkersPerServer*2);totalPoolSize=($PoolSizePerServer*2);providerDelayMs=$ProviderDelayMs;uniqueArrivalRps=$UniqueRps;duplicateCopies=$DuplicateCopies;plan='NOTIFICATION-LOCKS-v1';strategies=@('PESSIMISTIC','OPTIMISTIC','REDIS');scenarios=@('UNIQUE','DUPLICATE');scope='Two independent notification HTTP server JVMs on one host, shared MySQL and Redis, local mock HTTP provider. Duplicate scenario is controlled, not measured production traffic.'}
+ if($Sensitivity){Write-Host 'Sensitivity: 50%/200RPS/0ms, 100%/5RPS/0ms, 100%/200RPS/100ms, 100%/200RPS/500ms. RPS and duplicate copies are fixed by these conditions.'}
+ Write-ComparisonJson "$OutputDirectory\conditions.json" @{revision=$revision;messages=$Messages;rounds=$Rounds;servers=2;workersPerServer=$WorkersPerServer;poolSizePerServer=$PoolSizePerServer;totalWorkers=($WorkersPerServer*2);totalPoolSize=($PoolSizePerServer*2);providerDelayMs=$ProviderDelayMs;uniqueArrivalRps=$UniqueRps;duplicateCopies=$DuplicateCopies;plan=$(if($Sensitivity){'NOTIFICATION-SENSITIVITY-v1'}else{'NOTIFICATION-LOCKS-v1'});sensitivity=[bool]$Sensitivity;strategies=@('PESSIMISTIC','OPTIMISTIC','REDIS');scenarios=@('UNIQUE','DUPLICATE');scope='Two independent notification HTTP server JVMs on one host, shared MySQL and Redis, local mock HTTP provider. Duplicate scenario is controlled, not measured production traffic.'}
  $mavenArgs=@('-f',"$experimentRoot\backend\pom.xml",'clean','test','-Dtest=NotificationSafetyTest#compareNotificationLoad','-Dnotification.load=true',"-Dnotification.load.messages=$Messages","-Dnotification.load.rounds=$Rounds","-Dnotification.load.workers=$WorkersPerServer","-Dnotification.load.pool=$PoolSizePerServer","-Dnotification.load.delay-ms=$ProviderDelayMs","-Dnotification.load.unique-rps=$UniqueRps","-Dnotification.load.duplicate-copies=$DuplicateCopies")
+ if($Sensitivity){$mavenArgs+='-Dnotification.load.matrix=true'}
  & "$experimentRepo\backend\mvnw.cmd" @mavenArgs | Tee-Object "$OutputDirectory\console.log"
  $code=$LASTEXITCODE
  if($code -ne 0){throw 'Load test failed or incomplete. Results preserved; do not automatically increase or rerun.'}

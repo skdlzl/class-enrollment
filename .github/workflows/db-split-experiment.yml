@@ -24,6 +24,8 @@ jobs:
         run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml "-Dtest=LockApiTwoServerTest" -Dlock.api.two-server=true test
       - name: Two-JVM notification load smoke
         run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml "-Dtest=NotificationSafetyTest#compareNotificationLoad" -Dnotification.load=true -Dnotification.load.messages=32 -Dnotification.load.rounds=1 test
+      - name: Two-JVM notification sensitivity smoke
+        run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml "-Dtest=NotificationSafetyTest#compareNotificationLoad" -Dnotification.load=true -Dnotification.load.matrix=true -Dnotification.load.messages=12 -Dnotification.load.rounds=1 -Dnotification.load.delay-ms=100 test
       - name: Compose budget configuration
         run: docker compose -p ci-check -f experiments/db-split/compose.compare.yml --profile single --profile split --profile redis config --quiet
       - name: Install pinned JMeter
