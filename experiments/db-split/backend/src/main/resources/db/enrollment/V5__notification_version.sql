@@ -1,0 +1,1 @@
+ALTER TABLE notification_outbox ADD COLUMN version BIGINT NOT NULL DEFAULT 0;

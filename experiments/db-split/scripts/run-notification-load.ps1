@@ -3,7 +3,7 @@ param(
  [ValidateRange(1,5)][int]$Rounds=3,
  [ValidateRange(1,64)][int]$WorkersPerServer=8,
  [ValidateRange(1,32)][int]$PoolSizePerServer=10,
- [ValidateRange(1,1000)][int]$ProviderDelayMs=100,
+ [ValidateRange(1,1000)][int]$ProviderDelayMs=1000,
  [ValidateRange(1,2000)][int]$UniqueRps=200,
  [ValidateRange(2,4)][int]$DuplicateCopies=2,
  [string]$OutputDirectory=''
@@ -24,7 +24,7 @@ try{
  $powerEnabled=$true
  # Avoid old app JVMs competing with the new isolated Testcontainers test.
  if(Test-Path $contextPath){& "$PSScriptRoot\stop-comparison.ps1"}
- Write-ComparisonJson "$OutputDirectory\conditions.json" @{revision=$revision;messages=$Messages;rounds=$Rounds;servers=2;workersPerServer=$WorkersPerServer;poolSizePerServer=$PoolSizePerServer;totalWorkers=($WorkersPerServer*2);totalPoolSize=($PoolSizePerServer*2);providerDelayMs=$ProviderDelayMs;uniqueArrivalRps=$UniqueRps;duplicateCopies=$DuplicateCopies;strategies=@('DB_CLAIM','REDIS_OUTBOX');scenarios=@('UNIQUE','DUPLICATE');scope='Two independent notification HTTP server JVMs on one host, shared MySQL and Redis, local mock HTTP provider. Duplicate scenario is controlled, not measured production traffic.'}
+ Write-ComparisonJson "$OutputDirectory\conditions.json" @{revision=$revision;messages=$Messages;rounds=$Rounds;servers=2;workersPerServer=$WorkersPerServer;poolSizePerServer=$PoolSizePerServer;totalWorkers=($WorkersPerServer*2);totalPoolSize=($PoolSizePerServer*2);providerDelayMs=$ProviderDelayMs;uniqueArrivalRps=$UniqueRps;duplicateCopies=$DuplicateCopies;plan='NOTIFICATION-LOCKS-v1';strategies=@('PESSIMISTIC','OPTIMISTIC','REDIS');scenarios=@('UNIQUE','DUPLICATE');scope='Two independent notification HTTP server JVMs on one host, shared MySQL and Redis, local mock HTTP provider. Duplicate scenario is controlled, not measured production traffic.'}
  $mavenArgs=@('-f',"$experimentRoot\backend\pom.xml",'clean','test','-Dtest=NotificationSafetyTest#compareNotificationLoad','-Dnotification.load=true',"-Dnotification.load.messages=$Messages","-Dnotification.load.rounds=$Rounds","-Dnotification.load.workers=$WorkersPerServer","-Dnotification.load.pool=$PoolSizePerServer","-Dnotification.load.delay-ms=$ProviderDelayMs","-Dnotification.load.unique-rps=$UniqueRps","-Dnotification.load.duplicate-copies=$DuplicateCopies")
  & "$experimentRepo\backend\mvnw.cmd" @mavenArgs | Tee-Object "$OutputDirectory\console.log"
  $code=$LASTEXITCODE

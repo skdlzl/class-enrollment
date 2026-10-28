@@ -84,6 +84,33 @@ class NotificationSafetyTest extends EnrollmentSafetyTest {
    }
   }
  }
+ @Test void threeLockStrategiesHandleConcurrentDuplicates() throws Exception {
+  int student=1;
+  for(var strategy:List.of(NotificationWorker.Strategy.DB_INLINE,NotificationWorker.Strategy.OPTIMISTIC,NotificationWorker.Strategy.REDIS_OUTBOX)){
+   var req=request(student,student);student++;service.enroll(req);String id=event(req);
+   try(var provider=new Provider()){
+    provider.delayMs=100;var executor=Executors.newFixedThreadPool(2);var start=new CountDownLatch(1);
+    try{
+     var one=executor.submit(()->{start.await();return worker(provider,30000).process(id,strategy);});
+     var two=executor.submit(()->{start.await();return worker(provider,30000).process(id,strategy);});
+     start.countDown();boolean a=one.get(10,TimeUnit.SECONDS),b=two.get(10,TimeUnit.SECONDS);
+     assertTrue(a^b);assertEquals(1,provider.calls.get());assertEquals("SENT",status(id));
+    }finally{executor.shutdownNow();}
+   }
+  }
+ }
+ @Test void versionConflictPreventsSecondOwnerFromCallingProvider() throws Exception {
+  var request=request(1,1);service.enroll(request);String id=event(request);
+  Long first=store.eligibleVersion(id),second=store.eligibleVersion(id);
+  assertNotNull(first);assertEquals(first,second);
+  var winner=store.claimVersion(id,first,30000);
+  assertNotNull(winner);assertNull(store.claimVersion(id,second,30000));
+  try(var provider=new Provider()){
+   new NotificationGateway(provider.url(),5000).send(winner);assertTrue(store.sent(winner));
+   assertFalse(worker(provider,30000).process(id,NotificationWorker.Strategy.OPTIMISTIC));
+   assertEquals(1,provider.calls.get());assertEquals("SENT",status(id));
+  }
+ }
  @Test void twoWorkersDoNotSendSameEventTwice() throws Exception {
   var r=request(1,1);service.enroll(r);String id=event(r);
   try(var provider=new Provider()){

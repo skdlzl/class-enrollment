@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 
 @Component
 public class NotificationWorker {
-    public enum Strategy { DB_INLINE, DB_CLAIM, REDIS_OUTBOX }
+    public enum Strategy { DB_INLINE, DB_CLAIM, REDIS_OUTBOX, OPTIMISTIC }
     private final NotificationStore store;private final NotificationGateway gateway;
     private final RedissonClient redis;private final Metrics metrics;private final TransactionTemplate tx;
     private final boolean enabled,automatic;private final Strategy strategy;private final long leaseMs;private final int maxAttempts;
@@ -44,9 +44,24 @@ public class NotificationWorker {
             throw new IllegalStateException("Notification worker must run outside caller transactions");
         if(selected==Strategy.DB_INLINE){
             // Deliberately slow comparator: external HTTP under a DB row lock/connection.
-            return Boolean.TRUE.equals(tx.execute(s->{store.lockForInline(id);return deliver(id);}));
+            long start=System.nanoTime();
+            try{return Boolean.TRUE.equals(tx.execute(s->{
+                long wait=System.nanoTime();store.lockForInline(id);
+                metrics.record("notification.rowLockWait",System.nanoTime()-wait,false);
+                return deliver(id);
+            }));}finally{metrics.record("notification.inlineTransaction",System.nanoTime()-start,false);}
         }
         if(selected==Strategy.DB_CLAIM)return deliver(id);
+        if(selected==Strategy.OPTIMISTIC){
+            metrics.record("notification.optimisticAttempt",0,false);
+            Long version=store.eligibleVersion(id);
+            if(version==null){metrics.record("notification.optimisticIneligible",0,false);return false;}
+            long start=System.nanoTime();
+            var job=store.claimVersion(id,version,leaseMs);
+            metrics.record("notification.optimisticCas",System.nanoTime()-start,job==null);
+            if(job==null){metrics.record("notification.versionConflict",0,false);return false;}
+            return sendClaimed(job);
+        }
         if(redis==null)throw new IllegalStateException("Redis required");
         var lock=redis.getLock("notification:"+id);
         boolean acquired=false;
@@ -67,6 +82,9 @@ public class NotificationWorker {
         catch(RuntimeException e){metrics.record("notification.claimError",0,true);throw e;}
         finally{metrics.record("notification.claimUpdateAttempt",System.nanoTime()-claimStart,false);}
         if(job==null){metrics.record("notification.claimRejected",0,false);return false;}
+        return sendClaimed(job);
+    }
+    private boolean sendClaimed(NotificationStore.Job job){
         metrics.record("notification.claimAcquired",0,false);
         if(job.attempts()>maxAttempts){store.retry(job,"ATTEMPT_LIMIT_UNKNOWN",true,maxAttempts);return false;}
         long start=System.nanoTime();boolean success=false;

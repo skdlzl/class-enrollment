@@ -37,11 +37,12 @@ class NotificationLoadHarness {
   report.put("scope","two independent notification HTTP server JVMs; shared MySQL and Redis; mock provider; not enrollment HTTP load");
   report.put("messagesPerRun",messages);report.put("rounds",rounds);report.put("servers",2);report.put("workersPerServer",threads);report.put("poolSizePerServer",poolSize);report.put("totalWorkers",threads*2);report.put("totalPoolSize",poolSize*2);
   report.put("providerLatencyMs",delay);report.put("uniqueArrivalRps",rps);report.put("duplicateCopies",duplicates);
-  report.put("readTargetRps",50);report.put("results",rows);save(report);
+  report.put("plan","NOTIFICATION-LOCKS-v1");report.put("strategies",List.of("PESSIMISTIC","OPTIMISTIC","REDIS"));report.put("readTargetRps",50);report.put("results",rows);save(report);
   for(int round=1;round<=rounds;round++){
    String[] scenarios=round%2==1?new String[]{"UNIQUE","DUPLICATE"}:new String[]{"DUPLICATE","UNIQUE"};
-   for(int scenarioIndex=0;scenarioIndex<2;scenarioIndex++)for(int offset=0;offset<2;offset++){
-    var strategy=((round+offset)%2==1)?NotificationWorker.Strategy.DB_CLAIM:NotificationWorker.Strategy.REDIS_OUTBOX;
+   for(int scenarioIndex=0;scenarioIndex<2;scenarioIndex++)for(int offset=0;offset<3;offset++){
+    var strategies=new NotificationWorker.Strategy[]{NotificationWorker.Strategy.DB_INLINE,NotificationWorker.Strategy.OPTIMISTIC,NotificationWorker.Strategy.REDIS_OUTBOX};
+    var strategy=strategies[(round-1+offset)%3];
     String scenario=scenarios[scenarioIndex];
     var row=measure(source,redisUrl,run,round,scenario,strategy,messages,threads,poolSize,delay,rps,scenario.equals("UNIQUE")?1:duplicates);
     rows.add(row);save(report);
@@ -111,14 +112,14 @@ class NotificationLoadHarness {
     }
     finished=done.await(180,TimeUnit.SECONDS);
    }finally{
-    senders.forEach(ExecutorService::shutdownNow);monitor.shutdownNow();
+    senders.forEach(ExecutorService::shutdownNow);monitor.shutdown();
     boolean stopped=monitor.awaitTermination(10,TimeUnit.SECONDS);
     for(var sender:senders)stopped=sender.awaitTermination(10,TimeUnit.SECONDS)&&stopped;
     if(!stopped)throw new IllegalStateException("Client load threads did not stop");
    }
    double wall=(System.nanoTime()-start)/1e6;var nodeAfter=List.of(one.snapshot(),two.snapshot());var after=aggregate(nodeAfter);
    int sent=jdbc.queryForObject("SELECT COUNT(*) FROM notification_outbox WHERE run_id=? AND status='SENT'",Integer.class,prefix)-20;
-   var row=new LinkedHashMap<String,Object>();row.put("round",round);row.put("scenario",scenario);row.put("strategy",strategy.name());
+   var row=new LinkedHashMap<String,Object>();row.put("round",round);row.put("scenario",scenario);row.put("strategy",strategy==NotificationWorker.Strategy.DB_INLINE?"PESSIMISTIC":strategy==NotificationWorker.Strategy.REDIS_OUTBOX?"REDIS":strategy.name());row.put("implementation",strategy.name());
    row.put("plannedUnique",messages);row.put("plannedAttempts",messages*copies);row.put("finished",finished);row.put("wallMs",wall);
    row.put("confirmedUnique",completed.size());row.put("dbSent",sent);row.put("providerUnique",provider.delivered.size());row.put("providerCalls",provider.calls.get());
    long processAttempts=count(after,"notification.processAttempt")-count(before,"notification.processAttempt");
@@ -135,7 +136,8 @@ class NotificationLoadHarness {
    }
    row.put("servers",servers);row.put("bothServersValid",bothServersValid);
    row.put("processAttempts",processAttempts);row.put("claimUpdateAttempts",claimUpdates);row.put("redisBusy",redisBusy);
-   row.put("accountingValid",bothServersValid&&processAttempts==messages*copies&&claimUpdates+redisBusy==processAttempts);
+   row.put("accountingValid",bothServersValid&&processAttempts==messages*copies&&claimUpdates+redisBusy+count(after,"notification.optimisticAttempt")-count(before,"notification.optimisticAttempt")==processAttempts);
+   row.put("versionConflicts",count(after,"notification.versionConflict")-count(before,"notification.versionConflict"));
    row.put("processErrors",processErrors.get());row.put("integrityValid",finished&&sent==completed.size()&&sent==provider.delivered.size());
    row.put("successRate",completed.size()/(double)messages);row.put("successfulCompletionFromScheduledArrival",stats(completed.values()));
    row.put("completedUniquePerSecond",completed.size()*1000.0/wall);row.put("generatorMaxSubmitLagMs",maxSubmitLag);
