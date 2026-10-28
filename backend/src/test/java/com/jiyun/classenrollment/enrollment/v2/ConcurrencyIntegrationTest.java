@@ -88,6 +88,15 @@ class ConcurrencyIntegrationTest {
         assertEquals("IDEMPOTENCY_KEY_REUSED",assertThrows(EnrollmentException.class,()->service.enroll(1,2,"same")).getCode());
         assertEquals("DUPLICATE_ENROLLMENT",assertThrows(EnrollmentException.class,()->service.enroll(1,1,"different")).getCode());
     }
+    @ParameterizedTest @EnumSource(EnrollmentCoordinator.Strategy.class)
+    void fullFastPathStillReplaysConcurrentIdempotencyKeys(EnrollmentCoordinator.Strategy strategy) throws Exception {
+        db.update("UPDATE courses SET capacity=1 WHERE id=1");
+        var service=service(strategy);
+        var results=parallel(32,i -> Long.toString(service.enroll(1,1,"last-seat").enrollmentId()));
+        assertEquals(1,new HashSet<>(results).size());
+        assertTrue(results.get(0).matches("[0-9]+"),results.toString());
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class));
+    }
     private void synchronizeFirstExternalCalls() {
         var barrier = new CyclicBarrier(2);
         var calls = new AtomicInteger();

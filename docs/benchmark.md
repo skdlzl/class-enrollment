@@ -12,6 +12,7 @@
 
 |관측|원인|확인할 증거|
 |---|---|---|
+|LOCAL_ADMISSION_TIMEOUT|JVM 내부 입장 대기에서 예산 소진|local_wait 타이머, 동일 stripe 경합|
 |REDIS_LOCK_TIMEOUT|과목 락 입장 예산 소진|외부 시간·정원·같은 과목 요청 집중도|
 |EXTERNAL_CONNECT_TIMEOUT|외부 TCP 연결 제한시간 초과|네트워크/서비스 연결 상태|
 |EXTERNAL_RESPONSE_TIMEOUT|요청 응답 제한시간 초과|외부 지연 주입값과 external 타이머|

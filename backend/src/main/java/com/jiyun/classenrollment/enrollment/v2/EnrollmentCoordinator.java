@@ -24,6 +24,7 @@ public class EnrollmentCoordinator {
     private final Strategy strategy;
     private final MeterRegistry metrics;
     private final long budgetMs;
+    private final LocalAdmission admission = new LocalAdmission();
     public EnrollmentCoordinator(JdbcTemplate db, RedisGate gate, EligibilityClient external,
             PlatformTransactionManager manager, MeterRegistry metrics,
             @Value("${enrollment.strategy:REDIS}") Strategy strategy,
@@ -42,24 +43,36 @@ public class EnrollmentCoordinator {
         try {
             Result replay = replay(student, course, key);
             if (replay != null) { outcome = "REPLAY"; return replay; }
+            // A committed full state is enough to reject; all strategies get the same fast path.
+            Result closedReplay = replayIfFull(student, course, key);
+            if (closedReplay != null) { outcome = "REPLAY"; return closedReplay; }
             for (int attempt = 0; attempt < 8; attempt++) {
                 checkDeadline(deadline);
                 try {
                     Result result;
                     if (strategy == Strategy.REDIS) {
-                        long wait = System.nanoTime();
-                        RedisGate.Lease acquired;
-                        try { acquired = gate.acquire(course, deadline); }
-                        finally { record("lock_wait", wait); }
-                        try (var lease = acquired) {
-                            // Recheck after acquiring: concurrent retries must not call the external API again.
-                            result = replay(student, course, key);
-                            if (result == null) {
-                                if (count("SELECT COUNT(*) FROM courses WHERE id=? AND enrolled_count>=capacity", course) > 0)
-                                    throw conflict("COURSE_FULL");
-                                callExternal(student, course, deadline);
-                                lease.check();
-                                result = transact(student, course, key, deadline, lease);
+                        long localStart=System.nanoTime();
+                        LocalAdmission.Permit entered;
+                        try { entered=admission.enter(course,deadline); }
+                        finally { record("local_wait",localStart); }
+                        try (var permit=entered) {
+                            result=replayIfFull(student,course,key);
+                            if (result==null) {
+                                long wait = System.nanoTime();
+                                RedisGate.Lease acquired;
+                                try { acquired = gate.acquire(course, deadline); }
+                                finally { record("lock_wait", wait); }
+                                try (var lease = acquired) {
+                                    result = replay(student, course, key);
+                                    if (result == null) {
+                                        result=replayIfFull(student,course,key);
+                                        if (result==null) {
+                                            callExternal(student, course, deadline);
+                                            lease.check();
+                                            result = transact(student, course, key, deadline, lease);
+                                        }
+                                    }
+                                }
                             }
                         }
                     } else result = transact(student, course, key, deadline, null);
@@ -124,7 +137,6 @@ public class EnrollmentCoordinator {
                     """, course, student, c.get("academic_year"), c.get("semester")) > 0) throw conflict("SCHEDULE_CONFLICT");
                 if (strategy != Strategy.REDIS) callExternal(student, course, deadline);
                 checkDeadline(deadline);
-                if (lease != null) lease.check();
                 // All writers use course -> student -> enrollment ordering. CAS is the final safety boundary.
                 if (db.update("UPDATE courses SET enrolled_count=enrolled_count+1,version=version+1 WHERE id=? AND version=? AND enrolled_count<capacity", course, c.get("version")) != 1) throw new Retry();
                 if (db.update("UPDATE students SET version=version+1 WHERE id=? AND version=?", student, s.get("version")) != 1) throw new Retry();
@@ -136,6 +148,13 @@ public class EnrollmentCoordinator {
                 return new Result(id, false);
             });
         } finally { record("transaction", start); }
+    }
+    private Result replayIfFull(long student, long course, String key) {
+        if (count("SELECT COUNT(*) FROM courses WHERE id=? AND enrolled_count>=capacity", course)==0) return null;
+        // The winner may have committed between the initial replay lookup and this full check.
+        Result existing=replay(student,course,key);
+        if (existing!=null) return existing;
+        throw conflict("COURSE_FULL");
     }
     private Result replay(long student, long course, String key) {
         var rows = db.queryForList("SELECT course_id,enrollment_id FROM enrollment_requests WHERE student_id=? AND request_key=?", student, key);

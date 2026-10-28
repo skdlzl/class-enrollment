@@ -28,7 +28,7 @@ Lua로 학생 시간표/학점/정원을 한 번에 예약하는 대안은 가�
 ## 락 만료와 트랜잭션
 
 1. `SET NX PX`와 무작위 소유자 토큰으로 과목 락을 얻는다.
-2. 외부 호출 뒤, DB 쓰기 전, 트랜잭션 반환 직전에 Lua로 소유권/TTL을 검증한다.
+2. 외부 호출 뒤와 트랜잭션 반환 직전에 Lua로 소유권/TTL을 검증한다. 쓰기 도중 만료되면 마지막 검증에서 모든 DB 변경을 롤백한다.
 3. 감지된 만료 또는 Redis 장애는 예외를 던져 트랜잭션을 롤백한다. 외부 호출 단계에서는 아직 트랜잭션 자체가 없다.
 4. **Redis TTL 만료는 DB 트랜잭션을 자동 중단하지 않는다.** 마지막 검증과 실제 commit 사이에도 만료될 수 있다. 이때 커밋 자체를 무조건 금지한다고 주장하지 않는다. DB CAS/정원 조건/UNIQUE가 겹친 실행의 정합성을 보호한다.
 5. 이전 소유자의 finally는 Lua compare-and-delete이므로 새 소유자의 락을 삭제하지 않는다.
@@ -45,3 +45,13 @@ Lua로 학생 시간표/학점/정원을 한 번에 예약하는 대안은 가�
 - https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/
 - https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-transaction-model.html
 - https://dev.mysql.com/doc/refman/8.0/en/innodb-deadlocks-handling.html
+
+## 측정 후 입장 제어 개선
+
+초기 구현의 모든 요청이 Redis SET NX를 폴링하는 방식은 FIFO가 아니다. 인기 과목에서 마감 요청까지 락을 기다려 3회 합계 118건의 REDIS_LOCK_TIMEOUT이 발생했다. 이 원본 비교는 `docs/results/baseline.json`과 [실행 40736776733](https://github.com/skdlzl/class-enrollment/actions/runs/40736776733)에 보존한다.
+
+- 세 전략 모두 **커밋된 정원 마감 상태를 사전 확인**한다. 성공 멱등 키는 마감 여부보다 우선하므로, 조회 사이에 승자가 커밋한 경우에도 재조회해 동일 신청 ID를 반환한다. 정원 확인은 캐시가 아니라 MySQL 주 저장소 조회이며, 쓰기 시 정원 조건/CAS도 유지한다.
+- Redis 전략은 JVM 내부에서 공정한 Semaphore에 먼저 입장한다. 동일 과목 Redis 대기자는 JVM당 최대 한 명이다. 서버 사이 조율은 여전히 Redis이며 로컬 제어만으로 정합성을 주장하지 않는다.
+- 임의 과목 ID로 Map이 무한히 커지지 않도록 1,024개 고정 stripe를 사용한다. 다른 과목이 같은 stripe로 충돌하면 추가로 직렬화될 수 있다. 전체 JVM/서버를 통틀어 FIFO 순서를 보장하는 것은 아니다.
+- 로컬 입장/Redis 입장/외부 호출/DB 처리는 같은 요청 deadline을 공유한다. 입장 실패·인터럽트·외부 예외·DB 예외에서도 permit을 해제한다.
+- 로컬 입장 후에도 마감 여부를 다시 확인하므로, 대기 중 마감된 요청은 Redis까지 가지 않고 반환한다.
