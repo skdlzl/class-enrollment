@@ -34,7 +34,7 @@ public class NotificationLoadServer {
   final RedissonClient redisToClose=redis;
   var worker=new NotificationWorker(new NotificationStore(jdbc),new NotificationGateway(cfg.get("providerUrl").asText(),3000),
    beans.getBeanProvider(RedissonClient.class),metrics,new DataSourceTransactionManager(pool),true,false,strategy,30000,5);
-  var executor=Executors.newFixedThreadPool(cfg.get("workers").asInt());var controlExecutor=Executors.newFixedThreadPool(2);
+  var executor=(ThreadPoolExecutor)Executors.newFixedThreadPool(cfg.get("workers").asInt());var controlExecutor=Executors.newFixedThreadPool(2);
   var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);server.setExecutor(executor);
   var control=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);control.setExecutor(controlExecutor);
   var peakWaiting=new AtomicInteger();var peakActive=new AtomicInteger();var sampler=Executors.newSingleThreadScheduledExecutor();
@@ -57,6 +57,7 @@ public class NotificationLoadServer {
   control.createContext("/reset-peaks",exchange->{peakWaiting.set(0);peakActive.set(0);reply(exchange,200,Map.of("ok",true),mapper);});
   control.createContext("/metrics",exchange->{
    var result=new LinkedHashMap<String,Object>(metrics.snapshot());result.put("pid",ProcessHandle.current().pid());
+   result.put("requestQueueLength",executor.getQueue().size());result.put("activeRequestWorkers",executor.getActiveCount());
    result.put("peakPoolWaiting",peakWaiting.get());result.put("peakPoolActive",peakActive.get());
    reply(exchange,200,result,mapper);
   });

@@ -24,8 +24,8 @@ class NotificationArrivalPlanTest {
  }
  @Test void lowLoadAndMatrixStayExplicit(){
   var conditions=NotificationArrivalPlan.conditions(true,999,4);
-  assertEquals(4,conditions.size());assertEquals(5,conditions.get(1).rps());
-  var events=NotificationArrivalPlan.arrivals(1000,conditions.get(1));
+  assertEquals(4,conditions.size());assertEquals(10,conditions.get(1).rps());assertEquals(500,conditions.get(2).gapMs());assertEquals(1500,conditions.get(3).gapMs());
+  var events=NotificationArrivalPlan.arrivals(1000,conditions.get(2));
   assertEquals(199_800_000_000L,events.get(events.size()-1).originalNanos());
   assertEquals(2000,events.size());
  }

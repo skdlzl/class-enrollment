@@ -28,9 +28,9 @@ The switch selects four fixed conditions, overriding the base arrival RPS/copy a
 | Unique notifications duplicated | Unique arrivals/sec | Planned duplicate gap |
 | --- | --- | --- |
 | 50% | 200 | 0ms |
-| 100% | 5 | 0ms |
-| 100% | 200 | 100ms |
-| 100% | 200 | 500ms |
+| 100% | 10 | 0ms |
+| 100% | 5 | 500ms |
+| 100% | 5 | 1500ms |
 
 Three strategies and three rounds give 36 measurements. Each has two fresh JVMs and excluded warmup.
 50% means 1000 unique messages produce 1500 attempts, evenly distributed through the run.
@@ -40,3 +40,12 @@ Per-row `duplicatePercent`, `uniqueArrivalRps`, `duplicateGapMs` are authoritati
 `queueWait`, `httpProcessing`, and `observedDuplicateHttpStartGap` separate queue and HTTP costs. The observed gap is signed: a negative value means the duplicate HTTP request started first. These are client HTTP start times, not observed server arrivals. Do not describe 100ms/500ms as exact server arrival intervals under saturation.
 Existing 0%/100% simultaneous results remain historical reference points; verify same configuration and scheduling behavior before combining comparisons across revisions. The new load scheduler does not itself establish equivalence to old runs.
 Low load is a hypothesis: verify queue wait and actual delivery before labeling it unsaturated.
+
+### v2: inspect first round before continuing
+
+The updated plan is NOTIFICATION-SENSITIVITY-v2. Do not pool v1 with v2.
+Use `-Sensitivity -StartRound 1 -Rounds 1` first (12 measurements). After review, use `-Sensitivity -StartRound 2 -Rounds 2` for rounds 2 and 3. Output folders remain separate and results are not overwritten. Do not rerun round 1 to select a favorable result. Keep source revision and all settings identical between stages.
+
+Hypotheses, not guarantees: 50% duplicates may reduce pessimistic throughput by about a third versus no duplicates; this does not predict a 33% latency increase. At 10 unique/s with simultaneous duplicates, pessimistic workers may saturate while the other strategies remain stable. At 5/s and 500ms gap, duplicate pessimistic calls may wait even if completion throughput remains stable. At 5/s and 1500ms gap, originals are expected to have completed; confirm observed timings rather than assume it.
+
+Timeline samples approximately once per second record cumulative completions, interval completions, per-server client queue/active requests and server executor queue/active workers. Divide completion deltas by actual elapsed intervals, not an assumed exact second. Sampling requests use the control HTTP endpoint, not the DB. `telemetryFailures` records sampling failure. `timelineFinal` records final count/time. Queue samples are instantaneous, not exact maxima. The primary backlog is often the load client's bounded executor queue; it must not be mislabeled a server queue. This is a bounded-worker harness, not an unbounded arrival capacity benchmark. New telemetry can affect performance, so historical v1 results are reference points rather than a strictly controlled same-revision comparison.

@@ -8,8 +8,8 @@ final class NotificationArrivalPlan {
  record Arrival(int index,int copy,int server,long originalNanos,long dueNanos) {}
  static List<Condition> conditions(boolean matrix,int rps,int copies){
   return matrix ? List.of(new Condition("DUP50_R200_GAP0",50,200,0,2),
-   new Condition("DUP100_R5_GAP0",100,5,0,2),new Condition("DUP100_R200_GAP100",100,200,100,2),
-   new Condition("DUP100_R200_GAP500",100,200,500,2)) :
+   new Condition("DUP100_R10_GAP0",100,10,0,2),new Condition("DUP100_R5_GAP500",100,5,500,2),
+   new Condition("DUP100_R5_GAP1500",100,5,1500,2)) :
    List.of(new Condition("UNIQUE",0,rps,0,1),new Condition("DUPLICATE",100,rps,0,copies));
  }
  static List<Arrival> arrivals(int messages,Condition c){

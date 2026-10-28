@@ -38,14 +38,15 @@ class NotificationLoadHarness {
   int poolSize=setting("pool",10,32),delay=setting("delay-ms",100,1000),rps=setting("unique-rps",200,2000);
   if(messages<2)throw new IllegalArgumentException("Two-server load requires at least two messages");
   int duplicates=setting("duplicate-copies",2,4);
+  int startRound=setting("start-round",1,5);
   boolean matrix=Boolean.getBoolean("notification.load.matrix");
   var conditions=NotificationArrivalPlan.conditions(matrix,rps,duplicates);
   var rows=new ArrayList<Map<String,Object>>();var report=new LinkedHashMap<String,Object>();
   report.put("scope","two independent notification HTTP server JVMs; shared MySQL and Redis; mock provider; not enrollment HTTP load");
-  report.put("messagesPerRun",messages);report.put("rounds",rounds);report.put("servers",2);report.put("workersPerServer",threads);report.put("poolSizePerServer",poolSize);report.put("totalWorkers",threads*2);report.put("totalPoolSize",poolSize*2);
+  report.put("startRound",startRound);report.put("messagesPerRun",messages);report.put("rounds",rounds);report.put("servers",2);report.put("workersPerServer",threads);report.put("poolSizePerServer",poolSize);report.put("totalWorkers",threads*2);report.put("totalPoolSize",poolSize*2);
   report.put("providerLatencyMs",delay);report.put("uniqueArrivalRps",rps);report.put("duplicateCopies",duplicates);
-  report.put("plan",matrix?"NOTIFICATION-SENSITIVITY-v1":"NOTIFICATION-LOCKS-v1");report.put("conditions",conditions);report.put("strategies",List.of("PESSIMISTIC","OPTIMISTIC","REDIS"));report.put("readTargetRps",50);report.put("results",rows);save(report);
-  for(int round=1;round<=rounds;round++){
+  report.put("plan",matrix?"NOTIFICATION-SENSITIVITY-v2":"NOTIFICATION-LOCKS-v1");report.put("conditions",conditions);report.put("strategies",List.of("PESSIMISTIC","OPTIMISTIC","REDIS"));report.put("readTargetRps",50);report.put("results",rows);save(report);
+  for(int round=startRound;round<startRound+rounds;round++){
    for(int scenarioIndex=0;scenarioIndex<conditions.size();scenarioIndex++)for(int offset=0;offset<3;offset++){
     var strategies=new NotificationWorker.Strategy[]{NotificationWorker.Strategy.DB_INLINE,NotificationWorker.Strategy.OPTIMISTIC,NotificationWorker.Strategy.REDIS_OUTBOX};
     var strategy=strategies[(round-1+offset)%3];
@@ -93,7 +94,9 @@ class NotificationLoadHarness {
     var sender=new ThreadPoolExecutor(threads,threads,0,TimeUnit.MILLISECONDS,new ArrayBlockingQueue<Runnable>(messages*copies));
     sender.prestartAllCoreThreads();senders.add(sender);
    }
-   var monitor=Executors.newScheduledThreadPool(2);var done=new CountDownLatch(plannedAttempts);
+   var timeline=Collections.synchronizedList(new ArrayList<Map<String,Object>>());
+   var telemetryFailures=new AtomicInteger();var previousCompleted=new AtomicInteger();
+   var monitor=Executors.newScheduledThreadPool(3);var done=new CountDownLatch(plannedAttempts);
    long start=System.nanoTime();
    for(int n=0;n<2;n++){
     int node=n;monitor.scheduleWithFixedDelay(()->{
@@ -101,6 +104,19 @@ class NotificationLoadHarness {
      reads.get(node).add((System.nanoTime()-t)/1e6);
     },0,20,TimeUnit.MILLISECONDS);
    }
+   monitor.scheduleWithFixedDelay(()->{
+    var sample=new LinkedHashMap<String,Object>();sample.put("elapsedMs",(System.nanoTime()-start)/1e6);
+    int total=completed.size();sample.put("completedTotal",total);sample.put("completedSincePreviousSample",total-previousCompleted.getAndSet(total));
+    var states=new ArrayList<Map<String,Object>>();
+    for(int n=0;n<2;n++){
+     var state=new LinkedHashMap<String,Object>();state.put("server",n+1);
+     state.put("clientQueueLength",senders.get(n).getQueue().size());state.put("clientActiveRequests",senders.get(n).getActiveCount());
+     try{var snapshot=nodes.get(n).snapshot();state.put("serverQueueLength",snapshot.get("requestQueueLength"));state.put("serverActiveWorkers",snapshot.get("activeRequestWorkers"));}
+     catch(Exception e){telemetryFailures.incrementAndGet();state.put("telemetryError",e.getClass().getSimpleName());}
+     states.add(state);
+    }
+    sample.put("servers",states);timeline.add(sample);
+   },0,1000,TimeUnit.MILLISECONDS);
    double maxSubmitLag=0;boolean finished=false;
    try{
     for(var event:arrivals){
@@ -160,6 +176,7 @@ class NotificationLoadHarness {
     gaps.add(((Number)sample.get("httpStartMs")).doubleValue()-firstStarts.get(sample.get("id")));
    row.put("observedDuplicateHttpStartGap",stats(gaps));
    row.put("arrivalCaveat","gap is planned client arrival; bounded executor queues can change actual HTTP start gaps, including reordering; not server arrival timestamps");
+   row.put("timeline",timeline);row.put("telemetryFailures",telemetryFailures.get());row.put("timelineFinal",Map.of("elapsedMs",wall,"completedTotal",completed.size()));
    row.put("metricsBefore",before);row.put("metricsAfter",after);row.put("tasks",taskSamples);return row;
    }
   }
