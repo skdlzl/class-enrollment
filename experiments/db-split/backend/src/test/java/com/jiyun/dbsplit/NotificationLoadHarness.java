@@ -14,6 +14,11 @@ import java.nio.file.*;
 /** Controlled arrival plan shared by both strategies. No automatic retry or load escalation. */
 class NotificationLoadHarness {
  static int setting(String key,int fallback,int max){int n=Integer.getInteger("notification.load."+key,fallback);if(n<1||n>max)throw new IllegalArgumentException(key);return n;}
+ static long drainBudgetSeconds(int messages,int copies,int workers,int pool,int delayMs){
+  long parallelism=2L*Math.min(workers,pool);
+  long waves=(messages*(long)copies+parallelism-1)/parallelism;
+  return Math.max(180L,120L+(waves*(delayMs+250L)*3L+999L)/1000L);
+ }
  static Map<String,Object> stats(Collection<Double> values){
   var sorted=new ArrayList<>(values);Collections.sort(sorted);var m=new LinkedHashMap<String,Object>();m.put("count",sorted.size());
   m.put("meanMs",sorted.stream().mapToDouble(x->x).average().orElse(0));
@@ -110,7 +115,7 @@ class NotificationLoadHarness {
       });
      }
     }
-    finished=done.await(180,TimeUnit.SECONDS);
+    finished=done.await(drainBudgetSeconds(messages,copies,threads,poolSize,delay),TimeUnit.SECONDS);
    }finally{
     senders.forEach(ExecutorService::shutdownNow);monitor.shutdown();
     boolean stopped=monitor.awaitTermination(10,TimeUnit.SECONDS);
@@ -120,7 +125,7 @@ class NotificationLoadHarness {
    double wall=(System.nanoTime()-start)/1e6;var nodeAfter=List.of(one.snapshot(),two.snapshot());var after=aggregate(nodeAfter);
    int sent=jdbc.queryForObject("SELECT COUNT(*) FROM notification_outbox WHERE run_id=? AND status='SENT'",Integer.class,prefix)-20;
    var row=new LinkedHashMap<String,Object>();row.put("round",round);row.put("scenario",scenario);row.put("strategy",strategy==NotificationWorker.Strategy.DB_INLINE?"PESSIMISTIC":strategy==NotificationWorker.Strategy.REDIS_OUTBOX?"REDIS":strategy.name());row.put("implementation",strategy.name());
-   row.put("plannedUnique",messages);row.put("plannedAttempts",messages*copies);row.put("finished",finished);row.put("wallMs",wall);
+   row.put("drainBudgetSeconds",drainBudgetSeconds(messages,copies,threads,poolSize,delay));row.put("plannedUnique",messages);row.put("plannedAttempts",messages*copies);row.put("finished",finished);row.put("wallMs",wall);
    row.put("confirmedUnique",completed.size());row.put("dbSent",sent);row.put("providerUnique",provider.delivered.size());row.put("providerCalls",provider.calls.get());
    long processAttempts=count(after,"notification.processAttempt")-count(before,"notification.processAttempt");
    long claimUpdates=count(after,"notification.claimUpdateAttempt")-count(before,"notification.claimUpdateAttempt");
