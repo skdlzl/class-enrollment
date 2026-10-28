@@ -26,7 +26,7 @@ mvn -f backend/pom.xml verify
 # 아래 부하 테스트는 DB를 초기화하므로 반드시 폐기 가능한 전용 DB에서만 실행하세요.
 docker compose up -d --wait mysql redis external
 mvn -f backend/pom.xml -DskipTests package
-pip install requests pymysql
+pip install requests pymysql aiohttp
 python scripts/benchmark.py --requests 12000 --concurrency 128 --rounds 3
 ```
 

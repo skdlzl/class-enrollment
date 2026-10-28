@@ -1,5 +1,6 @@
 """Real HTTP load against two JVMs. Run only against a disposable benchmark database."""
-import argparse, collections, concurrent.futures, csv, json, os, pathlib, platform, statistics, subprocess, threading, time
+import argparse, asyncio, collections, csv, json, os, pathlib, platform, subprocess, threading, time
+import aiohttp
 import pymysql
 import requests
 
@@ -45,6 +46,25 @@ def request(i,courses,prefix):
         return i,r.status_code,code,(time.perf_counter()-start)*1000
     except requests.RequestException as e:return i,0,type(e).__name__,(time.perf_counter()-start)*1000
 
+async def load(courses,prefix):
+    # One event loop avoids 128 Python requests threads competing with the backend for CPU.
+    semaphore=asyncio.Semaphore(a.concurrency)
+    timeout=aiohttp.ClientTimeout(total=15)
+    async with aiohttp.ClientSession(timeout=timeout,connector=aiohttp.TCPConnector(limit=a.concurrency)) as session:
+        async def send(i):
+            async with semaphore:
+                start=time.perf_counter()
+                try:
+                    async with session.post(f'http://localhost:{8080+i%2}/api/enrollments',
+                            json={'studentId':i+1,'courseId':1000+i%courses},
+                            headers={'Idempotency-Key':f'{prefix}-{i}'}) as response:
+                        data=await response.json()
+                        code=data.get('code','CREATED' if response.status==201 else 'REPLAY' if response.status==200 else 'UNEXPECTED')
+                        return i,response.status,code,(time.perf_counter()-start)*1000
+                except (aiohttp.ClientError,asyncio.TimeoutError) as error:
+                    return i,0,type(error).__name__,(time.perf_counter()-start)*1000
+        return await asyncio.gather(*(send(i) for i in range(a.requests)))
+
 def percentile(values,q):
     values=sorted(values)
     return values[max(0,__import__('math').ceil(len(values)*q)-1)] if values else None
@@ -82,8 +102,7 @@ for round_ in range(a.round_offset,a.round_offset+a.rounds):
                 seed(courses,capacity)
                 before=metrics()
                 start=time.perf_counter()
-                with concurrent.futures.ThreadPoolExecutor(a.concurrency) as pool:
-                    rows=list(pool.map(lambda i:request(i,courses,name),range(a.requests)))
+                rows=asyncio.run(load(courses,name))
                 elapsed=time.perf_counter()-start
                 with open(out/f'{name}.csv','w') as f:
                     w=csv.writer(f);w.writerow(['request','http_status','outcome','milliseconds']);w.writerows(rows)

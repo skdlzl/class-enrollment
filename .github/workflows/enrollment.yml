@@ -45,7 +45,7 @@ jobs:
           cache-dependency-path: backend/pom.xml
       - run: mvn -B -f backend/pom.xml -DskipTests package
       - run: docker compose up -d --wait mysql redis external
-      - run: pip install requests pymysql
+      - run: pip install requests pymysql aiohttp
       - run: python scripts/benchmark.py --requests 12000 --concurrency 128 --rounds 1 --round-offset ${{ matrix.round }}
       - run: mkdir -p results && docker compose logs --no-color > results/services.log
         if: always()
