@@ -48,8 +48,10 @@ public class EnrollmentCoordinator {
                     Result result;
                     if (strategy == Strategy.REDIS) {
                         long wait = System.nanoTime();
-                        try (var lease = gate.acquire(course, deadline)) {
-                            record("lock_wait", wait);
+                        RedisGate.Lease acquired;
+                        try { acquired = gate.acquire(course, deadline); }
+                        finally { record("lock_wait", wait); }
+                        try (var lease = acquired) {
                             // Recheck after acquiring: concurrent retries must not call the external API again.
                             result = replay(student, course, key);
                             if (result == null) {
@@ -64,7 +66,7 @@ public class EnrollmentCoordinator {
                     outcome = result.replayed() ? "REPLAY" : "CREATED";
                     return result;
                 } catch (Retry | TransientDataAccessException e) {
-                    metrics.counter("enrollment.retries", "strategy", strategy.name(), "cause", e.getClass().getSimpleName()).increment();
+                    metrics.counter("enrollment.retries", "strategy", strategy.name(), "cause", retryCause(e)).increment();
                     try { Thread.sleep(java.util.concurrent.ThreadLocalRandom.current().nextLong(2, 11)); }
                     catch (InterruptedException ex) { Thread.currentThread().interrupt(); throw RedisGate.failure("INTERRUPTED"); }
                 } catch (DuplicateKeyException e) {
@@ -75,7 +77,7 @@ public class EnrollmentCoordinator {
             }
             throw RedisGate.failure("RETRY_EXHAUSTED");
         } catch (EnrollmentException e) { outcome = e.getCode(); throw e; }
-        catch (org.springframework.transaction.CannotCreateTransactionException e) {
+        catch (org.springframework.jdbc.CannotGetJdbcConnectionException | org.springframework.transaction.CannotCreateTransactionException e) {
             outcome = "DB_CONNECTION_UNAVAILABLE"; throw RedisGate.failure(outcome);
         } catch (org.springframework.transaction.TransactionException e) {
             outcome = "DB_TRANSACTION_ERROR"; throw RedisGate.failure(outcome);
@@ -150,5 +152,15 @@ public class EnrollmentCoordinator {
     private static long number(Map<String,Object> row, String key) { return ((Number)row.get(key)).longValue(); }
     private static EnrollmentException conflict(String code) { return new EnrollmentException(code, code, HttpStatus.CONFLICT); }
     private static EnrollmentException missing(String code) { return new EnrollmentException(code, code, HttpStatus.NOT_FOUND); }
+    private static String retryCause(RuntimeException error) {
+        if (error instanceof Retry) return "VERSION_CONFLICT";
+        for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+            if (cause instanceof java.sql.SQLException sql) {
+                if (sql.getErrorCode() == 1213) return "DB_DEADLOCK";
+                if (sql.getErrorCode() == 1205) return "DB_LOCK_WAIT_TIMEOUT";
+            }
+        }
+        return error.getClass().getSimpleName();
+    }
     private static final class Retry extends RuntimeException {}
 }

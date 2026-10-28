@@ -91,6 +91,7 @@ for round_ in range(a.rounds):
                     c.execute('SELECT COUNT(*) FROM enrollments'); saved=c.fetchone()[0]
                     c.execute('SELECT COUNT(*) FROM enrollment_requests WHERE enrollment_id IS NOT NULL'); assert c.fetchone()[0]==saved
                     c.execute('SELECT COUNT(*) FROM (SELECT student_id,course_id FROM enrollments GROUP BY student_id,course_id HAVING COUNT(*)>1) d');assert c.fetchone()[0]==0
+                assert saved==min(a.requests,courses*capacity),("capacity not filled",saved,courses*capacity)
                 assert saved==sum(r[1]==201 for r in rows),(saved,collections.Counter(r[2] for r in rows))
                 assert all(r[1] in (201,409,503) for r in rows),collections.Counter(r[2] for r in rows)
                 summary=dict(name=name,strategy=strategy,workload=workload,requests=a.requests,concurrency=a.concurrency,seconds=elapsed,rps=a.requests/elapsed,created=saved,counts=dict(collections.Counter(r[2] for r in rows)),latency={str(status):{'p50_ms':percentile([r[3] for r in rows if r[1]==status],.5),'p95_ms':percentile([r[3] for r in rows if r[1]==status],.95),'p99_ms':percentile([r[3] for r in rows if r[1]==status],.99)} for status in (201,409,503)},invariants='PASS')

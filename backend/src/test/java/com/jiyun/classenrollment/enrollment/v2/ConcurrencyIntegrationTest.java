@@ -88,8 +88,17 @@ class ConcurrencyIntegrationTest {
         assertEquals("IDEMPOTENCY_KEY_REUSED",assertThrows(EnrollmentException.class,()->service.enroll(1,2,"same")).getCode());
         assertEquals("DUPLICATE_ENROLLMENT",assertThrows(EnrollmentException.class,()->service.enroll(1,1,"different")).getCode());
     }
+    private void synchronizeFirstExternalCalls() {
+        var barrier = new CyclicBarrier(2);
+        var calls = new AtomicInteger();
+        doAnswer(call -> {
+            if (calls.incrementAndGet() <= 2) barrier.await(5, TimeUnit.SECONDS);
+            return null;
+        }).when(external).verify(anyLong(), anyLong(), anyLong());
+    }
     @ParameterizedTest @EnumSource(EnrollmentCoordinator.Strategy.class)
     void sameStudentDifferentCoursesCannotOverlap(EnrollmentCoordinator.Strategy strategy) throws Exception {
+        synchronizeFirstExternalCalls();
         var service=service(strategy);
         var outcomes=parallel(2,i -> { service.enroll(1,i==0?1:4,"schedule-"+i); return "OK"; });
         assertEquals(1,Collections.frequency(outcomes,"OK"));
@@ -99,6 +108,7 @@ class ConcurrencyIntegrationTest {
     }
     @ParameterizedTest @EnumSource(EnrollmentCoordinator.Strategy.class)
     void sameStudentCannotExceedCreditLimit(EnrollmentCoordinator.Strategy strategy) throws Exception {
+        synchronizeFirstExternalCalls();
         db.update("UPDATE students SET max_credits=3 WHERE id=1");
         var service=service(strategy);
         var outcomes=parallel(2,i -> { service.enroll(1,1+i,"credit-"+i); return "OK"; });

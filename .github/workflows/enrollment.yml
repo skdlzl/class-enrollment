@@ -1,7 +1,5 @@
 name: Enrollment correctness and load
 on:
-  push:
-    branches: [feat/enrollment-rebuild]
   pull_request:
     branches: [main]
   workflow_dispatch:
