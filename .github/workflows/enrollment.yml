@@ -28,6 +28,10 @@ jobs:
           name: correctness
           path: backend/target/surefire-reports
   load:
+    strategy:
+      fail-fast: false
+      matrix:
+        round: [0, 1, 2]
     needs: correctness
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -42,11 +46,11 @@ jobs:
       - run: mvn -B -f backend/pom.xml -DskipTests package
       - run: docker compose up -d --wait mysql redis external
       - run: pip install requests pymysql
-      - run: python scripts/benchmark.py --requests 12000 --concurrency 128 --rounds 3
+      - run: python scripts/benchmark.py --requests 12000 --concurrency 128 --rounds 1 --round-offset ${{ matrix.round }}
       - run: mkdir -p results && docker compose logs --no-color > results/services.log
         if: always()
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: load-raw-data
+          name: load-raw-data-${{ matrix.round }}
           path: results

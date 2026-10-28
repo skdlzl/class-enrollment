@@ -7,6 +7,7 @@ p=argparse.ArgumentParser()
 p.add_argument('--requests',type=int,default=12000)
 p.add_argument('--concurrency',type=int,default=128)
 p.add_argument('--rounds',type=int,default=3)
+p.add_argument('--round-offset',type=int,default=0)
 p.add_argument('--output',default='results')
 a=p.parse_args()
 assert a.requests >= 10000
@@ -63,7 +64,7 @@ def metrics():
     return result
 
 summaries=[]
-for round_ in range(a.rounds):
+for round_ in range(a.round_offset,a.round_offset+a.rounds):
     strategies=['PESSIMISTIC','OPTIMISTIC','REDIS']
     strategies=strategies[round_%3:]+strategies[:round_%3]
     for strategy in strategies:
