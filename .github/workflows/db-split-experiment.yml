@@ -22,6 +22,8 @@ jobs:
         run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml verify
       - name: Lock strategies including guarded hybrid on two Spring Boot servers
         run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml "-Dtest=LockApiTwoServerTest" -Dlock.api.two-server=true test
+      - name: Two-JVM notification concurrency reproduction
+        run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml "-Dtest=NotificationSafetyTest#compareNotificationConcurrency" -Dnotification.concurrency=true test
       - name: Two-JVM notification load smoke
         run: bash backend/mvnw -B -f experiments/db-split/backend/pom.xml "-Dtest=NotificationSafetyTest#compareNotificationLoad" -Dnotification.load=true -Dnotification.load.messages=32 -Dnotification.load.rounds=1 test
       - name: Two-JVM notification sensitivity smoke
@@ -73,6 +75,7 @@ jobs:
           name: db-split-verification
           path: |
             experiments/db-split/backend/target/surefire-reports
+            experiments/db-split/backend/target/notification-concurrency.json
             experiments/db-split/backend/target/notification-comparison.json
             experiments/db-split/backend/target/notification-load.json
             experiments/db-split/backend/target/notification-servers

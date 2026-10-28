@@ -20,7 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class NotificationLoadServer {
  public static void main(String[] args) throws Exception {
   var mapper=new ObjectMapper();var cfg=mapper.readTree(Path.of(args[0]).toFile());
-  var strategy=NotificationWorker.Strategy.valueOf(cfg.get("strategy").asText());
+  boolean unprotected=cfg.get("strategy").asText().equals("UNPROTECTED");
+  var strategy=unprotected?NotificationWorker.Strategy.DB_CLAIM:NotificationWorker.Strategy.valueOf(cfg.get("strategy").asText());
   var metrics=new Metrics(true);var pool=new HikariDataSource();
   pool.setJdbcUrl(cfg.get("jdbcUrl").asText());pool.setUsername(cfg.get("username").asText());pool.setPassword(cfg.get("password").asText());
   pool.setMaximumPoolSize(cfg.get("pool").asInt());pool.setMinimumIdle(cfg.get("pool").asInt());
@@ -46,8 +47,31 @@ public class NotificationLoadServer {
    peakWaiting.accumulateAndGet(pool.getHikariPoolMXBean().getThreadsAwaitingConnection(),Math::max);
    peakActive.accumulateAndGet(pool.getHikariPoolMXBean().getActiveConnections(),Math::max);
   },0,10,TimeUnit.MILLISECONDS);
+  // Test-only barriers: never part of the production notification worker.
+  var gate=new java.util.concurrent.atomic.AtomicReference<CountDownLatch>(new CountDownLatch(0));
+  var atGate=new AtomicInteger();
+  control.createContext("/race-arm",exchange->{atGate.set(0);gate.set(new CountDownLatch(1));reply(exchange,200,Map.of("ok",true),mapper);});
+  control.createContext("/race-state",exchange->{reply(exchange,200,Map.of("entered",atGate.get()),mapper);});
+  control.createContext("/race-release",exchange->{gate.get().countDown();reply(exchange,200,Map.of("ok",true),mapper);});
   server.createContext("/process",exchange->{
-   try{String id=exchange.getRequestURI().getQuery();UUID.fromString(id);reply(exchange,200,Map.of("sent",worker.process(id)),mapper);}
+   try{
+    String id=exchange.getRequestURI().getQuery();UUID.fromString(id);
+    boolean sent;
+    if(unprotected){
+     // Reproduce check-then-act: both JVMs read PENDING before either may call HTTP.
+     var jobs=jdbc.query("SELECT id,payload FROM notification_outbox WHERE id=? AND status='PENDING'",
+      (rs,i)->new NotificationStore.Job(rs.getString(1),rs.getString(2),"unsafe",1),id);
+     if(jobs.isEmpty()){sent=false;}else{
+      atGate.incrementAndGet();if(!gate.get().await(15,TimeUnit.SECONDS))throw new IllegalStateException("Race barrier timeout");
+      new NotificationGateway(cfg.get("providerUrl").asText(),3000).send(jobs.get(0));
+      jdbc.update("UPDATE notification_outbox SET status='SENT',sent_at=CURRENT_TIMESTAMP(6) WHERE id=?",id);sent=true;
+     }
+    }else{
+     atGate.incrementAndGet();if(!gate.get().await(15,TimeUnit.SECONDS))throw new IllegalStateException("Race barrier timeout");
+     sent=worker.process(id);
+    }
+    reply(exchange,200,Map.of("sent",sent),mapper);
+   }
    catch(Exception e){reply(exchange,500,Map.of("error",e.getClass().getSimpleName()),mapper);}
   });
   control.createContext("/read",exchange->{
