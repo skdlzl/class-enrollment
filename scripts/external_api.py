@@ -19,5 +19,9 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
+class Server(ThreadingHTTPServer):
+    request_queue_size = 512
+    daemon_threads = True
+
 if __name__ == '__main__':
-    ThreadingHTTPServer(('0.0.0.0', 8090), Handler).serve_forever()
+    Server(('0.0.0.0', 8090), Handler).serve_forever()

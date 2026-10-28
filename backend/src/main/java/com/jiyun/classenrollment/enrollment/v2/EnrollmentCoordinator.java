@@ -76,7 +76,14 @@ public class EnrollmentCoordinator {
                 }
             }
             throw RedisGate.failure("RETRY_EXHAUSTED");
-        } catch (EnrollmentException e) { outcome = e.getCode(); throw e; }
+        } catch (EnrollmentException e) {
+            outcome = e.getCode();
+            if (e.getStatus().is5xxServerError())
+                org.slf4j.LoggerFactory.getLogger(EnrollmentCoordinator.class).warn(
+                    "event=enrollment_failed strategy={} code={} elapsed_ms={}", strategy, outcome,
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-start));
+            throw e;
+        }
         catch (org.springframework.jdbc.CannotGetJdbcConnectionException | org.springframework.transaction.CannotCreateTransactionException e) {
             outcome = "DB_CONNECTION_UNAVAILABLE"; throw RedisGate.failure(outcome);
         } catch (org.springframework.transaction.TransactionException e) {

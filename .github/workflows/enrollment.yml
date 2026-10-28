@@ -2,7 +2,11 @@ name: Enrollment correctness and load
 on:
   pull_request:
     branches: [main]
+    paths: ["backend/**", "scripts/**", "compose.yaml", ".github/workflows/enrollment.yml"]
   workflow_dispatch:
+concurrency:
+  group: enrollment-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
