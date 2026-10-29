@@ -8,5 +8,5 @@ backend/target/
 !.env.example
 
 
-results/
+/results/
 __pycache__/
