@@ -215,7 +215,7 @@ class ConcurrencyIntegrationTest {
     }
     @Test void exchangeRejectedLocallyCancelsAndRetriesUnknownCancel() {
         var p=partner(); var svc=exchange(p);
-        db.update("UPDATE students SET max_credits=0 WHERE id=1");
+        db.update("UPDATE students SET max_credits=1 WHERE id=1");
         when(p.cancel(anyString(),anyLong(),anyLong(),anyLong())).thenThrow(RedisGate.failure("PARTNER_RESPONSE_TIMEOUT")).thenReturn("CANCELLED");
         var pending=svc.submit(1,1,"cancel");
         assertEquals("CANCELLING",pending.phase());
