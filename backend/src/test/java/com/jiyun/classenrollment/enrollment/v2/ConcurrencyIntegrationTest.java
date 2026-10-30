@@ -237,7 +237,7 @@ class ConcurrencyIntegrationTest {
         assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class));
         assertEquals("successor",strings.opsForValue().get("enrollment:course:1"));
         strings.delete("enrollment:course:1");
-        when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("HELD");
+        doReturn("HELD").when(p).status(anyString(),anyLong(),anyLong(),anyLong());
         svc.process(pending.requestId());
         assertEquals("COMPLETED",svc.get(pending.requestId()).phase());
     }
