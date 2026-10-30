@@ -29,6 +29,8 @@ jobs:
           name: correctness
           path: backend/target/surefire-reports
   load:
+    # Baseline comparison is preserved; rerun explicitly rather than on every saga edit.
+    if: github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
