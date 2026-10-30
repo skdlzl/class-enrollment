@@ -29,7 +29,7 @@ def ready(port,process):
 
 async def submit(indices, prefix):
     semaphore=asyncio.Semaphore(128)
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20),connector=aiohttp.TCPConnector(limit=128)) as session:
         async def send(i):
             async with semaphore:
                 start=time.perf_counter()
@@ -41,7 +41,7 @@ async def submit(indices, prefix):
 
 async def verify_partner(rows):
     semaphore=asyncio.Semaphore(128)
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20),connector=aiohttp.TCPConnector(limit=128)) as session:
         async def check(row):
             async with semaphore:
                 async with session.get(f"http://localhost:8090/reservations/{row['id']}",params={'student':row['student_id'],'course':row['course_id']}) as r:
