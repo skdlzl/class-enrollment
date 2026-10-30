@@ -4,12 +4,12 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 /** Bounded-memory, per-JVM admission; Redis still arbitrates between JVMs. */
-final class LocalAdmission {
+public final class LocalAdmission {
     private final Semaphore[] stripes = new Semaphore[1024];
-    LocalAdmission() {
+    public LocalAdmission() {
         for (int i=0; i<stripes.length; i++) stripes[i]=new Semaphore(1,true);
     }
-    Permit enter(long course, long deadline) {
+    public Permit enter(long course, long deadline) {
         Semaphore semaphore = stripes[Math.floorMod(course,stripes.length)];
         long remaining=deadline-System.nanoTime();
         try {
@@ -21,7 +21,7 @@ final class LocalAdmission {
             throw RedisGate.failure("INTERRUPTED");
         }
     }
-    static final class Permit implements AutoCloseable {
+    public static final class Permit implements AutoCloseable {
         private final Semaphore semaphore;
         private boolean closed;
         Permit(Semaphore semaphore) { this.semaphore=semaphore; }

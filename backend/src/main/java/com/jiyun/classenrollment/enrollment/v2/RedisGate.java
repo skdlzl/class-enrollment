@@ -58,7 +58,7 @@ public class RedisGate {
             }
         }
     }
-    static EnrollmentException failure(String code) {
+    public static EnrollmentException failure(String code) {
         return new EnrollmentException(code, code, HttpStatus.SERVICE_UNAVAILABLE);
     }
 }

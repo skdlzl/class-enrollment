@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @Testcontainers
-@SpringBootTest
+@SpringBootTest(properties="enrollment.exchange-recovery=false")
 class ConcurrencyIntegrationTest {
     @Container @ServiceConnection static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4");
     @Container static GenericContainer<?> redis = new GenericContainer<>("redis:7.4").withExposedPorts(6379);
@@ -40,6 +40,7 @@ class ConcurrencyIntegrationTest {
     @BeforeEach void seed() {
         external = mock(EligibilityClient.class);
         gate = new RedisGate(strings, 3000);
+        db.update("DELETE FROM exchange_requests");
         db.update("DELETE FROM enrollment_requests");
         db.update("DELETE FROM enrollments");
         db.update("UPDATE courses SET enrolled_count=0,version=0,capacity=10");
@@ -167,5 +168,87 @@ class ConcurrencyIntegrationTest {
     @Test void lockWaitIsBounded() {
         strings.opsForValue().set("enrollment:course:1","other",java.time.Duration.ofSeconds(5));
         assertEquals("REDIS_LOCK_TIMEOUT",assertThrows(EnrollmentException.class,()->gate.acquire(1,System.nanoTime()+TimeUnit.MILLISECONDS.toNanos(30))).getCode());
+    }
+
+    private com.jiyun.classenrollment.exchange.ExchangeService exchange(com.jiyun.classenrollment.exchange.PartnerClient partner) {
+        return new com.jiyun.classenrollment.exchange.ExchangeService(db,gate,partner,service(EnrollmentCoordinator.Strategy.REDIS));
+    }
+    private com.jiyun.classenrollment.exchange.PartnerClient partner() {
+        var p=mock(com.jiyun.classenrollment.exchange.PartnerClient.class);
+        when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("HELD");
+        when(p.confirm(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("CONFIRMED");
+        when(p.cancel(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("CANCELLED");
+        return p;
+    }
+    @Test void exchangeReplayAndPayloadBinding() throws Exception {
+        var p=partner(); var svc=exchange(p);
+        var ids=parallel(32,i->svc.submit(1,1,"exchange-same").requestId());
+        assertEquals(1,new HashSet<>(ids).size());
+        assertEquals("COMPLETED",svc.get(ids.get(0)).phase());
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class));
+        assertEquals("IDEMPOTENCY_KEY_REUSED",assertThrows(EnrollmentException.class,()->svc.submit(1,2,"exchange-same")).getCode());
+        verify(p,times(1)).confirm(anyString(),anyLong(),anyLong(),anyLong());
+    }
+    @Test void exchangeUnknownReserveIsQueriedAfterRestart() {
+        var p=partner(); var svc=exchange(p);
+        when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("ABSENT","HELD","HELD");
+        when(p.reserve(anyString(),anyLong(),anyLong(),anyLong())).thenThrow(RedisGate.failure("PARTNER_RESPONSE_TIMEOUT"));
+        var pending=svc.submit(1,1,"unknown-reserve");
+        assertEquals("RESERVING",pending.phase());
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class));
+        var restarted=exchange(p);
+        restarted.process(pending.requestId());
+        assertEquals("COMPLETED",restarted.get(pending.requestId()).phase());
+        verify(p,times(1)).reserve(anyString(),anyLong(),anyLong(),anyLong());
+    }
+    @Test void exchangeConfirmTimeoutKeepsLocalSeatAndRecovers() {
+        var p=partner(); var svc=exchange(p);
+        when(p.confirm(anyString(),anyLong(),anyLong(),anyLong())).thenThrow(RedisGate.failure("PARTNER_RESPONSE_TIMEOUT"));
+        var pending=svc.submit(1,1,"unknown-confirm");
+        assertEquals("CONFIRMING",pending.phase());
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class));
+        when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("CONFIRMED");
+        exchange(p).process(pending.requestId());
+        assertEquals("COMPLETED",svc.get(pending.requestId()).phase());
+        assertEquals(1,db.queryForObject("SELECT enrolled_count FROM courses WHERE id=1",Integer.class));
+        verify(p,never()).cancel(anyString(),anyLong(),anyLong(),anyLong());
+    }
+    @Test void exchangeRejectedLocallyCancelsAndRetriesUnknownCancel() {
+        var p=partner(); var svc=exchange(p);
+        db.update("UPDATE students SET max_credits=0 WHERE id=1");
+        when(p.cancel(anyString(),anyLong(),anyLong(),anyLong())).thenThrow(RedisGate.failure("PARTNER_RESPONSE_TIMEOUT")).thenReturn("CANCELLED");
+        var pending=svc.submit(1,1,"cancel");
+        assertEquals("CANCELLING",pending.phase());
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class));
+        svc.process(pending.requestId());
+        assertEquals("CANCELLED",svc.get(pending.requestId()).phase());
+        assertEquals("CREDIT_LIMIT_EXCEEDED",svc.get(pending.requestId()).lastError());
+        verify(p,never()).confirm(anyString(),anyLong(),anyLong(),anyLong());
+    }
+    @Test void exchangeLeaseLossPreservesIntentForRecovery() {
+        var p=partner(); var svc=exchange(p);
+        when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenAnswer(call->{
+            strings.opsForValue().set("enrollment:course:1","successor",java.time.Duration.ofSeconds(10));
+            return "HELD";
+        });
+        var pending=svc.submit(1,1,"exchange-lease");
+        assertEquals("RESERVING",pending.phase());
+        assertEquals("LEASE_LOST",pending.lastError());
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class));
+        assertEquals("successor",strings.opsForValue().get("enrollment:course:1"));
+        strings.delete("enrollment:course:1");
+        when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("HELD");
+        svc.process(pending.requestId());
+        assertEquals("COMPLETED",svc.get(pending.requestId()).phase());
+    }
+    @Test void exchangeExpiredClaimCanBeRecoveredButActiveClaimCannot() {
+        var p=partner(); var svc=exchange(p);
+        String id=UUID.randomUUID().toString();
+        db.update("INSERT INTO exchange_requests(id,student_id,course_id,request_key,owner,claim_until) VALUES (?,1,1,'crashed','old',DATE_ADD(NOW(6),INTERVAL 30 SECOND))",id);
+        svc.process(id);
+        verifyNoInteractions(p);
+        db.update("UPDATE exchange_requests SET claim_until=DATE_SUB(NOW(6),INTERVAL 1 SECOND) WHERE id=?",id);
+        svc.recover();
+        assertEquals("COMPLETED",svc.get(id).phase());
     }
 }

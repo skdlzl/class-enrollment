@@ -109,9 +109,19 @@ public class EnrollmentCoordinator {
         }
     }
     private Result transact(long student, long course, String key, long deadline, RedisGate.Lease lease) {
+        return transact(student, course, key, deadline, lease, null, null);
+    }
+    public Result commitExchange(long student, long course, String key, long deadline, RedisGate.Lease lease, String requestId, String owner) {
+        return transact(student, course, key, deadline, lease, requestId, owner);
+    }
+    private Result transact(long student, long course, String key, long deadline, RedisGate.Lease lease, String requestId, String owner) {
         long start = System.nanoTime();
         try {
             return tx.execute(status -> {
+                if (requestId != null) {
+                    var held = db.queryForList("SELECT id FROM exchange_requests WHERE id=? AND owner=? AND claim_until>NOW(6) AND phase='RESERVING' FOR UPDATE", requestId, owner);
+                    if (held.isEmpty()) throw RedisGate.failure("EXCHANGE_CLAIM_LOST");
+                }
                 checkDeadline(deadline);
                 // A successful idempotency record is committed atomically with the enrollment.
                 db.update("INSERT INTO enrollment_requests(student_id,request_key,course_id) VALUES (?,?,?)", student, key, course);
@@ -135,7 +145,7 @@ public class EnrollmentCoordinator {
                     AND a.start_time < b.end_time AND b.start_time < a.end_time
                     WHERE e.student_id=? AND old.academic_year=? AND old.semester=?
                     """, course, student, c.get("academic_year"), c.get("semester")) > 0) throw conflict("SCHEDULE_CONFLICT");
-                if (strategy != Strategy.REDIS) callExternal(student, course, deadline);
+                if (requestId == null && strategy != Strategy.REDIS) callExternal(student, course, deadline);
                 checkDeadline(deadline);
                 // All writers use course -> student -> enrollment ordering. CAS is the final safety boundary.
                 if (db.update("UPDATE courses SET enrolled_count=enrolled_count+1,version=version+1 WHERE id=? AND version=? AND enrolled_count<capacity", course, c.get("version")) != 1) throw new Retry();
@@ -145,6 +155,7 @@ public class EnrollmentCoordinator {
                 db.update("UPDATE enrollment_requests SET enrollment_id=? WHERE student_id=? AND request_key=?", id, student, key);
                 checkDeadline(deadline);
                 if (lease != null) lease.check();
+                if (requestId != null) db.update("UPDATE exchange_requests SET phase='CONFIRMING',enrollment_id=?,last_error=NULL WHERE id=? AND owner=?", id, requestId, owner);
                 return new Result(id, false);
             });
         } finally { record("transaction", start); }

@@ -29,11 +29,13 @@ services:
       retries: 20
   external:
     image: python:3.12-slim
-    volumes: ["./scripts/external_api.py:/app/external_api.py:ro"]
+    volumes: ["./scripts:/app:ro", "partner-data:/data"]
     command: ["python", "/app/external_api.py"]
     environment:
       EXTERNAL_DELAY_MS: ${EXTERNAL_DELAY_MS:-20}
       EXTERNAL_STATUS: ${EXTERNAL_STATUS:-204}
+      PARTNER_DB: /data/partner.sqlite
+      PARTNER_CAPACITY: ${PARTNER_CAPACITY:-120}
     ports: ["8090:8090"]
   api1: &api
     build: ./backend
@@ -54,3 +56,4 @@ services:
 volumes:
   class-enrollment-mysql-data:
 
+  partner-data:
