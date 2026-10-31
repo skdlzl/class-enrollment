@@ -171,7 +171,10 @@ class ConcurrencyIntegrationTest {
     }
 
     private com.jiyun.classenrollment.exchange.ExchangeService exchange(com.jiyun.classenrollment.exchange.PartnerClient partner) {
-        return new com.jiyun.classenrollment.exchange.ExchangeService(db,gate,partner,service(EnrollmentCoordinator.Strategy.REDIS));
+        return exchange(partner,EnrollmentCoordinator.Strategy.REDIS);
+    }
+    private com.jiyun.classenrollment.exchange.ExchangeService exchange(com.jiyun.classenrollment.exchange.PartnerClient partner,EnrollmentCoordinator.Strategy strategy) {
+        return new com.jiyun.classenrollment.exchange.ExchangeService(db,gate,partner,service(strategy));
     }
     private com.jiyun.classenrollment.exchange.PartnerClient partner() {
         var p=mock(com.jiyun.classenrollment.exchange.PartnerClient.class);
@@ -180,8 +183,9 @@ class ConcurrencyIntegrationTest {
         when(p.cancel(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("CANCELLED");
         return p;
     }
-    @Test void exchangeReplayAndPayloadBinding() throws Exception {
-        var p=partner(); var svc=exchange(p);
+    @ParameterizedTest @EnumSource(EnrollmentCoordinator.Strategy.class)
+    void exchangeReplayAndPayloadBinding(EnrollmentCoordinator.Strategy strategy) throws Exception {
+        var p=partner(); var svc=exchange(p,strategy);
         var ids=parallel(32,i->svc.submit(1,1,"exchange-same").requestId());
         assertEquals(1,new HashSet<>(ids).size());
         assertEquals("COMPLETED",svc.get(ids.get(0)).phase());
@@ -189,32 +193,35 @@ class ConcurrencyIntegrationTest {
         assertEquals("IDEMPOTENCY_KEY_REUSED",assertThrows(EnrollmentException.class,()->svc.submit(1,2,"exchange-same")).getCode());
         verify(p,times(1)).confirm(anyString(),anyLong(),anyLong(),anyLong());
     }
-    @Test void exchangeUnknownReserveIsQueriedAfterRestart() {
-        var p=partner(); var svc=exchange(p);
+    @ParameterizedTest @EnumSource(EnrollmentCoordinator.Strategy.class)
+    void exchangeUnknownReserveIsQueriedAfterRestart(EnrollmentCoordinator.Strategy strategy) {
+        var p=partner(); var svc=exchange(p,strategy);
         when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("ABSENT","HELD","HELD");
         when(p.reserve(anyString(),anyLong(),anyLong(),anyLong())).thenThrow(RedisGate.failure("PARTNER_RESPONSE_TIMEOUT"));
         var pending=svc.submit(1,1,"unknown-reserve");
         assertEquals("RESERVING",pending.phase());
         assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class));
-        var restarted=exchange(p);
+        var restarted=exchange(p,strategy);
         restarted.process(pending.requestId());
         assertEquals("COMPLETED",restarted.get(pending.requestId()).phase());
         verify(p,times(1)).reserve(anyString(),anyLong(),anyLong(),anyLong());
     }
-    @Test void exchangeConfirmTimeoutKeepsLocalSeatAndRecovers() {
-        var p=partner(); var svc=exchange(p);
+    @ParameterizedTest @EnumSource(EnrollmentCoordinator.Strategy.class)
+    void exchangeConfirmTimeoutKeepsLocalSeatAndRecovers(EnrollmentCoordinator.Strategy strategy) {
+        var p=partner(); var svc=exchange(p,strategy);
         when(p.confirm(anyString(),anyLong(),anyLong(),anyLong())).thenThrow(RedisGate.failure("PARTNER_RESPONSE_TIMEOUT"));
         var pending=svc.submit(1,1,"unknown-confirm");
         assertEquals("CONFIRMING",pending.phase());
         assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class));
         when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("CONFIRMED");
-        exchange(p).process(pending.requestId());
+        exchange(p,strategy).process(pending.requestId());
         assertEquals("COMPLETED",svc.get(pending.requestId()).phase());
         assertEquals(1,db.queryForObject("SELECT enrolled_count FROM courses WHERE id=1",Integer.class));
         verify(p,never()).cancel(anyString(),anyLong(),anyLong(),anyLong());
     }
-    @Test void exchangeRejectedLocallyCancelsAndRetriesUnknownCancel() {
-        var p=partner(); var svc=exchange(p);
+    @ParameterizedTest @EnumSource(EnrollmentCoordinator.Strategy.class)
+    void exchangeRejectedLocallyCancelsAndRetriesUnknownCancel(EnrollmentCoordinator.Strategy strategy) {
+        var p=partner(); var svc=exchange(p,strategy);
         db.update("UPDATE students SET max_credits=1 WHERE id=1");
         when(p.cancel(anyString(),anyLong(),anyLong(),anyLong())).thenThrow(RedisGate.failure("PARTNER_RESPONSE_TIMEOUT")).thenReturn("CANCELLED");
         var pending=svc.submit(1,1,"cancel");
@@ -241,8 +248,9 @@ class ConcurrencyIntegrationTest {
         svc.process(pending.requestId());
         assertEquals("COMPLETED",svc.get(pending.requestId()).phase());
     }
-    @Test void exchangeExpiredClaimCanBeRecoveredButActiveClaimCannot() {
-        var p=partner(); var svc=exchange(p);
+    @ParameterizedTest @EnumSource(EnrollmentCoordinator.Strategy.class)
+    void exchangeExpiredClaimCanBeRecoveredButActiveClaimCannot(EnrollmentCoordinator.Strategy strategy) {
+        var p=partner(); var svc=exchange(p,strategy);
         String id=UUID.randomUUID().toString();
         db.update("INSERT INTO exchange_requests(id,student_id,course_id,request_key,owner,claim_until) VALUES (?,1,1,'crashed','old',DATE_ADD(NOW(6),INTERVAL 30 SECOND))",id);
         svc.process(id);
@@ -250,5 +258,17 @@ class ConcurrencyIntegrationTest {
         db.update("UPDATE exchange_requests SET claim_until=DATE_SUB(NOW(6),INTERVAL 1 SECOND) WHERE id=?",id);
         svc.recover();
         assertEquals("COMPLETED",svc.get(id).phase());
+    }
+
+    @ParameterizedTest @EnumSource(EnrollmentCoordinator.Strategy.class)
+    void exchangeReservationTransactionBoundaryMatchesStrategy(EnrollmentCoordinator.Strategy strategy) {
+        var p=partner();
+        when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenAnswer(call->{
+            boolean first=db.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class)==0;
+            if(first) assertEquals(strategy!=EnrollmentCoordinator.Strategy.REDIS,
+                org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());
+            return "HELD";
+        });
+        assertEquals("COMPLETED",exchange(p,strategy).submit(1,1,"boundary").phase());
     }
 }

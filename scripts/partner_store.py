@@ -10,6 +10,8 @@ class Store:
         with self.connect() as db:
             db.execute('PRAGMA journal_mode=WAL')
             db.execute('CREATE TABLE IF NOT EXISTS reservations (id TEXT PRIMARY KEY, student INTEGER NOT NULL, course INTEGER NOT NULL, state TEXT NOT NULL)')
+            db.execute('CREATE INDEX IF NOT EXISTS reservation_capacity ON reservations(course,state)')
+            db.execute('CREATE INDEX IF NOT EXISTS reservation_student ON reservations(student,course,state)')
 
     def connect(self):
         return sqlite3.connect(self.path, timeout=10)

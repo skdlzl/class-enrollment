@@ -109,12 +109,18 @@ public class EnrollmentCoordinator {
         }
     }
     private Result transact(long student, long course, String key, long deadline, RedisGate.Lease lease) {
-        return transact(student, course, key, deadline, lease, null, null);
+        return transact(student, course, key, deadline, lease, null, null, null);
     }
     public Result commitExchange(long student, long course, String key, long deadline, RedisGate.Lease lease, String requestId, String owner) {
-        return transact(student, course, key, deadline, lease, requestId, owner);
+        return transact(student, course, key, deadline, lease, requestId, owner, null);
     }
-    private Result transact(long student, long course, String key, long deadline, RedisGate.Lease lease, String requestId, String owner) {
+    public Strategy strategy() { return strategy; }
+    public void exchangeStage(String stage, long start) { record("exchange_"+stage,start); }
+    public void exchangeFailure(String cause) { metrics.counter("exchange.retries","strategy",strategy.name(),"cause",cause).increment(); }
+    public Result commitExchange(long student, long course, String key, long deadline, String requestId, String owner, Runnable reservation) {
+        return transact(student,course,key,deadline,null,requestId,owner,reservation);
+    }
+    private Result transact(long student, long course, String key, long deadline, RedisGate.Lease lease, String requestId, String owner, Runnable reservation) {
         long start = System.nanoTime();
         try {
             return tx.execute(status -> {
@@ -145,6 +151,7 @@ public class EnrollmentCoordinator {
                     AND a.start_time < b.end_time AND b.start_time < a.end_time
                     WHERE e.student_id=? AND old.academic_year=? AND old.semester=?
                     """, course, student, c.get("academic_year"), c.get("semester")) > 0) throw conflict("SCHEDULE_CONFLICT");
+                if (reservation != null) reservation.run();
                 if (requestId == null && strategy != Strategy.REDIS) callExternal(student, course, deadline);
                 checkDeadline(deadline);
                 // All writers use course -> student -> enrollment ordering. CAS is the final safety boundary.
@@ -189,7 +196,7 @@ public class EnrollmentCoordinator {
     private static long number(Map<String,Object> row, String key) { return ((Number)row.get(key)).longValue(); }
     private static EnrollmentException conflict(String code) { return new EnrollmentException(code, code, HttpStatus.CONFLICT); }
     private static EnrollmentException missing(String code) { return new EnrollmentException(code, code, HttpStatus.NOT_FOUND); }
-    private static String retryCause(RuntimeException error) {
+    public static String retryCause(RuntimeException error) {
         if (error instanceof Retry) return "VERSION_CONFLICT";
         for (Throwable cause = error; cause != null; cause = cause.getCause()) {
             if (cause instanceof java.sql.SQLException sql) {

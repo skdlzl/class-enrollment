@@ -50,23 +50,38 @@ public class ExchangeService {
             long student=((Number)r.get("student_id")).longValue(),course=((Number)r.get("course_id")).longValue();
             String phase=(String)r.get("phase");
             if(phase.equals("RESERVING")) {
-                try(var permit=admission.enter(course,deadline); var lease=gate.acquire(course,deadline)) {
-                    String state=partner.status(id,student,course,deadline);
-                    if(state.equals("ABSENT")) state=partner.reserve(id,student,course,deadline);
-                    if(state.equals("FULL") || state.equals("CANCELLED")) {
-                        change(id,owner,"RESERVING","CANCELLED","PARTNER_"+state); return;
+                try {
+                    // Identical committed-full fast path for all three strategies.
+                    rejectFull(course);
+                    if(enrollment.strategy()==EnrollmentCoordinator.Strategy.REDIS) {
+                        long localStart=System.nanoTime();
+                        LocalAdmission.Permit entered;
+                        try { entered=admission.enter(course,deadline); }
+                        finally { enrollment.exchangeStage("local_wait",localStart); }
+                        try(var permit=entered) {
+                            rejectFull(course);
+                            long lockStart=System.nanoTime();
+                            RedisGate.Lease acquired;
+                            try { acquired=gate.acquire(course,deadline); }
+                            finally { enrollment.exchangeStage("lock_wait",lockStart); }
+                            try(var lease=acquired) {
+                                rejectFull(course);
+                                reserve(id,student,course,deadline);
+                                lease.check();
+                                enrollment.commitExchange(student,course,"exchange:"+id,deadline,lease,id,owner);
+                            }
+                        }
+                    } else {
+                        // Pessimistic: course FOR UPDATE; optimistic: snapshot then version CAS.
+                        // The same idempotent partner operation executes inside the DB transaction.
+                        enrollment.commitExchange(student,course,"exchange:"+id,deadline,id,owner,
+                            ()->reserve(id,student,course,deadline));
                     }
-                    if(!state.equals("HELD")) throw RedisGate.failure("PARTNER_STATE_MISMATCH");
-                    lease.check();
-                    try {
-                        // Saga phase and local enrollment commit together. A lost commit response is recoverable.
-                        enrollment.commitExchange(student,course,"exchange:"+id,deadline,lease,id,owner);
-                    } catch(EnrollmentException error) {
-                        if(!error.getStatus().is4xxClientError()) throw error;
-                        change(id,owner,"RESERVING","CANCELLING",error.getCode());
-                    } catch(org.springframework.dao.DuplicateKeyException error) {
-                        change(id,owner,"RESERVING","CANCELLING","DUPLICATE_ENROLLMENT");
-                    }
+                } catch(EnrollmentException error) {
+                    if(!error.getStatus().is4xxClientError()) throw error;
+                    change(id,owner,"RESERVING","CANCELLING",error.getCode());
+                } catch(org.springframework.dao.DuplicateKeyException error) {
+                    change(id,owner,"RESERVING","CANCELLING","DUPLICATE_ENROLLMENT");
                 }
                 phase=get(id).phase();
             }
@@ -81,12 +96,24 @@ public class ExchangeService {
                 db.update("UPDATE exchange_requests SET phase='CANCELLED' WHERE id=? AND owner=? AND phase='CANCELLING'",id,owner);
             }
         } catch(RuntimeException error) {
-            String code=error instanceof EnrollmentException e?e.getCode():error.getClass().getSimpleName();
+            String code=error instanceof EnrollmentException e?e.getCode():EnrollmentCoordinator.retryCause(error);
+            enrollment.exchangeFailure(code);
             db.update("UPDATE exchange_requests SET last_error=? WHERE id=? AND owner=? AND phase<>'CANCELLING'",code,id,owner);
             org.slf4j.LoggerFactory.getLogger(getClass()).warn("event=exchange_retry request={} cause={}",id,code);
         } finally {
             db.update("UPDATE exchange_requests SET owner=NULL,claim_until=NULL,next_attempt=DATE_ADD(NOW(6),INTERVAL 2 SECOND) WHERE id=? AND owner=?",id,owner);
         }
+    }
+    private void rejectFull(long course) {
+        if(db.queryForObject("SELECT COUNT(*) FROM courses WHERE id=? AND enrolled_count>=capacity",Long.class,course)>0)
+            throw new EnrollmentException("COURSE_FULL","COURSE_FULL",HttpStatus.CONFLICT);
+    }
+    private void reserve(String id,long student,long course,long deadline) {
+        String state=partner.status(id,student,course,deadline);
+        if(state.equals("ABSENT")) state=partner.reserve(id,student,course,deadline);
+        if(state.equals("FULL") || state.equals("CANCELLED"))
+            throw new EnrollmentException("PARTNER_"+state,"PARTNER_"+state,HttpStatus.CONFLICT);
+        if(!state.equals("HELD")) throw RedisGate.failure("PARTNER_STATE_MISMATCH");
     }
     private void change(String id,String owner,String from,String to,String error) {
         db.update("UPDATE exchange_requests SET phase=?,last_error=? WHERE id=? AND owner=? AND phase=?",to,error,id,owner,from);
