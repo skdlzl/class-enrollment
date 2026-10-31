@@ -1,0 +1,38 @@
+{
+  "unique_requests": 12000,
+  "concurrency": 128,
+  "jvms": 2,
+  "submission_seconds": 53.912149618,
+  "initial_http": {
+    "200": 5756,
+    "202": 486,
+    "409": 5758
+  },
+  "terminal_states": {
+    "CANCELLED": 6000,
+    "COMPLETED": 6000
+  },
+  "partner_states": {
+    "FULL": 6000,
+    "CONFIRMED": 6000
+  },
+  "replays_checked": 100,
+  "invariants": "PASS",
+  "scenario": "partner university durable seat reservation",
+  "note": "Not comparable to read-only eligibility latency; 202 is pending.",
+  "tested_commit": "57660cf737f5eee01de687f9a1bb7693a01feea8",
+  "ci_run": "https://github.com/skdlzl/class-enrollment/actions/runs/41018910060",
+  "java_tests": 35,
+  "python_tests": 4,
+  "initial_pending_details": {
+    "reserving_response_timeout": 331,
+    "confirming_response_timeout": 149,
+    "already_claimed_no_error": 6
+  },
+  "timeout_events": 485,
+  "distinct_timed_out_requests": 480,
+  "requests_with_two_timeouts": 5,
+  "recovery": "scheduled worker plus client replay using original idempotency keys",
+  "artifact_id": 12961255833,
+  "artifact_sha256": "24b0480de26fc69c23f1fca81ca15fbcb33f3637b93ce354af857989e256cd54"
+}

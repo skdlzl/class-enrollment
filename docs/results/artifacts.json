@@ -1,0 +1,38 @@
+{
+  "run_id": 40739204179,
+  "commit": "39c87d6232b8d2f8ee99426ff391eeabb4532715",
+  "artifacts": [
+    {
+      "id": 12840005113,
+      "name": "load-raw-data-2",
+      "size_in_bytes": 855649,
+      "digest": "sha256:0d5744fe33651d32805cd468ee3c878eb471fb9fa092036c64a2046ccf8bd011",
+      "expires_at": "2027-01-26T17:48:30Z",
+      "url": "https://github.com/skdlzl/class-enrollment/actions/runs/40739204179/artifacts/12840005113"
+    },
+    {
+      "id": 12839920308,
+      "name": "load-raw-data-1",
+      "size_in_bytes": 860320,
+      "digest": "sha256:df3436cf53f0f7b735969a183de05ef379d616b4e932f9f2c675823586633e33",
+      "expires_at": "2027-01-26T17:48:30Z",
+      "url": "https://github.com/skdlzl/class-enrollment/actions/runs/40739204179/artifacts/12839920308"
+    },
+    {
+      "id": 12839801130,
+      "name": "load-raw-data-0",
+      "size_in_bytes": 850620,
+      "digest": "sha256:e9a28678b483685086a49229febaa70a55865b5184e1d0319e415edc2653ed4d",
+      "expires_at": "2027-01-26T17:48:30Z",
+      "url": "https://github.com/skdlzl/class-enrollment/actions/runs/40739204179/artifacts/12839801130"
+    },
+    {
+      "id": 12838502655,
+      "name": "correctness",
+      "size_in_bytes": 29529,
+      "digest": "sha256:1828fc054f00961f3119ebcfd47202d9a4fec3ce2420397e1e5e871916d80ad4",
+      "expires_at": "2027-01-26T17:48:30Z",
+      "url": "https://github.com/skdlzl/class-enrollment/actions/runs/40739204179/artifacts/12838502655"
+    }
+  ]
+}
