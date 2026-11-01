@@ -116,6 +116,7 @@ public class EnrollmentCoordinator {
     }
     public Strategy strategy() { return strategy; }
     public void exchangeStage(String stage, long start) { record("exchange_"+stage,start); }
+    public void exchangeQueued(String reason) { metrics.counter("exchange.queued","reason",reason).increment(); }
     public void exchangeFailure(String cause) { metrics.counter("exchange.retries","strategy",strategy.name(),"cause",cause).increment(); }
     public Result commitExchange(long student, long course, String key, long deadline, String requestId, String owner, Runnable reservation) {
         return transact(student,course,key,deadline,null,requestId,owner,reservation);

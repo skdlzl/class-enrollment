@@ -46,7 +46,7 @@ async def verify_partner(rows):
             async with semaphore:
                 async with session.get(f"http://localhost:8090/reservations/{row['id']}",params={'student':row['student_id'],'course':row['course_id']}) as r:
                     state=r.headers.get('Reservation-State')
-                    expected=('CONFIRMED',) if row['phase']=='COMPLETED' else ('CANCELLED','FULL')
+                    expected=('CONFIRMED',) if row['phase']=='COMPLETED' else (('ABSENT',) if row['remote_attempts']==0 else ('CANCELLED','FULL'))
                     assert r.status==200 and state in expected,(row,state)
                     return state
         return collections.Counter(await asyncio.gather(*(check(row) for row in rows)))

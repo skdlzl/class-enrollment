@@ -200,6 +200,7 @@ class ConcurrencyIntegrationTest {
         when(p.reserve(anyString(),anyLong(),anyLong(),anyLong())).thenThrow(RedisGate.failure("PARTNER_RESPONSE_TIMEOUT"));
         var pending=svc.submit(1,1,"unknown-reserve");
         assertEquals("RESERVING",pending.phase());
+        assertTrue(db.queryForObject("SELECT remote_attempts FROM exchange_requests WHERE id=?",Long.class,pending.requestId())>0);
         assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class));
         var restarted=exchange(p,strategy);
         restarted.process(pending.requestId());
@@ -270,5 +271,70 @@ class ConcurrencyIntegrationTest {
             return "HELD";
         });
         assertEquals("COMPLETED",exchange(p,strategy).submit(1,1,"boundary").phase());
+    }
+
+    @Test void busyRedisLockReturnsDurableQueueWithoutPolling() {
+        var p=partner();var svc=exchange(p);
+        strings.opsForValue().set("enrollment:course:1","other",java.time.Duration.ofSeconds(10));
+        var queued=assertTimeoutPreemptively(java.time.Duration.ofSeconds(2),()->svc.submit(1,1,"busy-queue"));
+        assertEquals("RESERVING",queued.phase());
+        assertNull(queued.lastError());
+        assertEquals(0L,db.queryForObject("SELECT remote_attempts FROM exchange_requests WHERE id=?",Long.class,queued.requestId()));
+        verifyNoInteractions(p);
+        strings.delete("enrollment:course:1");
+        exchange(p).process(queued.requestId());
+        assertEquals("COMPLETED",svc.get(queued.requestId()).phase());
+    }
+    @Test void newRequestCannotBargeAheadOfDurableHead() {
+        var p=partner();var svc=exchange(p);String first=UUID.randomUUID().toString();
+        db.update("INSERT INTO exchange_requests(id,student_id,course_id,request_key,created_at) VALUES (?,1,1,'old',DATE_SUB(NOW(6),INTERVAL 1 SECOND))",first);
+        var second=svc.submit(2,1,"new");
+        assertEquals("RESERVING",second.phase());verifyNoInteractions(p);
+        svc.process(first);svc.process(second.requestId());
+        assertEquals("COMPLETED",svc.get(first).phase());
+        assertEquals("COMPLETED",svc.get(second.requestId()).phase());
+    }
+    @Test void uncertainRemoteReservationIsRecoveredBeforeUntouchedRequests() {
+        var p=partner();var svc=exchange(p);String first=UUID.randomUUID().toString(),uncertain=UUID.randomUUID().toString();
+        db.update("INSERT INTO exchange_requests(id,student_id,course_id,request_key,created_at) VALUES (?,1,1,'first',DATE_SUB(NOW(6),INTERVAL 2 SECOND))",first);
+        db.update("INSERT INTO exchange_requests(id,student_id,course_id,request_key,remote_attempts) VALUES (?,2,1,'uncertain',1)",uncertain);
+        svc.process(first);verifyNoInteractions(p);
+        svc.process(uncertain);assertEquals("COMPLETED",svc.get(uncertain).phase());
+        svc.process(first);assertEquals("COMPLETED",svc.get(first).phase());
+    }
+    @Test void closedCourseBulkRejectsOnlyUntouchedRequests() {
+        var p=partner();var svc=exchange(p);
+        db.update("UPDATE courses SET capacity=1 WHERE id=1");
+        service(EnrollmentCoordinator.Strategy.REDIS).enroll(1,1,"fill");
+        String untouched=UUID.randomUUID().toString(),uncertain=UUID.randomUUID().toString();
+        db.update("INSERT INTO exchange_requests(id,student_id,course_id,request_key) VALUES (?,2,1,'untouched')",untouched);
+        db.update("INSERT INTO exchange_requests(id,student_id,course_id,request_key,remote_attempts) VALUES (?,3,1,'uncertain',1)",uncertain);
+        svc.closeUntouchedFull();
+        assertEquals("CANCELLED",svc.get(untouched).phase());
+        assertEquals("RESERVING",svc.get(uncertain).phase());verifyNoInteractions(p);
+        svc.process(uncertain);
+        assertEquals("CANCELLED",svc.get(uncertain).phase());
+        verify(p).cancel(eq(uncertain),eq(3L),eq(1L),anyLong());
+        verify(p,never()).cancel(eq(untouched),anyLong(),anyLong(),anyLong());
+    }
+    @ParameterizedTest @EnumSource(EnrollmentCoordinator.Strategy.class)
+    void rollbackCannotEraseRemoteCallIntent(EnrollmentCoordinator.Strategy strategy) {
+        var p=partner();var svc=exchange(p,strategy);
+        when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenThrow(RedisGate.failure("PARTNER_RESPONSE_TIMEOUT"));
+        var pending=svc.submit(1,1,"persist-intent");
+        assertTrue(db.queryForObject("SELECT remote_attempts FROM exchange_requests WHERE id=?",Long.class,pending.requestId())>0);
+        db.update("UPDATE courses SET enrolled_count=capacity WHERE id=1");
+        svc.closeUntouchedFull();assertEquals("RESERVING",svc.get(pending.requestId()).phase());
+        svc.process(pending.requestId());
+        assertEquals("CANCELLED",svc.get(pending.requestId()).phase());
+        verify(p).cancel(eq(pending.requestId()),eq(1L),eq(1L),anyLong());
+    }
+
+    @Test void recoveryDoesNotLoseRequestsForMissingCourses() {
+        var p=partner();var svc=exchange(p);String id=UUID.randomUUID().toString();
+        db.update("INSERT INTO exchange_requests(id,student_id,course_id,request_key) VALUES (?,1,99999,'missing-course')",id);
+        svc.recover();
+        assertEquals("CANCELLED",svc.get(id).phase());
+        assertEquals("COURSE_NOT_FOUND",svc.get(id).lastError());
     }
 }

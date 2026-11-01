@@ -24,6 +24,14 @@ public class RedisGate {
         this.redis = redis;
         this.leaseMs = leaseMs;
     }
+    /** One SET NX attempt: a busy lock is queued durably by the caller, not polled here. */
+    public Lease tryAcquire(long course) {
+        String key="enrollment:course:"+course,owner=UUID.randomUUID().toString();
+        try {
+            return Boolean.TRUE.equals(redis.opsForValue().setIfAbsent(key,owner,Duration.ofMillis(leaseMs)))
+                ? new Lease(key,owner) : null;
+        } catch(org.springframework.dao.DataAccessException e) { throw failure("REDIS_UNAVAILABLE"); }
+    }
     public Lease acquire(long course, long deadline) {
         String key = "enrollment:course:" + course;
         String owner = UUID.randomUUID().toString();

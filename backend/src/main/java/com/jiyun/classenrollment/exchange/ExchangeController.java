@@ -14,7 +14,10 @@ public class ExchangeController {
     public ResponseEntity<ExchangeService.View> submit(@Valid @RequestBody EnrollmentRequest request,
             @RequestHeader(value="Idempotency-Key",required=false) String key) {
         var view=service.submit(request.studentId(),request.courseId(),key);
-        return ResponseEntity.status(view.phase().equals("COMPLETED")?200:view.phase().equals("CANCELLED")?409:202).body(view);
+        int status=view.phase().equals("COMPLETED")?200:view.phase().equals("CANCELLED")?409:202;
+        var response=ResponseEntity.status(status);
+        if(status==202) response.header("Retry-After","1");
+        return response.body(view);
     }
     @GetMapping("/{id}") public ExchangeService.View status(@PathVariable String id) { return service.get(id); }
 }

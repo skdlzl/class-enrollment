@@ -10,6 +10,7 @@ p=argparse.ArgumentParser()
 p.add_argument('--round-offset',type=int,default=0)
 p.add_argument('--requests',type=int,default=12000)
 p.add_argument('--concurrency',type=int,default=128)
+p.add_argument('--strategies',default='PESSIMISTIC,OPTIMISTIC,REDIS')
 a=p.parse_args();assert a.requests>=10000
 ROOT=pathlib.Path('results/exchange-compare');ROOT.mkdir(parents=True,exist_ok=True)
 N=a.requests
@@ -53,7 +54,7 @@ async def verify_partner(rows):
             async with sem:
                 async with session.get(f"http://localhost:8090/reservations/{row['id']}",params={'student':row['student_id'],'course':row['course_id']}) as r:
                     state=r.headers.get('Reservation-State')
-                    expected=('CONFIRMED',) if row['phase']=='COMPLETED' else ('CANCELLED','FULL')
+                    expected=('CONFIRMED',) if row['phase']=='COMPLETED' else (('ABSENT',) if row['remote_attempts']==0 else ('CANCELLED','FULL'))
                     assert r.status==200 and state in expected,(row,state)
                     return state
         return collections.Counter(await asyncio.gather(*(check(r) for r in rows)))
@@ -79,8 +80,10 @@ def percentile(values,q):
     return sorted(values)[max(0,math.ceil(len(values)*q)-1)] if values else None
 
 summaries=[]
-strategies=['PESSIMISTIC','OPTIMISTIC','REDIS']
-strategies=strategies[a.round_offset%3:]+strategies[:a.round_offset%3]
+strategies=a.strategies.split(',')
+assert strategies and all(x in ('PESSIMISTIC','OPTIMISTIC','REDIS') for x in strategies)
+rotation=a.round_offset%len(strategies)
+strategies=strategies[rotation:]+strategies[:rotation]
 for si,strategy in enumerate(strategies):
     for wi,(workload,courses) in enumerate([('distributed',50),('hot',1)]):
         name=f'{a.round_offset+1}-{strategy}-{workload}'
@@ -102,7 +105,7 @@ for si,strategy in enumerate(strategies):
             retries=[];until=time.monotonic()+600
             while True:
                 with db() as con,con.cursor() as c:
-                    c.execute("SELECT id,student_id,course_id,phase,enrollment_id,last_error,attempts,UNIX_TIMESTAMP(updated_at) terminal_epoch FROM exchange_requests");rows=c.fetchall()
+                    c.execute("SELECT id,student_id,course_id,phase,enrollment_id,last_error,attempts,remote_attempts,UNIX_TIMESTAMP(updated_at) terminal_epoch FROM exchange_requests");rows=c.fetchall()
                 settled={r['student_id']-1 for r in rows if r['phase'] in ('COMPLETED','CANCELLED')}
                 if len(settled)==N:break
                 assert time.monotonic()<until,('unresolved',N-len(settled))
