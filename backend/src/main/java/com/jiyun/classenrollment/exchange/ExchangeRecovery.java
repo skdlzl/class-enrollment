@@ -14,8 +14,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 public class ExchangeRecovery {
     private final ExchangeService service;
     private final Set<String> submitted=ConcurrentHashMap.newKeySet();
-    private final ThreadPoolExecutor workers=new ThreadPoolExecutor(16,16,0L,TimeUnit.MILLISECONDS,
-        new ArrayBlockingQueue<>(64), r->{var t=new Thread(r,"exchange-recovery");t.setDaemon(true);return t;},
+    private final ThreadPoolExecutor workers=new ThreadPoolExecutor(32,32,0L,TimeUnit.MILLISECONDS,
+        new ArrayBlockingQueue<>(128), r->{var t=new Thread(r,"exchange-recovery");t.setDaemon(true);return t;},
         new ThreadPoolExecutor.AbortPolicy());
     public ExchangeRecovery(ExchangeService service) { this.service=service; }
     @Scheduled(fixedDelayString="${enrollment.exchange-recovery-delay-ms:25}") public void recover() {

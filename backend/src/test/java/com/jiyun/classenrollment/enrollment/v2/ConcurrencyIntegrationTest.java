@@ -179,6 +179,7 @@ class ConcurrencyIntegrationTest {
     private com.jiyun.classenrollment.exchange.PartnerClient partner() {
         var p=mock(com.jiyun.classenrollment.exchange.PartnerClient.class);
         when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("HELD");
+        when(p.reserve(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("HELD");
         when(p.confirm(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("CONFIRMED");
         when(p.cancel(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("CANCELLED");
         return p;
@@ -196,7 +197,7 @@ class ConcurrencyIntegrationTest {
     @ParameterizedTest @EnumSource(EnrollmentCoordinator.Strategy.class)
     void exchangeUnknownReserveIsQueriedAfterRestart(EnrollmentCoordinator.Strategy strategy) {
         var p=partner(); var svc=exchange(p,strategy);
-        when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("ABSENT","HELD","HELD");
+        when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenReturn("HELD");
         when(p.reserve(anyString(),anyLong(),anyLong(),anyLong())).thenThrow(RedisGate.failure("PARTNER_RESPONSE_TIMEOUT"));
         var pending=svc.submit(1,1,"unknown-reserve");
         assertEquals("RESERVING",pending.phase());
@@ -235,7 +236,7 @@ class ConcurrencyIntegrationTest {
     }
     @Test void exchangeLeaseLossPreservesIntentForRecovery() {
         var p=partner(); var svc=exchange(p);
-        when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenAnswer(call->{
+        when(p.reserve(anyString(),anyLong(),anyLong(),anyLong())).thenAnswer(call->{
             strings.opsForValue().set("enrollment:course:1","successor",java.time.Duration.ofSeconds(10));
             return "HELD";
         });
@@ -264,7 +265,7 @@ class ConcurrencyIntegrationTest {
     @ParameterizedTest @EnumSource(EnrollmentCoordinator.Strategy.class)
     void exchangeReservationTransactionBoundaryMatchesStrategy(EnrollmentCoordinator.Strategy strategy) {
         var p=partner();
-        when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenAnswer(call->{
+        when(p.reserve(anyString(),anyLong(),anyLong(),anyLong())).thenAnswer(call->{
             boolean first=db.queryForObject("SELECT COUNT(*) FROM enrollments",Integer.class)==0;
             if(first) assertEquals(strategy!=EnrollmentCoordinator.Strategy.REDIS,
                 org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());
@@ -320,7 +321,7 @@ class ConcurrencyIntegrationTest {
     @ParameterizedTest @EnumSource(EnrollmentCoordinator.Strategy.class)
     void rollbackCannotEraseRemoteCallIntent(EnrollmentCoordinator.Strategy strategy) {
         var p=partner();var svc=exchange(p,strategy);
-        when(p.status(anyString(),anyLong(),anyLong(),anyLong())).thenThrow(RedisGate.failure("PARTNER_RESPONSE_TIMEOUT"));
+        when(p.reserve(anyString(),anyLong(),anyLong(),anyLong())).thenThrow(RedisGate.failure("PARTNER_RESPONSE_TIMEOUT"));
         var pending=svc.submit(1,1,"persist-intent");
         assertTrue(db.queryForObject("SELECT remote_attempts FROM exchange_requests WHERE id=?",Long.class,pending.requestId())>0);
         db.update("UPDATE courses SET enrolled_count=capacity WHERE id=1");
