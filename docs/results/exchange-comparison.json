@@ -1,0 +1,1200 @@
+{
+  "tested_commit": "fe06c10fdc54912cfc940eb023e56dec56f86459",
+  "run_id": 41214626730,
+  "trials": [
+    {
+      "name": "1-OPTIMISTIC-distributed",
+      "strategy": "OPTIMISTIC",
+      "workload": "distributed",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 58.281659582999964,
+      "settlement_seconds": 74.05897540899991,
+      "settled_rps": 162.03302751258042,
+      "initial_http": {
+        "200": 4817,
+        "202": 1439,
+        "409": 5744
+      },
+      "initial_pending_causes": {
+        "VERSION_CONFLICT": 1145,
+        "CLAIMED": 1,
+        "PARTNER_RESPONSE_TIMEOUT": 228,
+        "PARTNER_FULL": 65
+      },
+      "terminal_states": {
+        "COMPLETED": 6000,
+        "CANCELLED": 6000
+      },
+      "partner_states": {
+        "CONFIRMED": 6000,
+        "CANCELLED": 6000
+      },
+      "client_retries": 1690,
+      "attempts": 13924,
+      "completed_p95_ms": 46890.32983779907,
+      "completed_p99_ms": 54478.13391685486,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 43924.0,
+        "partner_seconds": 2763.8610982749997,
+        "partner_actions": {
+          "status": 19858.0,
+          "reserve": 12000.0,
+          "confirm": 6000.0,
+          "cancel": 6066.0
+        },
+        "db_usage_seconds": 2290.939,
+        "db_acquire_seconds": 3247.730319559,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "VERSION_CONFLICT": 1513.0,
+          "PARTNER_RESPONSE_TIMEOUT": 411.0
+        }
+      }
+    },
+    {
+      "name": "1-OPTIMISTIC-hot",
+      "strategy": "OPTIMISTIC",
+      "workload": "hot",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 51.88503287100002,
+      "settlement_seconds": 59.26985097600004,
+      "settled_rps": 202.46381258591526,
+      "initial_http": {
+        "202": 470,
+        "409": 11525,
+        "200": 4,
+        "500": 1
+      },
+      "initial_pending_causes": {
+        "VERSION_CONFLICT": 116,
+        "PARTNER_RESPONSE_TIMEOUT": 215,
+        "PARTNER_FULL": 139
+      },
+      "terminal_states": {
+        "CANCELLED": 11880,
+        "COMPLETED": 120
+      },
+      "partner_states": {
+        "CANCELLED": 11880,
+        "CONFIRMED": 120
+      },
+      "client_retries": 322,
+      "attempts": 12495,
+      "completed_p95_ms": 41100.81386566162,
+      "completed_p99_ms": 54991.596937179565,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 36615.0,
+        "partner_seconds": 2264.619529554,
+        "partner_actions": {
+          "status": 12473.0,
+          "reserve": 12000.0,
+          "confirm": 120.0,
+          "cancel": 12022.0
+        },
+        "db_usage_seconds": 1956.875,
+        "db_acquire_seconds": 3152.501970762,
+        "db_pool_timeouts": 1.0,
+        "retry_causes": {
+          "VERSION_CONFLICT": 128.0,
+          "PARTNER_RESPONSE_TIMEOUT": 367.0
+        }
+      }
+    },
+    {
+      "name": "1-PESSIMISTIC-distributed",
+      "strategy": "PESSIMISTIC",
+      "workload": "distributed",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 55.675140106000015,
+      "settlement_seconds": 60.633703449999985,
+      "settled_rps": 197.90973200070962,
+      "initial_http": {
+        "200": 5935,
+        "202": 334,
+        "409": 5731
+      },
+      "initial_pending_causes": {
+        "CLAIMED": 11,
+        "PARTNER_RESPONSE_TIMEOUT": 67,
+        "COURSE_FULL": 256
+      },
+      "terminal_states": {
+        "COMPLETED": 6000,
+        "CANCELLED": 6000
+      },
+      "partner_states": {
+        "CONFIRMED": 6000,
+        "CANCELLED": 6000
+      },
+      "client_retries": 203,
+      "attempts": 12333,
+      "completed_p95_ms": 1469.7034358978271,
+      "completed_p99_ms": 2451.599597930908,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 30488.0,
+        "partner_seconds": 2205.4999857959997,
+        "partner_actions": {
+          "status": 12146.0,
+          "reserve": 6078.0,
+          "confirm": 6000.0,
+          "cancel": 6264.0
+        },
+        "db_usage_seconds": 1782.4019999999998,
+        "db_acquire_seconds": 1918.34687065,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "PARTNER_RESPONSE_TIMEOUT": 333.0
+        }
+      }
+    },
+    {
+      "name": "1-PESSIMISTIC-hot",
+      "strategy": "PESSIMISTIC",
+      "workload": "hot",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 245.52820335500007,
+      "settlement_seconds": 564.139939186,
+      "settled_rps": 21.271317923908832,
+      "initial_http": {
+        "500": 3754,
+        "202": 4806,
+        "200": 80,
+        "409": 3360
+      },
+      "initial_pending_causes": {
+        "CannotCreateTransactionException": 996,
+        "DB_LOCK_WAIT_TIMEOUT": 2401,
+        "CannotGetJdbcConnectionException": 730,
+        "PARTNER_FULL": 679
+      },
+      "terminal_states": {
+        "CANCELLED": 11880,
+        "COMPLETED": 120
+      },
+      "partner_states": {
+        "CANCELLED": 11880,
+        "CONFIRMED": 120
+      },
+      "client_retries": 19177,
+      "attempts": 24460,
+      "completed_p95_ms": 246870.80597877502,
+      "completed_p99_ms": 540818.0429935455,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 38946.0,
+        "partner_seconds": 1089.885658305,
+        "partner_actions": {
+          "status": 12655.0,
+          "reserve": 11300.0,
+          "confirm": 120.0,
+          "cancel": 14871.0
+        },
+        "db_usage_seconds": 21230.162999999997,
+        "db_acquire_seconds": 46989.350145665005,
+        "db_pool_timeouts": 17114.0,
+        "retry_causes": {
+          "TransactionTimedOutException": 1.0,
+          "PARTNER_RESPONSE_TIMEOUT": 195.0,
+          "CannotGetJdbcConnectionException": 4807.0,
+          "CannotCreateTransactionException": 2329.0,
+          "DB_LOCK_WAIT_TIMEOUT": 5128.0
+        }
+      }
+    },
+    {
+      "name": "1-REDIS-distributed",
+      "strategy": "REDIS",
+      "workload": "distributed",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 49.68701964699994,
+      "settlement_seconds": 52.47479693000014,
+      "settled_rps": 228.68120892411747,
+      "initial_http": {
+        "200": 5845,
+        "202": 287,
+        "409": 5868
+      },
+      "initial_pending_causes": {
+        "CLAIMED": 4,
+        "PARTNER_RESPONSE_TIMEOUT": 212,
+        "PARTNER_FULL": 16,
+        "COURSE_FULL": 55
+      },
+      "terminal_states": {
+        "CANCELLED": 6000,
+        "COMPLETED": 6000
+      },
+      "partner_states": {
+        "CANCELLED": 6000,
+        "CONFIRMED": 6000
+      },
+      "client_retries": 166,
+      "attempts": 12285,
+      "completed_p95_ms": 1681.4606189727783,
+      "completed_p99_ms": 16915.446996688843,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 34398.0,
+        "partner_seconds": 2119.88922754,
+        "partner_actions": {
+          "status": 14264.0,
+          "reserve": 8063.0,
+          "confirm": 6000.0,
+          "cancel": 6071.0
+        },
+        "db_usage_seconds": 671.376,
+        "db_acquire_seconds": 34.182545922,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "PARTNER_RESPONSE_TIMEOUT": 285.0
+        }
+      }
+    },
+    {
+      "name": "1-REDIS-hot",
+      "strategy": "REDIS",
+      "workload": "hot",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 419.86046826999996,
+      "settlement_seconds": 432.588023907,
+      "settled_rps": 27.740018994561492,
+      "initial_http": {
+        "200": 119,
+        "202": 3154,
+        "409": 8727
+      },
+      "initial_pending_causes": {
+        "LOCAL_ADMISSION_TIMEOUT": 69,
+        "REDIS_LOCK_TIMEOUT": 2572,
+        "PARTNER_RESPONSE_TIMEOUT": 241,
+        "PARTNER_CONNECT_TIMEOUT": 3,
+        "REQUEST_DEADLINE": 17,
+        "PARTNER_FULL": 252
+      },
+      "terminal_states": {
+        "CANCELLED": 11880,
+        "COMPLETED": 120
+      },
+      "partner_states": {
+        "CANCELLED": 11880,
+        "CONFIRMED": 120
+      },
+      "client_retries": 3299,
+      "attempts": 15514,
+      "completed_p95_ms": 5070.311069488525,
+      "completed_p99_ms": 5393.070936203003,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 31587.0,
+        "partner_seconds": 1090.184043734,
+        "partner_actions": {
+          "status": 9621.0,
+          "reserve": 9398.0,
+          "confirm": 120.0,
+          "cancel": 12448.0
+        },
+        "db_usage_seconds": 75.589,
+        "db_acquire_seconds": 20.669847998,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "REDIS_LOCK_TIMEOUT": 2611.0,
+          "LOCAL_ADMISSION_TIMEOUT": 73.0,
+          "REQUEST_DEADLINE": 56.0,
+          "PARTNER_CONNECT_TIMEOUT": 5.0,
+          "PARTNER_RESPONSE_TIMEOUT": 769.0
+        }
+      }
+    },
+    {
+      "name": "2-OPTIMISTIC-distributed",
+      "strategy": "OPTIMISTIC",
+      "workload": "distributed",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 82.63425794300001,
+      "settlement_seconds": 98.04019482,
+      "settled_rps": 122.39877758333488,
+      "initial_http": {
+        "202": 1389,
+        "200": 4931,
+        "409": 5680
+      },
+      "initial_pending_causes": {
+        "VERSION_CONFLICT": 1004,
+        "CLAIMED": 2,
+        "CannotCreateTransactionException": 4,
+        "CannotGetJdbcConnectionException": 2,
+        "PARTNER_RESPONSE_TIMEOUT": 269,
+        "PARTNER_FULL": 108
+      },
+      "terminal_states": {
+        "CANCELLED": 6000,
+        "COMPLETED": 6000
+      },
+      "partner_states": {
+        "CANCELLED": 6000,
+        "CONFIRMED": 6000
+      },
+      "client_retries": 1469,
+      "attempts": 13745,
+      "completed_p95_ms": 60598.57749938965,
+      "completed_p99_ms": 72786.03887557983,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 43735.0,
+        "partner_seconds": 3127.977052957,
+        "partner_actions": {
+          "status": 19625.0,
+          "reserve": 11999.0,
+          "confirm": 6000.0,
+          "cancel": 6111.0
+        },
+        "db_usage_seconds": 3146.984,
+        "db_acquire_seconds": 4147.070328645999,
+        "db_pool_timeouts": 8.0,
+        "retry_causes": {
+          "VERSION_CONFLICT": 1321.0,
+          "PARTNER_RESPONSE_TIMEOUT": 416.0,
+          "CannotGetJdbcConnectionException": 4.0,
+          "CannotCreateTransactionException": 4.0
+        }
+      }
+    },
+    {
+      "name": "2-OPTIMISTIC-hot",
+      "strategy": "OPTIMISTIC",
+      "workload": "hot",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 70.966271648,
+      "settlement_seconds": 76.30090726899996,
+      "settled_rps": 157.27204864935385,
+      "initial_http": {
+        "202": 457,
+        "409": 11538,
+        "200": 4,
+        "500": 1
+      },
+      "initial_pending_causes": {
+        "VERSION_CONFLICT": 116,
+        "CannotCreateTransactionException": 2,
+        "CLAIMED": 1,
+        "PARTNER_RESPONSE_TIMEOUT": 167,
+        "PARTNER_FULL": 74,
+        "COURSE_FULL": 97
+      },
+      "terminal_states": {
+        "CANCELLED": 11880,
+        "COMPLETED": 120
+      },
+      "partner_states": {
+        "CANCELLED": 11880,
+        "CONFIRMED": 120
+      },
+      "client_retries": 261,
+      "attempts": 12477,
+      "completed_p95_ms": 49826.7776966095,
+      "completed_p99_ms": 57145.83516120911,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 31808.0,
+        "partner_seconds": 2421.235125273,
+        "partner_actions": {
+          "status": 9993.0,
+          "reserve": 9641.0,
+          "confirm": 120.0,
+          "cancel": 12054.0
+        },
+        "db_usage_seconds": 2423.855,
+        "db_acquire_seconds": 3005.5858000830003,
+        "db_pool_timeouts": 3.0,
+        "retry_causes": {
+          "VERSION_CONFLICT": 131.0,
+          "PARTNER_RESPONSE_TIMEOUT": 344.0,
+          "CannotCreateTransactionException": 2.0
+        }
+      }
+    },
+    {
+      "name": "2-PESSIMISTIC-distributed",
+      "strategy": "PESSIMISTIC",
+      "workload": "distributed",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 68.04070050500002,
+      "settlement_seconds": 70.89432930800001,
+      "settled_rps": 169.26600642296887,
+      "initial_http": {
+        "200": 5947,
+        "202": 334,
+        "500": 1,
+        "409": 5718
+      },
+      "initial_pending_causes": {
+        "CannotCreateTransactionException": 9,
+        "CLAIMED": 14,
+        "PARTNER_RESPONSE_TIMEOUT": 30,
+        "COURSE_FULL": 281
+      },
+      "terminal_states": {
+        "COMPLETED": 6000,
+        "CANCELLED": 6000
+      },
+      "partner_states": {
+        "CONFIRMED": 6000,
+        "CANCELLED": 6000
+      },
+      "client_retries": 191,
+      "attempts": 12323,
+      "completed_p95_ms": 1642.7927017211914,
+      "completed_p99_ms": 2623.2359409332275,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 30370.0,
+        "partner_seconds": 2234.748157487,
+        "partner_actions": {
+          "status": 12059.0,
+          "reserve": 6028.0,
+          "confirm": 6000.0,
+          "cancel": 6283.0
+        },
+        "db_usage_seconds": 2005.544,
+        "db_acquire_seconds": 1887.284126642,
+        "db_pool_timeouts": 10.0,
+        "retry_causes": {
+          "PARTNER_RESPONSE_TIMEOUT": 314.0,
+          "CannotCreateTransactionException": 9.0
+        }
+      }
+    },
+    {
+      "name": "2-PESSIMISTIC-hot",
+      "strategy": "PESSIMISTIC",
+      "workload": "hot",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 241.99047299400002,
+      "settlement_seconds": 275.4504806819999,
+      "settled_rps": 43.56499930691235,
+      "initial_http": {
+        "200": 76,
+        "202": 4625,
+        "500": 4171,
+        "409": 3128
+      },
+      "initial_pending_causes": {
+        "CannotGetJdbcConnectionException": 751,
+        "DB_LOCK_WAIT_TIMEOUT": 1955,
+        "CannotCreateTransactionException": 1242,
+        "TransactionTimedOutException": 1,
+        "PARTNER_FULL": 676
+      },
+      "terminal_states": {
+        "CANCELLED": 11880,
+        "COMPLETED": 120
+      },
+      "partner_states": {
+        "CANCELLED": 11880,
+        "CONFIRMED": 120
+      },
+      "client_retries": 9494,
+      "attempts": 18795,
+      "completed_p95_ms": 242905.99656105042,
+      "completed_p99_ms": 244982.67102241516,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 24387.0,
+        "partner_seconds": 1713.393906353,
+        "partner_actions": {
+          "status": 5368.0,
+          "reserve": 5219.0,
+          "confirm": 120.0,
+          "cancel": 13680.0
+        },
+        "db_usage_seconds": 10208.598,
+        "db_acquire_seconds": 21799.616557416,
+        "db_pool_timeouts": 8089.0,
+        "retry_causes": {
+          "TransactionTimedOutException": 1.0,
+          "PARTNER_RESPONSE_TIMEOUT": 845.0,
+          "CannotGetJdbcConnectionException": 2045.0,
+          "CannotCreateTransactionException": 1705.0,
+          "DB_LOCK_WAIT_TIMEOUT": 2199.0
+        }
+      }
+    },
+    {
+      "name": "2-REDIS-distributed",
+      "strategy": "REDIS",
+      "workload": "distributed",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 70.82051229399997,
+      "settlement_seconds": 76.018806042,
+      "settled_rps": 157.85567578330634,
+      "initial_http": {
+        "200": 5943,
+        "202": 370,
+        "409": 5687
+      },
+      "initial_pending_causes": {
+        "REDIS_UNAVAILABLE": 1,
+        "CLAIMED": 18,
+        "PARTNER_RESPONSE_TIMEOUT": 43,
+        "COURSE_FULL": 306,
+        "PARTNER_FULL": 2
+      },
+      "terminal_states": {
+        "COMPLETED": 6000,
+        "CANCELLED": 6000
+      },
+      "partner_states": {
+        "CONFIRMED": 6000,
+        "CANCELLED": 6000
+      },
+      "client_retries": 244,
+      "attempts": 12358,
+      "completed_p95_ms": 2447.6723670959473,
+      "completed_p99_ms": 3448.7128257751465,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 30401.0,
+        "partner_seconds": 2344.1932389969998,
+        "partner_actions": {
+          "status": 12066.0,
+          "reserve": 6022.0,
+          "confirm": 6000.0,
+          "cancel": 6313.0
+        },
+        "db_usage_seconds": 1282.4560000000001,
+        "db_acquire_seconds": 118.173131673,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "PARTNER_RESPONSE_TIMEOUT": 357.0,
+          "REDIS_UNAVAILABLE": 1.0
+        }
+      }
+    },
+    {
+      "name": "2-REDIS-hot",
+      "strategy": "REDIS",
+      "workload": "hot",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 81.38530973599995,
+      "settlement_seconds": 87.32252026699996,
+      "settled_rps": 137.4215948338234,
+      "initial_http": {
+        "200": 117,
+        "202": 843,
+        "409": 11040
+      },
+      "initial_pending_causes": {
+        "REDIS_LOCK_TIMEOUT": 299,
+        "LOCAL_ADMISSION_TIMEOUT": 74,
+        "PARTNER_CONNECT_TIMEOUT": 2,
+        "PARTNER_RESPONSE_TIMEOUT": 30,
+        "REQUEST_DEADLINE": 6,
+        "PARTNER_FULL": 38,
+        "COURSE_FULL": 394
+      },
+      "terminal_states": {
+        "CANCELLED": 11880,
+        "COMPLETED": 120
+      },
+      "partner_states": {
+        "CANCELLED": 11880,
+        "CONFIRMED": 120
+      },
+      "client_retries": 664,
+      "attempts": 12861,
+      "completed_p95_ms": 5267.531633377075,
+      "completed_p99_ms": 52097.917556762695,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 14701.0,
+        "partner_seconds": 1235.1120625039998,
+        "partner_actions": {
+          "status": 1198.0,
+          "reserve": 1055.0,
+          "confirm": 121.0,
+          "cancel": 12327.0
+        },
+        "db_usage_seconds": 548.7099999999999,
+        "db_acquire_seconds": 142.011601236,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "REDIS_LOCK_TIMEOUT": 302.0,
+          "LOCAL_ADMISSION_TIMEOUT": 74.0,
+          "REQUEST_DEADLINE": 10.0,
+          "PARTNER_CONNECT_TIMEOUT": 2.0,
+          "PARTNER_RESPONSE_TIMEOUT": 473.0
+        }
+      }
+    },
+    {
+      "name": "3-OPTIMISTIC-distributed",
+      "strategy": "OPTIMISTIC",
+      "workload": "distributed",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 80.18431637999993,
+      "settlement_seconds": 97.45603161099996,
+      "settled_rps": 123.13245062038365,
+      "initial_http": {
+        "202": 1327,
+        "200": 4994,
+        "409": 5679
+      },
+      "initial_pending_causes": {
+        "VERSION_CONFLICT": 986,
+        "CLAIMED": 2,
+        "PARTNER_RESPONSE_TIMEOUT": 233,
+        "PARTNER_FULL": 106
+      },
+      "terminal_states": {
+        "CANCELLED": 6000,
+        "COMPLETED": 6000
+      },
+      "partner_states": {
+        "CANCELLED": 6000,
+        "CONFIRMED": 6000
+      },
+      "client_retries": 1424,
+      "attempts": 13691,
+      "completed_p95_ms": 60776.42273902893,
+      "completed_p99_ms": 71056.6554069519,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 43684.0,
+        "partner_seconds": 3066.199680183,
+        "partner_actions": {
+          "status": 19567.0,
+          "reserve": 11998.0,
+          "confirm": 6000.0,
+          "cancel": 6119.0
+        },
+        "db_usage_seconds": 3058.7160000000003,
+        "db_acquire_seconds": 3932.164021179,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "VERSION_CONFLICT": 1300.0,
+          "PARTNER_RESPONSE_TIMEOUT": 391.0
+        }
+      }
+    },
+    {
+      "name": "3-OPTIMISTIC-hot",
+      "strategy": "OPTIMISTIC",
+      "workload": "hot",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 59.79221894800003,
+      "settlement_seconds": 62.309976957,
+      "settled_rps": 192.5855310182698,
+      "initial_http": {
+        "202": 272,
+        "409": 11724,
+        "200": 4
+      },
+      "initial_pending_causes": {
+        "VERSION_CONFLICT": 116,
+        "CLAIMED": 2,
+        "PARTNER_RESPONSE_TIMEOUT": 26,
+        "PARTNER_FULL": 18,
+        "COURSE_FULL": 110
+      },
+      "terminal_states": {
+        "CANCELLED": 11880,
+        "COMPLETED": 120
+      },
+      "partner_states": {
+        "CANCELLED": 11880,
+        "CONFIRMED": 120
+      },
+      "client_retries": 58,
+      "attempts": 12275,
+      "completed_p95_ms": 39627.13170051575,
+      "completed_p99_ms": 43796.0422039032,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 25186.0,
+        "partner_seconds": 1732.362360593,
+        "partner_actions": {
+          "status": 6657.0,
+          "reserve": 6401.0,
+          "confirm": 120.0,
+          "cancel": 12008.0
+        },
+        "db_usage_seconds": 1771.792,
+        "db_acquire_seconds": 1863.44747445,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "VERSION_CONFLICT": 120.0,
+          "PARTNER_RESPONSE_TIMEOUT": 155.0
+        }
+      }
+    },
+    {
+      "name": "3-PESSIMISTIC-distributed",
+      "strategy": "PESSIMISTIC",
+      "workload": "distributed",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 64.39433217200008,
+      "settlement_seconds": 69.45926583100004,
+      "settled_rps": 172.76312751702505,
+      "initial_http": {
+        "200": 5947,
+        "202": 262,
+        "500": 8,
+        "409": 5783
+      },
+      "initial_pending_causes": {
+        "CannotCreateTransactionException": 3,
+        "CannotGetJdbcConnectionException": 3,
+        "CLAIMED": 16,
+        "PARTNER_RESPONSE_TIMEOUT": 38,
+        "COURSE_FULL": 202
+      },
+      "terminal_states": {
+        "COMPLETED": 6000,
+        "CANCELLED": 6000
+      },
+      "partner_states": {
+        "CONFIRMED": 6000,
+        "CANCELLED": 6000
+      },
+      "client_retries": 141,
+      "attempts": 12250,
+      "completed_p95_ms": 1577.8717994689941,
+      "completed_p99_ms": 2463.0393981933594,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 30372.0,
+        "partner_seconds": 2166.5470488850005,
+        "partner_actions": {
+          "status": 12103.0,
+          "reserve": 6064.0,
+          "confirm": 6000.0,
+          "cancel": 6205.0
+        },
+        "db_usage_seconds": 1991.977,
+        "db_acquire_seconds": 2144.157679899,
+        "db_pool_timeouts": 14.0,
+        "retry_causes": {
+          "PARTNER_RESPONSE_TIMEOUT": 244.0,
+          "CannotGetJdbcConnectionException": 3.0,
+          "CannotCreateTransactionException": 3.0
+        }
+      }
+    },
+    {
+      "name": "3-PESSIMISTIC-hot",
+      "strategy": "PESSIMISTIC",
+      "workload": "hot",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 83.82950551199997,
+      "settlement_seconds": 94.99436666199995,
+      "settled_rps": 126.32328022878741,
+      "initial_http": {
+        "202": 1733,
+        "200": 85,
+        "500": 969,
+        "409": 9213
+      },
+      "initial_pending_causes": {
+        "CannotCreateTransactionException": 307,
+        "CannotGetJdbcConnectionException": 218,
+        "DB_LOCK_WAIT_TIMEOUT": 495,
+        "PARTNER_FULL": 140,
+        "COURSE_FULL": 573
+      },
+      "terminal_states": {
+        "CANCELLED": 11880,
+        "COMPLETED": 120
+      },
+      "partner_states": {
+        "CANCELLED": 11880,
+        "CONFIRMED": 120
+      },
+      "client_retries": 2709,
+      "attempts": 14179,
+      "completed_p95_ms": 87375.5259513855,
+      "completed_p99_ms": 91459.6118927002,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 15517.0,
+        "partner_seconds": 1560.692821361,
+        "partner_actions": {
+          "status": 1358.0,
+          "reserve": 1219.0,
+          "confirm": 120.0,
+          "cancel": 12820.0
+        },
+        "db_usage_seconds": 2886.765,
+        "db_acquire_seconds": 5355.314657389,
+        "db_pool_timeouts": 1878.0,
+        "retry_causes": {
+          "TransactionTimedOutException": 1.0,
+          "PARTNER_RESPONSE_TIMEOUT": 753.0,
+          "CannotGetJdbcConnectionException": 484.0,
+          "CannotCreateTransactionException": 388.0,
+          "DB_LOCK_WAIT_TIMEOUT": 553.0
+        }
+      }
+    },
+    {
+      "name": "3-REDIS-distributed",
+      "strategy": "REDIS",
+      "workload": "distributed",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 68.507307699,
+      "settlement_seconds": 73.69757593099999,
+      "settled_rps": 162.8276079424255,
+      "initial_http": {
+        "200": 5915,
+        "202": 350,
+        "409": 5735
+      },
+      "initial_pending_causes": {
+        "CLAIMED": 15,
+        "PARTNER_RESPONSE_TIMEOUT": 73,
+        "PARTNER_CONNECT_TIMEOUT": 2,
+        "PARTNER_FULL": 3,
+        "COURSE_FULL": 257
+      },
+      "terminal_states": {
+        "CANCELLED": 6000,
+        "COMPLETED": 6000
+      },
+      "partner_states": {
+        "CANCELLED": 6000,
+        "CONFIRMED": 6000
+      },
+      "client_retries": 204,
+      "attempts": 12343,
+      "completed_p95_ms": 1791.3854122161865,
+      "completed_p99_ms": 4562.189340591431,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 30779.0,
+        "partner_seconds": 2382.76269815,
+        "partner_actions": {
+          "status": 12293.0,
+          "reserve": 6218.0,
+          "confirm": 6000.0,
+          "cancel": 6268.0
+        },
+        "db_usage_seconds": 1283.7130000000002,
+        "db_acquire_seconds": 156.722137157,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "PARTNER_CONNECT_TIMEOUT": 2.0,
+          "PARTNER_RESPONSE_TIMEOUT": 341.0
+        }
+      }
+    },
+    {
+      "name": "3-REDIS-hot",
+      "strategy": "REDIS",
+      "workload": "hot",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 205.88047416400002,
+      "settlement_seconds": 215.06018836399994,
+      "settled_rps": 55.7983329749968,
+      "initial_http": {
+        "200": 115,
+        "202": 1917,
+        "409": 9968
+      },
+      "initial_pending_causes": {
+        "LOCAL_ADMISSION_TIMEOUT": 70,
+        "REDIS_LOCK_TIMEOUT": 1105,
+        "REQUEST_DEADLINE": 12,
+        "CLAIMED": 1,
+        "PARTNER_RESPONSE_TIMEOUT": 117,
+        "PARTNER_FULL": 107,
+        "PARTNER_CONNECT_TIMEOUT": 2,
+        "COURSE_FULL": 503
+      },
+      "terminal_states": {
+        "CANCELLED": 11880,
+        "COMPLETED": 120
+      },
+      "partner_states": {
+        "CANCELLED": 11880,
+        "CONFIRMED": 120
+      },
+      "client_retries": 1847,
+      "attempts": 14042,
+      "completed_p95_ms": 5366.934299468994,
+      "completed_p99_ms": 34242.68651008606,
+      "invariants": "PASS",
+      "metrics": {
+        "partner_calls": 21142.0,
+        "partner_seconds": 1416.433445249,
+        "partner_actions": {
+          "status": 4311.0,
+          "reserve": 4116.0,
+          "confirm": 120.0,
+          "cancel": 12595.0
+        },
+        "db_usage_seconds": 466.61899999999997,
+        "db_acquire_seconds": 215.18979569200002,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "REDIS_LOCK_TIMEOUT": 1121.0,
+          "LOCAL_ADMISSION_TIMEOUT": 71.0,
+          "REQUEST_DEADLINE": 44.0,
+          "PARTNER_CONNECT_TIMEOUT": 5.0,
+          "PARTNER_RESPONSE_TIMEOUT": 801.0
+        }
+      }
+    }
+  ],
+  "aggregates": [
+    {
+      "strategy": "PESSIMISTIC",
+      "workload": "distributed",
+      "requests": 36000,
+      "created": 18000,
+      "initial_http": {
+        "200": 17829,
+        "202": 930,
+        "409": 17232,
+        "500": 9
+      },
+      "mean_settlement_seconds": 66.99576619633335,
+      "mean_settled_rps": 179.9796219802345,
+      "pooled_settled_rps": 179.11579613603638,
+      "completed_p95_ms": 1561.6798400878906,
+      "completed_p99_ms": 2568.1707859039307,
+      "client_retries": 535,
+      "attempts": 36906,
+      "partner_actions": {
+        "status": 36308.0,
+        "reserve": 18170.0,
+        "confirm": 18000.0,
+        "cancel": 18752.0
+      },
+      "retry_causes": {
+        "PARTNER_RESPONSE_TIMEOUT": 891.0,
+        "CannotCreateTransactionException": 12.0,
+        "CannotGetJdbcConnectionException": 3.0
+      },
+      "partner_calls": 91230.0,
+      "partner_seconds": 6606.795192168,
+      "db_usage_seconds": 5779.923,
+      "db_acquire_seconds": 5949.788677191,
+      "db_pool_timeouts": 24.0
+    },
+    {
+      "strategy": "OPTIMISTIC",
+      "workload": "distributed",
+      "requests": 36000,
+      "created": 18000,
+      "initial_http": {
+        "200": 14742,
+        "202": 4155,
+        "409": 17103
+      },
+      "mean_settlement_seconds": 89.85173394666663,
+      "mean_settled_rps": 135.85475190543298,
+      "pooled_settled_rps": 133.55334919994812,
+      "completed_p95_ms": 54999.28379058838,
+      "completed_p99_ms": 69214.65182304382,
+      "client_retries": 4583,
+      "attempts": 41360,
+      "partner_actions": {
+        "status": 59050.0,
+        "reserve": 35997.0,
+        "confirm": 18000.0,
+        "cancel": 18296.0
+      },
+      "retry_causes": {
+        "VERSION_CONFLICT": 4134.0,
+        "PARTNER_RESPONSE_TIMEOUT": 1218.0,
+        "CannotGetJdbcConnectionException": 4.0,
+        "CannotCreateTransactionException": 4.0
+      },
+      "partner_calls": 131343.0,
+      "partner_seconds": 8958.037831415,
+      "db_usage_seconds": 8496.639,
+      "db_acquire_seconds": 11326.964669383999,
+      "db_pool_timeouts": 8.0
+    },
+    {
+      "strategy": "REDIS",
+      "workload": "distributed",
+      "requests": 36000,
+      "created": 18000,
+      "initial_http": {
+        "200": 17703,
+        "202": 1007,
+        "409": 17290
+      },
+      "mean_settlement_seconds": 67.39705963433337,
+      "mean_settled_rps": 183.1214975499498,
+      "pooled_settled_rps": 178.0493105353066,
+      "completed_p95_ms": 2078.0177116394043,
+      "completed_p99_ms": 6069.6539878845215,
+      "client_retries": 614,
+      "attempts": 36986,
+      "partner_actions": {
+        "status": 38623.0,
+        "reserve": 20303.0,
+        "confirm": 18000.0,
+        "cancel": 18652.0
+      },
+      "retry_causes": {
+        "PARTNER_RESPONSE_TIMEOUT": 983.0,
+        "REDIS_UNAVAILABLE": 1.0,
+        "PARTNER_CONNECT_TIMEOUT": 2.0
+      },
+      "partner_calls": 95578.0,
+      "partner_seconds": 6846.845164687,
+      "db_usage_seconds": 3237.545,
+      "db_acquire_seconds": 309.077814752,
+      "db_pool_timeouts": 0.0
+    },
+    {
+      "strategy": "PESSIMISTIC",
+      "workload": "hot",
+      "requests": 36000,
+      "created": 360,
+      "initial_http": {
+        "500": 8894,
+        "202": 11164,
+        "200": 241,
+        "409": 15701
+      },
+      "mean_settlement_seconds": 311.5282621766666,
+      "mean_settled_rps": 63.71986581986953,
+      "pooled_settled_rps": 38.519779605725915,
+      "completed_p95_ms": 244982.67102241516,
+      "completed_p99_ms": 489742.3117160797,
+      "client_retries": 31380,
+      "attempts": 57434,
+      "partner_actions": {
+        "status": 19381.0,
+        "reserve": 17738.0,
+        "confirm": 360.0,
+        "cancel": 41371.0
+      },
+      "retry_causes": {
+        "TransactionTimedOutException": 3.0,
+        "PARTNER_RESPONSE_TIMEOUT": 1793.0,
+        "CannotGetJdbcConnectionException": 7336.0,
+        "CannotCreateTransactionException": 4422.0,
+        "DB_LOCK_WAIT_TIMEOUT": 7880.0
+      },
+      "partner_calls": 78850.0,
+      "partner_seconds": 4363.972386019,
+      "db_usage_seconds": 34325.526,
+      "db_acquire_seconds": 74144.28136047,
+      "db_pool_timeouts": 27081.0
+    },
+    {
+      "strategy": "OPTIMISTIC",
+      "workload": "hot",
+      "requests": 36000,
+      "created": 360,
+      "initial_http": {
+        "202": 1199,
+        "409": 34787,
+        "200": 12,
+        "500": 2
+      },
+      "mean_settlement_seconds": 65.96024506733333,
+      "mean_settled_rps": 184.10713075117962,
+      "pooled_settled_rps": 181.92776554650754,
+      "completed_p95_ms": 47507.50017166138,
+      "completed_p99_ms": 54991.596937179565,
+      "client_retries": 641,
+      "attempts": 37247,
+      "partner_actions": {
+        "status": 29123.0,
+        "reserve": 28042.0,
+        "confirm": 360.0,
+        "cancel": 36084.0
+      },
+      "retry_causes": {
+        "VERSION_CONFLICT": 379.0,
+        "PARTNER_RESPONSE_TIMEOUT": 866.0,
+        "CannotCreateTransactionException": 2.0
+      },
+      "partner_calls": 93609.0,
+      "partner_seconds": 6418.21701542,
+      "db_usage_seconds": 6152.522,
+      "db_acquire_seconds": 8021.535245295,
+      "db_pool_timeouts": 4.0
+    },
+    {
+      "strategy": "REDIS",
+      "workload": "hot",
+      "requests": 36000,
+      "created": 360,
+      "initial_http": {
+        "200": 351,
+        "202": 5914,
+        "409": 29735
+      },
+      "mean_settlement_seconds": 244.9902441793333,
+      "mean_settled_rps": 73.65331560112723,
+      "pooled_settled_rps": 48.98154226588704,
+      "completed_p95_ms": 5230.9722900390625,
+      "completed_p99_ms": 52097.917556762695,
+      "client_retries": 5810,
+      "attempts": 42417,
+      "partner_actions": {
+        "status": 15130.0,
+        "reserve": 14569.0,
+        "confirm": 361.0,
+        "cancel": 37370.0
+      },
+      "retry_causes": {
+        "REDIS_LOCK_TIMEOUT": 4034.0,
+        "LOCAL_ADMISSION_TIMEOUT": 218.0,
+        "REQUEST_DEADLINE": 110.0,
+        "PARTNER_CONNECT_TIMEOUT": 12.0,
+        "PARTNER_RESPONSE_TIMEOUT": 2043.0
+      },
+      "partner_calls": 67430.0,
+      "partner_seconds": 3741.7295514869998,
+      "db_usage_seconds": 1090.918,
+      "db_acquire_seconds": 377.87124492600003,
+      "db_pool_timeouts": 0.0
+    }
+  ]
+}

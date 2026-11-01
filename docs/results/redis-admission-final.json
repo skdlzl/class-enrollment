@@ -1,0 +1,381 @@
+{
+  "tested_commit": "758f3fde8675b4ca515236f1c48aac9d95a1ff6c",
+  "run_id": 41282025479,
+  "trials": [
+    {
+      "name": "1-REDIS-distributed",
+      "strategy": "REDIS",
+      "workload": "distributed",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 76.362476953,
+      "settlement_seconds": 76.53797084799999,
+      "settled_rps": 156.78492475102732,
+      "initial_http": {
+        "202": 8114,
+        "200": 32,
+        "409": 3854
+      },
+      "initial_pending_causes": {
+        "CLAIMED": 8110,
+        "PARTNER_RESPONSE_TIMEOUT": 1,
+        "DB_DEADLOCK": 3
+      },
+      "terminal_states": {
+        "CANCELLED": 6000,
+        "COMPLETED": 6000
+      },
+      "partner_states": {
+        "ABSENT": 6000,
+        "CONFIRMED": 6000
+      },
+      "client_retries": 0,
+      "attempts": 17856,
+      "completed_p95_ms": 18798.802137374878,
+      "completed_p99_ms": 20598.57726097107,
+      "invariants": "PASS",
+      "metrics": {
+        "queue_deferrals": 8468.0,
+        "partner_calls": 12142.0,
+        "partner_seconds": 1032.55722206,
+        "partner_actions": {
+          "status": 123.0,
+          "reserve": 6007.0,
+          "confirm": 6012.0,
+          "cancel": 0
+        },
+        "db_usage_seconds": 1878.356,
+        "db_acquire_seconds": 1076.461150009,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "PARTNER_RESPONSE_TIMEOUT": 119.0,
+          "REDIS_UNAVAILABLE": 13.0,
+          "DB_DEADLOCK": 3.0
+        }
+      }
+    },
+    {
+      "name": "1-REDIS-hot",
+      "strategy": "REDIS",
+      "workload": "hot",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 32.082869953,
+      "settlement_seconds": 32.23088445100001,
+      "settled_rps": 372.3137048331196,
+      "initial_http": {
+        "202": 2354,
+        "409": 9646
+      },
+      "initial_pending_causes": {
+        "CLAIMED": 2340,
+        "DB_DEADLOCK": 14
+      },
+      "terminal_states": {
+        "CANCELLED": 11880,
+        "COMPLETED": 120
+      },
+      "partner_states": {
+        "ABSENT": 11880,
+        "CONFIRMED": 120
+      },
+      "client_retries": 0,
+      "attempts": 10460,
+      "completed_p95_ms": 14910.427331924438,
+      "completed_p99_ms": 15289.420127868652,
+      "invariants": "PASS",
+      "metrics": {
+        "queue_deferrals": 2409.0,
+        "partner_calls": 240.0,
+        "partner_seconds": 7.983679806,
+        "partner_actions": {
+          "status": 0,
+          "reserve": 120.0,
+          "confirm": 120.0,
+          "cancel": 0
+        },
+        "db_usage_seconds": 516.494,
+        "db_acquire_seconds": 370.679952479,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "DB_DEADLOCK": 14.0
+        }
+      }
+    },
+    {
+      "name": "2-REDIS-distributed",
+      "strategy": "REDIS",
+      "workload": "distributed",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 78.757370063,
+      "settlement_seconds": 78.90760665699997,
+      "settled_rps": 152.07659322582518,
+      "initial_http": {
+        "202": 8335,
+        "200": 19,
+        "409": 3646
+      },
+      "initial_pending_causes": {
+        "CLAIMED": 8322,
+        "REDIS_UNAVAILABLE": 1,
+        "PARTNER_RESPONSE_TIMEOUT": 3,
+        "DB_DEADLOCK": 9
+      },
+      "terminal_states": {
+        "CANCELLED": 6000,
+        "COMPLETED": 6000
+      },
+      "partner_states": {
+        "ABSENT": 6000,
+        "CONFIRMED": 6000
+      },
+      "client_retries": 0,
+      "attempts": 17956,
+      "completed_p95_ms": 20473.3247756958,
+      "completed_p99_ms": 22543.97964477539,
+      "invariants": "PASS",
+      "metrics": {
+        "queue_deferrals": 8693.0,
+        "partner_calls": 12161.0,
+        "partner_seconds": 1044.265732393,
+        "partner_actions": {
+          "status": 148.0,
+          "reserve": 6006.0,
+          "confirm": 6007.0,
+          "cancel": 0
+        },
+        "db_usage_seconds": 1875.1309999999999,
+        "db_acquire_seconds": 867.510500756,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "PARTNER_RESPONSE_TIMEOUT": 126.0,
+          "REDIS_UNAVAILABLE": 29.0,
+          "DB_DEADLOCK": 10.0
+        }
+      }
+    },
+    {
+      "name": "2-REDIS-hot",
+      "strategy": "REDIS",
+      "workload": "hot",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 33.873276988999976,
+      "settlement_seconds": 34.03767772699996,
+      "settled_rps": 352.5504911423834,
+      "initial_http": {
+        "202": 2492,
+        "409": 9508
+      },
+      "initial_pending_causes": {
+        "CLAIMED": 2485,
+        "DB_DEADLOCK": 7
+      },
+      "terminal_states": {
+        "CANCELLED": 11880,
+        "COMPLETED": 120
+      },
+      "partner_states": {
+        "ABSENT": 11880,
+        "CONFIRMED": 120
+      },
+      "client_retries": 0,
+      "attempts": 10526,
+      "completed_p95_ms": 15881.2997341156,
+      "completed_p99_ms": 16247.173547744751,
+      "invariants": "PASS",
+      "metrics": {
+        "queue_deferrals": 2558.0,
+        "partner_calls": 240.0,
+        "partner_seconds": 8.214134659,
+        "partner_actions": {
+          "status": 0,
+          "reserve": 120.0,
+          "confirm": 120.0,
+          "cancel": 0
+        },
+        "db_usage_seconds": 499.81500000000005,
+        "db_acquire_seconds": 252.247132483,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "DB_DEADLOCK": 7.0
+        }
+      }
+    },
+    {
+      "name": "3-REDIS-distributed",
+      "strategy": "REDIS",
+      "workload": "distributed",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 61.495598169000004,
+      "settlement_seconds": 61.640192335999984,
+      "settled_rps": 194.67817255644073,
+      "initial_http": {
+        "202": 6834,
+        "200": 38,
+        "409": 5128
+      },
+      "initial_pending_causes": {
+        "CLAIMED": 6826,
+        "PARTNER_RESPONSE_TIMEOUT": 1,
+        "DB_DEADLOCK": 7
+      },
+      "terminal_states": {
+        "CANCELLED": 6000,
+        "COMPLETED": 6000
+      },
+      "partner_states": {
+        "ABSENT": 6000,
+        "CONFIRMED": 6000
+      },
+      "client_retries": 0,
+      "attempts": 17607,
+      "completed_p95_ms": 9105.35717010498,
+      "completed_p99_ms": 10693.284511566162,
+      "invariants": "PASS",
+      "metrics": {
+        "queue_deferrals": 7133.0,
+        "partner_calls": 12175.0,
+        "partner_seconds": 929.3430891439999,
+        "partner_actions": {
+          "status": 137.0,
+          "reserve": 6014.0,
+          "confirm": 6024.0,
+          "cancel": 0
+        },
+        "db_usage_seconds": 1568.421,
+        "db_acquire_seconds": 1036.3283003049999,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "PARTNER_RESPONSE_TIMEOUT": 137.0,
+          "DB_DEADLOCK": 8.0
+        }
+      }
+    },
+    {
+      "name": "3-REDIS-hot",
+      "strategy": "REDIS",
+      "workload": "hot",
+      "unique_requests": 12000,
+      "concurrency": 128,
+      "jvms": 2,
+      "initial_seconds": 27.435641929000013,
+      "settlement_seconds": 27.60621524000001,
+      "settled_rps": 434.6847221060787,
+      "initial_http": {
+        "202": 1995,
+        "409": 10005
+      },
+      "initial_pending_causes": {
+        "CLAIMED": 1984,
+        "DB_DEADLOCK": 11
+      },
+      "terminal_states": {
+        "CANCELLED": 11880,
+        "COMPLETED": 120
+      },
+      "partner_states": {
+        "ABSENT": 11880,
+        "CONFIRMED": 120
+      },
+      "client_retries": 0,
+      "attempts": 10459,
+      "completed_p95_ms": 12586.341142654419,
+      "completed_p99_ms": 12965.486526489258,
+      "invariants": "PASS",
+      "metrics": {
+        "queue_deferrals": 2070.0,
+        "partner_calls": 240.0,
+        "partner_seconds": 7.329940973999999,
+        "partner_actions": {
+          "status": 0,
+          "reserve": 120.0,
+          "confirm": 120.0,
+          "cancel": 0
+        },
+        "db_usage_seconds": 439.29900000000004,
+        "db_acquire_seconds": 387.167306792,
+        "db_pool_timeouts": 0.0,
+        "retry_causes": {
+          "DB_DEADLOCK": 11.0
+        }
+      }
+    }
+  ],
+  "aggregates": [
+    {
+      "strategy": "REDIS",
+      "workload": "distributed",
+      "requests": 36000,
+      "created": 18000,
+      "initial_http": {
+        "202": 23283,
+        "200": 89,
+        "409": 12628
+      },
+      "mean_settlement_seconds": 72.36192328033331,
+      "mean_settled_rps": 167.84656351109774,
+      "pooled_settled_rps": 165.8330715383485,
+      "completed_p95_ms": 18929.290771484375,
+      "completed_p99_ms": 21541.703701019287,
+      "client_retries": 0,
+      "attempts": 53419,
+      "partner_actions": {
+        "status": 408.0,
+        "reserve": 18027.0,
+        "confirm": 18043.0,
+        "cancel": 0
+      },
+      "retry_causes": {
+        "PARTNER_RESPONSE_TIMEOUT": 382.0,
+        "REDIS_UNAVAILABLE": 42.0,
+        "DB_DEADLOCK": 21.0
+      },
+      "queue_deferrals": 24294.0,
+      "partner_calls": 36478.0,
+      "partner_seconds": 3006.1660435969998,
+      "db_usage_seconds": 5321.907999999999,
+      "db_acquire_seconds": 2980.29995107,
+      "db_pool_timeouts": 0.0
+    },
+    {
+      "strategy": "REDIS",
+      "workload": "hot",
+      "requests": 36000,
+      "created": 360,
+      "initial_http": {
+        "202": 6841,
+        "409": 29159
+      },
+      "mean_settlement_seconds": 31.29159247266666,
+      "mean_settled_rps": 386.5163060271939,
+      "pooled_settled_rps": 383.48959102934924,
+      "completed_p95_ms": 15123.598337173462,
+      "completed_p99_ms": 16073.697566986084,
+      "client_retries": 0,
+      "attempts": 31445,
+      "partner_actions": {
+        "status": 0,
+        "reserve": 360.0,
+        "confirm": 360.0,
+        "cancel": 0
+      },
+      "retry_causes": {
+        "DB_DEADLOCK": 32.0
+      },
+      "queue_deferrals": 7037.0,
+      "partner_calls": 720.0,
+      "partner_seconds": 23.527755439,
+      "db_usage_seconds": 1455.6080000000002,
+      "db_acquire_seconds": 1010.094391754,
+      "db_pool_timeouts": 0.0
+    }
+  ]
+}

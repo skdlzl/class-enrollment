@@ -1,0 +1,1440 @@
+{
+  "run_id": 40736776733,
+  "commit": "fa654200c9b7b6cc02ed72f9b476e6cb4c66fcf9",
+  "trials": [
+    {
+      "name": "1-PESSIMISTIC-distributed",
+      "strategy": "PESSIMISTIC",
+      "workload": "distributed",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 30.19437045699999,
+      "rps": 397.4250768728324,
+      "created": 6000,
+      "counts": {
+        "CREATED": 6000,
+        "COURSE_FULL": 6000
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 382.98513500001263,
+          "p95_ms": 763.720506000027,
+          "p99_ms": 952.1071519999964
+        },
+        "409": {
+          "p50_ms": 144.4288149999693,
+          "p95_ms": 267.3109489999774,
+          "p99_ms": 383.02034100001947
+        },
+        "503": {
+          "p50_ms": null,
+          "p95_ms": null,
+          "p99_ms": null
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.stage:external": {
+          "count": 6000.0,
+          "total_seconds": 230.298932991,
+          "mean_ms": 38.3831554985
+        },
+        "enrollment.stage:transaction": {
+          "count": 12000.0,
+          "total_seconds": 890.689991629,
+          "mean_ms": 74.22416596908333
+        },
+        "hikaricp.connections.acquire": {
+          "count": 24000.0,
+          "total_seconds": 533.05167332,
+          "mean_ms": 22.210486388333333
+        },
+        "hikaricp.connections.timeout": {
+          "count": 0.0,
+          "total_seconds": 0,
+          "mean_ms": null
+        },
+        "hikaricp.connections.usage": {
+          "count": 24000.0,
+          "total_seconds": 797.996,
+          "mean_ms": 33.249833333333335
+        }
+      }
+    },
+    {
+      "name": "1-PESSIMISTIC-hot",
+      "strategy": "PESSIMISTIC",
+      "workload": "hot",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 28.383321907000038,
+      "rps": 422.7834937474496,
+      "created": 100,
+      "counts": {
+        "CREATED": 100,
+        "DB_CONNECTION_UNAVAILABLE": 102,
+        "COURSE_FULL": 11798
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 1620.4884910000033,
+          "p95_ms": 3013.81300700001,
+          "p99_ms": 3172.417982000013
+        },
+        "409": {
+          "p50_ms": 239.81663500001105,
+          "p95_ms": 581.0862779999866,
+          "p99_ms": 923.2987190000017
+        },
+        "503": {
+          "p50_ms": 1189.100312999983,
+          "p95_ms": 1917.4903239999708,
+          "p99_ms": 2337.987511999984
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.retries:DB_LOCK_WAIT_TIMEOUT": {
+          "count": 8.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "enrollment.stage:external": {
+          "count": 100.0,
+          "total_seconds": 2.266394874,
+          "mean_ms": 22.66394874
+        },
+        "enrollment.stage:transaction": {
+          "count": 11940.0,
+          "total_seconds": 1735.8553062830001,
+          "mean_ms": 145.38151643911223
+        },
+        "hikaricp.connections.acquire": {
+          "count": 23940.0,
+          "total_seconds": 2444.2457428989997,
+          "mean_ms": 102.09881966996656
+        },
+        "hikaricp.connections.timeout": {
+          "count": 102.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "hikaricp.connections.usage": {
+          "count": 23838.0,
+          "total_seconds": 1112.424,
+          "mean_ms": 46.665995469418576
+        }
+      }
+    },
+    {
+      "name": "1-OPTIMISTIC-distributed",
+      "strategy": "OPTIMISTIC",
+      "workload": "distributed",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 32.30663997300002,
+      "rps": 371.4406700922439,
+      "created": 6000,
+      "counts": {
+        "CREATED": 6000,
+        "DB_CONNECTION_UNAVAILABLE": 1,
+        "COURSE_FULL": 5999
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 406.4892640000153,
+          "p95_ms": 933.9431810000178,
+          "p99_ms": 1357.4899749999645
+        },
+        "409": {
+          "p50_ms": 147.77264200000673,
+          "p95_ms": 264.97479599998996,
+          "p99_ms": 366.9341159999817
+        },
+        "503": {
+          "p50_ms": 1458.0940750000195,
+          "p95_ms": 1458.0940750000195,
+          "p99_ms": 1458.0940750000195
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.retries:VERSION_CONFLICT": {
+          "count": 1582.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "enrollment.stage:external": {
+          "count": 7582.0,
+          "total_seconds": 305.802800515,
+          "mean_ms": 40.332735493933
+        },
+        "enrollment.stage:transaction": {
+          "count": 13582.0,
+          "total_seconds": 1149.873846663,
+          "mean_ms": 84.66159966595494
+        },
+        "hikaricp.connections.acquire": {
+          "count": 25582.0,
+          "total_seconds": 729.9574636210001,
+          "mean_ms": 28.53402641001486
+        },
+        "hikaricp.connections.timeout": {
+          "count": 1.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "hikaricp.connections.usage": {
+          "count": 25581.0,
+          "total_seconds": 907.2360000000001,
+          "mean_ms": 35.465228098979715
+        }
+      }
+    },
+    {
+      "name": "1-OPTIMISTIC-hot",
+      "strategy": "OPTIMISTIC",
+      "workload": "hot",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 27.148765857,
+      "rps": 442.0090424444077,
+      "created": 100,
+      "counts": {
+        "RETRY_EXHAUSTED": 365,
+        "CREATED": 100,
+        "COURSE_FULL": 11535
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 1309.9613040000122,
+          "p95_ms": 2896.7637060000015,
+          "p99_ms": 3315.357512999981
+        },
+        "409": {
+          "p50_ms": 152.11766699997042,
+          "p95_ms": 284.48696800001017,
+          "p99_ms": 595.465656999977
+        },
+        "503": {
+          "p50_ms": 2717.2046740000155,
+          "p95_ms": 3538.0777299999977,
+          "p99_ms": 3819.827470000007
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.retries:VERSION_CONFLICT": {
+          "count": 3691.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "enrollment.stage:external": {
+          "count": 3791.0,
+          "total_seconds": 108.45463790000001,
+          "mean_ms": 28.608451041941443
+        },
+        "enrollment.stage:transaction": {
+          "count": 15326.0,
+          "total_seconds": 1442.538636493,
+          "mean_ms": 94.12362237328722
+        },
+        "hikaricp.connections.acquire": {
+          "count": 27326.0,
+          "total_seconds": 883.293594044,
+          "mean_ms": 32.32429166522725
+        },
+        "hikaricp.connections.timeout": {
+          "count": 0.0,
+          "total_seconds": 0,
+          "mean_ms": null
+        },
+        "hikaricp.connections.usage": {
+          "count": 27326.0,
+          "total_seconds": 687.7230000000001,
+          "mean_ms": 25.16734977676938
+        }
+      }
+    },
+    {
+      "name": "1-REDIS-distributed",
+      "strategy": "REDIS",
+      "workload": "distributed",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 34.782777229999965,
+      "rps": 344.99832835803755,
+      "created": 6000,
+      "counts": {
+        "CREATED": 6000,
+        "COURSE_FULL": 6000
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 393.891182999937,
+          "p95_ms": 1827.2345380000843,
+          "p99_ms": 2993.1465690000323
+        },
+        "409": {
+          "p50_ms": 114.76446500000748,
+          "p95_ms": 181.82521300002463,
+          "p99_ms": 225.43999599997733
+        },
+        "503": {
+          "p50_ms": null,
+          "p95_ms": null,
+          "p99_ms": null
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.stage:external": {
+          "count": 6000.0,
+          "total_seconds": 205.215530384,
+          "mean_ms": 34.20258839733333
+        },
+        "enrollment.stage:lock_wait": {
+          "count": 12000.0,
+          "total_seconds": 1904.7927834379998,
+          "mean_ms": 158.73273195316665
+        },
+        "enrollment.stage:transaction": {
+          "count": 6000.0,
+          "total_seconds": 538.8366778689999,
+          "mean_ms": 89.80611297816665
+        },
+        "hikaricp.connections.acquire": {
+          "count": 42000.0,
+          "total_seconds": 26.922671609,
+          "mean_ms": 0.6410159906904761
+        },
+        "hikaricp.connections.timeout": {
+          "count": 0.0,
+          "total_seconds": 0,
+          "mean_ms": null
+        },
+        "hikaricp.connections.usage": {
+          "count": 42000.0,
+          "total_seconds": 573.3870000000001,
+          "mean_ms": 13.65207142857143
+        }
+      }
+    },
+    {
+      "name": "1-REDIS-hot",
+      "strategy": "REDIS",
+      "workload": "hot",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 36.71313757100006,
+      "rps": 326.8584706712421,
+      "created": 100,
+      "counts": {
+        "REDIS_LOCK_TIMEOUT": 78,
+        "CREATED": 100,
+        "COURSE_FULL": 11822
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 1879.673243999946,
+          "p95_ms": 4824.533625999948,
+          "p99_ms": 4970.420957999977
+        },
+        "409": {
+          "p50_ms": 213.34806000004392,
+          "p95_ms": 1095.3186460000097,
+          "p99_ms": 1906.8573480000168
+        },
+        "503": {
+          "p50_ms": 5174.405231000037,
+          "p95_ms": 5241.866249000054,
+          "p99_ms": 5245.344247999924
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.stage:external": {
+          "count": 100.0,
+          "total_seconds": 2.4876465199999993,
+          "mean_ms": 24.87646519999999
+        },
+        "enrollment.stage:lock_wait": {
+          "count": 12000.0,
+          "total_seconds": 4573.2135657,
+          "mean_ms": 381.101130475
+        },
+        "enrollment.stage:transaction": {
+          "count": 100.0,
+          "total_seconds": 2.444633465,
+          "mean_ms": 24.446334649999997
+        },
+        "hikaricp.connections.acquire": {
+          "count": 35944.0,
+          "total_seconds": 0.185666152,
+          "mean_ms": 0.005165428221678166
+        },
+        "hikaricp.connections.timeout": {
+          "count": 0.0,
+          "total_seconds": 0,
+          "mean_ms": null
+        },
+        "hikaricp.connections.usage": {
+          "count": 35944.0,
+          "total_seconds": 9.795,
+          "mean_ms": 0.27250723347429334
+        }
+      }
+    },
+    {
+      "name": "2-OPTIMISTIC-distributed",
+      "strategy": "OPTIMISTIC",
+      "workload": "distributed",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 25.892605015000015,
+      "rps": 463.45278866487945,
+      "created": 6000,
+      "counts": {
+        "CREATED": 6000,
+        "DB_CONNECTION_UNAVAILABLE": 1,
+        "COURSE_FULL": 5999
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 329.2410170000153,
+          "p95_ms": 819.8222659999885,
+          "p99_ms": 1165.718996999999
+        },
+        "409": {
+          "p50_ms": 116.81700399998363,
+          "p95_ms": 202.06372600000577,
+          "p99_ms": 254.19519600001195
+        },
+        "503": {
+          "p50_ms": 1915.9740000000056,
+          "p95_ms": 1915.9740000000056,
+          "p99_ms": 1915.9740000000056
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.retries:VERSION_CONFLICT": {
+          "count": 1699.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "enrollment.stage:external": {
+          "count": 7699.0,
+          "total_seconds": 267.468867144,
+          "mean_ms": 34.74072829510326
+        },
+        "enrollment.stage:transaction": {
+          "count": 13699.0,
+          "total_seconds": 1029.703892695,
+          "mean_ms": 75.16635467515877
+        },
+        "hikaricp.connections.acquire": {
+          "count": 25699.0,
+          "total_seconds": 717.2377332209999,
+          "mean_ms": 27.909168964590055
+        },
+        "hikaricp.connections.timeout": {
+          "count": 1.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "hikaricp.connections.usage": {
+          "count": 25698.0,
+          "total_seconds": 760.213,
+          "mean_ms": 29.582574519417854
+        }
+      }
+    },
+    {
+      "name": "2-OPTIMISTIC-hot",
+      "strategy": "OPTIMISTIC",
+      "workload": "hot",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 21.485424884999986,
+      "rps": 558.5181612292797,
+      "created": 100,
+      "counts": {
+        "RETRY_EXHAUSTED": 376,
+        "CREATED": 100,
+        "COURSE_FULL": 11524
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 1115.0505770000052,
+          "p95_ms": 2455.5211599999893,
+          "p99_ms": 2809.4232630000133
+        },
+        "409": {
+          "p50_ms": 113.60483700002533,
+          "p95_ms": 220.24239099999932,
+          "p99_ms": 463.89321300000574
+        },
+        "503": {
+          "p50_ms": 2357.1753880000015,
+          "p95_ms": 3076.605401999984,
+          "p99_ms": 3527.565432000017
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.retries:VERSION_CONFLICT": {
+          "count": 3713.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "enrollment.stage:external": {
+          "count": 3813.0,
+          "total_seconds": 101.570564695,
+          "mean_ms": 26.63796608838185
+        },
+        "enrollment.stage:transaction": {
+          "count": 15337.0,
+          "total_seconds": 1241.612150781,
+          "mean_ms": 80.95534659848732
+        },
+        "hikaricp.connections.acquire": {
+          "count": 27337.0,
+          "total_seconds": 760.827272265,
+          "mean_ms": 27.83141062534294
+        },
+        "hikaricp.connections.timeout": {
+          "count": 0.0,
+          "total_seconds": 0,
+          "mean_ms": null
+        },
+        "hikaricp.connections.usage": {
+          "count": 27337.0,
+          "total_seconds": 577.7309999999999,
+          "mean_ms": 21.133664996159048
+        }
+      }
+    },
+    {
+      "name": "2-REDIS-distributed",
+      "strategy": "REDIS",
+      "workload": "distributed",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 27.274986185000046,
+      "rps": 439.9635592336041,
+      "created": 6000,
+      "counts": {
+        "CREATED": 6000,
+        "REDIS_LOCK_TIMEOUT": 1,
+        "COURSE_FULL": 5999
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 327.15418899999804,
+          "p95_ms": 1286.52347000002,
+          "p99_ms": 2126.662629000009
+        },
+        "409": {
+          "p50_ms": 81.96500399998286,
+          "p95_ms": 154.6006099999886,
+          "p99_ms": 215.5666090000068
+        },
+        "503": {
+          "p50_ms": 5284.980642999983,
+          "p95_ms": 5284.980642999983,
+          "p99_ms": 5284.980642999983
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.stage:external": {
+          "count": 6000.0,
+          "total_seconds": 197.394934694,
+          "mean_ms": 32.89915578233334
+        },
+        "enrollment.stage:lock_wait": {
+          "count": 12000.0,
+          "total_seconds": 1407.772562463,
+          "mean_ms": 117.31438020524999
+        },
+        "enrollment.stage:transaction": {
+          "count": 6000.0,
+          "total_seconds": 476.13040245300004,
+          "mean_ms": 79.35506707550002
+        },
+        "hikaricp.connections.acquire": {
+          "count": 41998.0,
+          "total_seconds": 32.98848040000001,
+          "mean_ms": 0.7854774132101531
+        },
+        "hikaricp.connections.timeout": {
+          "count": 0.0,
+          "total_seconds": 0,
+          "mean_ms": null
+        },
+        "hikaricp.connections.usage": {
+          "count": 41998.0,
+          "total_seconds": 500.464,
+          "mean_ms": 11.91637697033192
+        }
+      }
+    },
+    {
+      "name": "2-REDIS-hot",
+      "strategy": "REDIS",
+      "workload": "hot",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 26.467200403999982,
+      "rps": 453.39136050771896,
+      "created": 100,
+      "counts": {
+        "CREATED": 100,
+        "REDIS_LOCK_TIMEOUT": 36,
+        "COURSE_FULL": 11864
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 2044.9325870000052,
+          "p95_ms": 4477.6959989999905,
+          "p99_ms": 4767.046316000005
+        },
+        "409": {
+          "p50_ms": 152.39221900003486,
+          "p95_ms": 770.7143050000127,
+          "p99_ms": 1412.3549020000041
+        },
+        "503": {
+          "p50_ms": 5089.411579,
+          "p95_ms": 5152.091908000046,
+          "p99_ms": 5163.751029000025
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.stage:external": {
+          "count": 100.0,
+          "total_seconds": 2.392810859,
+          "mean_ms": 23.92810859
+        },
+        "enrollment.stage:lock_wait": {
+          "count": 12000.0,
+          "total_seconds": 3294.8942544819997,
+          "mean_ms": 274.5745212068333
+        },
+        "enrollment.stage:transaction": {
+          "count": 100.0,
+          "total_seconds": 1.7793523580000001,
+          "mean_ms": 17.793523580000002
+        },
+        "hikaricp.connections.acquire": {
+          "count": 36028.0,
+          "total_seconds": 0.368411294,
+          "mean_ms": 0.01022569373820362
+        },
+        "hikaricp.connections.timeout": {
+          "count": 0.0,
+          "total_seconds": 0,
+          "mean_ms": null
+        },
+        "hikaricp.connections.usage": {
+          "count": 36028.0,
+          "total_seconds": 7.703,
+          "mean_ms": 0.21380592872210505
+        }
+      }
+    },
+    {
+      "name": "2-PESSIMISTIC-distributed",
+      "strategy": "PESSIMISTIC",
+      "workload": "distributed",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 24.43719798899997,
+      "rps": 491.05466205256494,
+      "created": 6000,
+      "counts": {
+        "CREATED": 6000,
+        "COURSE_FULL": 6000
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 313.37031299995033,
+          "p95_ms": 616.7831800000272,
+          "p99_ms": 805.8177849999879
+        },
+        "409": {
+          "p50_ms": 119.59448499999326,
+          "p95_ms": 231.47357200002716,
+          "p99_ms": 271.8369450000182
+        },
+        "503": {
+          "p50_ms": null,
+          "p95_ms": null,
+          "p99_ms": null
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.stage:external": {
+          "count": 6000.0,
+          "total_seconds": 201.607869135,
+          "mean_ms": 33.6013115225
+        },
+        "enrollment.stage:transaction": {
+          "count": 12000.0,
+          "total_seconds": 766.23135847,
+          "mean_ms": 63.852613205833336
+        },
+        "hikaricp.connections.acquire": {
+          "count": 24000.0,
+          "total_seconds": 406.11039441099996,
+          "mean_ms": 16.921266433791665
+        },
+        "hikaricp.connections.timeout": {
+          "count": 0.0,
+          "total_seconds": 0,
+          "mean_ms": null
+        },
+        "hikaricp.connections.usage": {
+          "count": 24000.0,
+          "total_seconds": 671.384,
+          "mean_ms": 27.974333333333334
+        }
+      }
+    },
+    {
+      "name": "2-PESSIMISTIC-hot",
+      "strategy": "PESSIMISTIC",
+      "workload": "hot",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 23.95556782,
+      "rps": 500.9273873266929,
+      "created": 100,
+      "counts": {
+        "DB_CONNECTION_UNAVAILABLE": 96,
+        "CREATED": 100,
+        "COURSE_FULL": 11804
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 1514.4157919999657,
+          "p95_ms": 2823.357858999998,
+          "p99_ms": 2988.9565309999853
+        },
+        "409": {
+          "p50_ms": 193.48406699998577,
+          "p95_ms": 496.8412169999965,
+          "p99_ms": 783.9315470000088
+        },
+        "503": {
+          "p50_ms": 1162.2097839999697,
+          "p95_ms": 1896.4352969999823,
+          "p99_ms": 2578.3996559999878
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.retries:DB_LOCK_WAIT_TIMEOUT": {
+          "count": 4.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "enrollment.stage:external": {
+          "count": 100.0,
+          "total_seconds": 2.2469493419999997,
+          "mean_ms": 22.469493419999996
+        },
+        "enrollment.stage:transaction": {
+          "count": 11939.0,
+          "total_seconds": 1526.6362190839998,
+          "mean_ms": 127.86968917698296
+        },
+        "hikaricp.connections.acquire": {
+          "count": 23939.0,
+          "total_seconds": 2061.463135637,
+          "mean_ms": 86.113168287606
+        },
+        "hikaricp.connections.timeout": {
+          "count": 96.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "hikaricp.connections.usage": {
+          "count": 23843.0,
+          "total_seconds": 937.887,
+          "mean_ms": 39.33594765759342
+        }
+      }
+    },
+    {
+      "name": "3-REDIS-distributed",
+      "strategy": "REDIS",
+      "workload": "distributed",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 23.631632401999994,
+      "rps": 507.79395159279875,
+      "created": 6000,
+      "counts": {
+        "CREATED": 6000,
+        "COURSE_FULL": 6000
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 305.655729999998,
+          "p95_ms": 918.1558110000054,
+          "p99_ms": 1597.0621119999892
+        },
+        "409": {
+          "p50_ms": 79.73052500000222,
+          "p95_ms": 123.26077200000896,
+          "p99_ms": 171.70381100000043
+        },
+        "503": {
+          "p50_ms": null,
+          "p95_ms": null,
+          "p99_ms": null
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.stage:external": {
+          "count": 6000.0,
+          "total_seconds": 176.347048721,
+          "mean_ms": 29.391174786833332
+        },
+        "enrollment.stage:lock_wait": {
+          "count": 12000.0,
+          "total_seconds": 883.086044114,
+          "mean_ms": 73.59050367616666
+        },
+        "enrollment.stage:transaction": {
+          "count": 6000.0,
+          "total_seconds": 383.533547857,
+          "mean_ms": 63.922257976166655
+        },
+        "hikaricp.connections.acquire": {
+          "count": 42000.0,
+          "total_seconds": 17.181644952,
+          "mean_ms": 0.40908678457142855
+        },
+        "hikaricp.connections.timeout": {
+          "count": 0.0,
+          "total_seconds": 0,
+          "mean_ms": null
+        },
+        "hikaricp.connections.usage": {
+          "count": 42000.0,
+          "total_seconds": 412.563,
+          "mean_ms": 9.822928571428571
+        }
+      }
+    },
+    {
+      "name": "3-REDIS-hot",
+      "strategy": "REDIS",
+      "workload": "hot",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 22.954764623999978,
+      "rps": 522.7672858581001,
+      "created": 100,
+      "counts": {
+        "CREATED": 100,
+        "COURSE_FULL": 11896,
+        "REDIS_LOCK_TIMEOUT": 4
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 1892.9891079999948,
+          "p95_ms": 3772.3676990000004,
+          "p99_ms": 4069.660484999986
+        },
+        "409": {
+          "p50_ms": 130.86460700000657,
+          "p95_ms": 677.5847419999934,
+          "p99_ms": 1505.079249000005
+        },
+        "503": {
+          "p50_ms": 5127.565941000001,
+          "p95_ms": 5162.9115040000215,
+          "p99_ms": 5162.9115040000215
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.stage:external": {
+          "count": 100.0,
+          "total_seconds": 2.249171862,
+          "mean_ms": 22.49171862
+        },
+        "enrollment.stage:lock_wait": {
+          "count": 12000.0,
+          "total_seconds": 2858.6856060299997,
+          "mean_ms": 238.22380050249998
+        },
+        "enrollment.stage:transaction": {
+          "count": 100.0,
+          "total_seconds": 1.4609281049999998,
+          "mean_ms": 14.609281049999998
+        },
+        "hikaricp.connections.acquire": {
+          "count": 36092.0,
+          "total_seconds": 0.20761849599999999,
+          "mean_ms": 0.005752479663083231
+        },
+        "hikaricp.connections.timeout": {
+          "count": 0.0,
+          "total_seconds": 0,
+          "mean_ms": null
+        },
+        "hikaricp.connections.usage": {
+          "count": 36092.0,
+          "total_seconds": 6.0,
+          "mean_ms": 0.16624182644353322
+        }
+      }
+    },
+    {
+      "name": "3-PESSIMISTIC-distributed",
+      "strategy": "PESSIMISTIC",
+      "workload": "distributed",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 20.67951260800001,
+      "rps": 580.2844693427503,
+      "created": 6000,
+      "counts": {
+        "CREATED": 6000,
+        "DB_CONNECTION_UNAVAILABLE": 7,
+        "COURSE_FULL": 5993
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 248.4489260000089,
+          "p95_ms": 677.6355869999975,
+          "p99_ms": 923.2711649999885
+        },
+        "409": {
+          "p50_ms": 101.67810600000848,
+          "p95_ms": 179.86104700000283,
+          "p99_ms": 266.28645100001336
+        },
+        "503": {
+          "p50_ms": 1260.0259919999814,
+          "p95_ms": 1382.2375999999963,
+          "p99_ms": 1382.2375999999963
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.stage:external": {
+          "count": 6000.0,
+          "total_seconds": 190.20944115100002,
+          "mean_ms": 31.701573525166673
+        },
+        "enrollment.stage:transaction": {
+          "count": 11994.0,
+          "total_seconds": 742.4981724180001,
+          "mean_ms": 61.905800601800905
+        },
+        "hikaricp.connections.acquire": {
+          "count": 23994.0,
+          "total_seconds": 697.595391272,
+          "mean_ms": 29.073743072101358
+        },
+        "hikaricp.connections.timeout": {
+          "count": 7.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "hikaricp.connections.usage": {
+          "count": 23987.0,
+          "total_seconds": 610.981,
+          "mean_ms": 25.471338641764287
+        }
+      }
+    },
+    {
+      "name": "3-PESSIMISTIC-hot",
+      "strategy": "PESSIMISTIC",
+      "workload": "hot",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 20.807267577000005,
+      "rps": 576.7215688264899,
+      "created": 100,
+      "counts": {
+        "DB_CONNECTION_UNAVAILABLE": 69,
+        "CREATED": 100,
+        "COURSE_FULL": 11831
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 1543.2823450000228,
+          "p95_ms": 2714.347061000012,
+          "p99_ms": 2799.500561000002
+        },
+        "409": {
+          "p50_ms": 162.65954699997565,
+          "p95_ms": 441.69843600002423,
+          "p99_ms": 809.601162999968
+        },
+        "503": {
+          "p50_ms": 1107.552907000013,
+          "p95_ms": 1909.93609100002,
+          "p99_ms": 1972.405829999957
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.retries:DB_LOCK_WAIT_TIMEOUT": {
+          "count": 5.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "enrollment.stage:external": {
+          "count": 100.0,
+          "total_seconds": 2.1774591359999995,
+          "mean_ms": 21.774591359999995
+        },
+        "enrollment.stage:transaction": {
+          "count": 11949.0,
+          "total_seconds": 1326.390969764,
+          "mean_ms": 111.00434929818394
+        },
+        "hikaricp.connections.acquire": {
+          "count": 23949.0,
+          "total_seconds": 1794.4238148529998,
+          "mean_ms": 74.92687856916781
+        },
+        "hikaricp.connections.timeout": {
+          "count": 69.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "hikaricp.connections.usage": {
+          "count": 23880.0,
+          "total_seconds": 814.6800000000001,
+          "mean_ms": 34.11557788944724
+        }
+      }
+    },
+    {
+      "name": "3-OPTIMISTIC-distributed",
+      "strategy": "OPTIMISTIC",
+      "workload": "distributed",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 22.682982844000037,
+      "rps": 529.0309516402145,
+      "created": 6000,
+      "counts": {
+        "CREATED": 6000,
+        "COURSE_FULL": 6000
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 277.6350419999858,
+          "p95_ms": 724.944690999962,
+          "p99_ms": 1013.7261680000051
+        },
+        "409": {
+          "p50_ms": 107.3855670000512,
+          "p95_ms": 200.7679040000312,
+          "p99_ms": 336.65364399996633
+        },
+        "503": {
+          "p50_ms": null,
+          "p95_ms": null,
+          "p99_ms": null
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.retries:VERSION_CONFLICT": {
+          "count": 1969.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "enrollment.stage:external": {
+          "count": 7969.0,
+          "total_seconds": 264.113468256,
+          "mean_ms": 33.14261115020705
+        },
+        "enrollment.stage:transaction": {
+          "count": 13969.0,
+          "total_seconds": 976.7238323380001,
+          "mean_ms": 69.92081268079319
+        },
+        "hikaricp.connections.acquire": {
+          "count": 25969.0,
+          "total_seconds": 732.777923128,
+          "mean_ms": 28.217410109284145
+        },
+        "hikaricp.connections.timeout": {
+          "count": 0.0,
+          "total_seconds": 0,
+          "mean_ms": null
+        },
+        "hikaricp.connections.usage": {
+          "count": 25969.0,
+          "total_seconds": 704.113,
+          "mean_ms": 27.113596981015828
+        }
+      }
+    },
+    {
+      "name": "3-OPTIMISTIC-hot",
+      "strategy": "OPTIMISTIC",
+      "workload": "hot",
+      "requests": 12000,
+      "concurrency": 128,
+      "seconds": 18.53210488999997,
+      "rps": 647.5249342278042,
+      "created": 100,
+      "counts": {
+        "RETRY_EXHAUSTED": 366,
+        "CREATED": 100,
+        "COURSE_FULL": 11534
+      },
+      "latency": {
+        "201": {
+          "p50_ms": 1002.6532409999618,
+          "p95_ms": 2102.9592560000196,
+          "p99_ms": 2344.638386999975
+        },
+        "409": {
+          "p50_ms": 99.07091700000592,
+          "p95_ms": 201.55213599997523,
+          "p99_ms": 396.57317500001454
+        },
+        "503": {
+          "p50_ms": 2039.8076820000028,
+          "p95_ms": 2549.2327179999847,
+          "p99_ms": 2814.1991229999803
+        }
+      },
+      "invariants": "PASS",
+      "environment": {
+        "environment": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+        "cpu_count": 4,
+        "external_delay_ms": "20"
+      },
+      "metrics": {
+        "enrollment.retries:VERSION_CONFLICT": {
+          "count": 3684.0,
+          "total_seconds": 0,
+          "mean_ms": 0.0
+        },
+        "enrollment.stage:external": {
+          "count": 3784.0,
+          "total_seconds": 100.58964909499998,
+          "mean_ms": 26.58288823863636
+        },
+        "enrollment.stage:transaction": {
+          "count": 15318.0,
+          "total_seconds": 1083.217112408,
+          "mean_ms": 70.71530959707533
+        },
+        "hikaricp.connections.acquire": {
+          "count": 27318.0,
+          "total_seconds": 654.608996413,
+          "mean_ms": 23.962552032103375
+        },
+        "hikaricp.connections.timeout": {
+          "count": 0.0,
+          "total_seconds": 0,
+          "mean_ms": null
+        },
+        "hikaricp.connections.usage": {
+          "count": 27318.0,
+          "total_seconds": 507.332,
+          "mean_ms": 18.57134490079801
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "strategy": "PESSIMISTIC",
+      "workload": "distributed",
+      "requests": 36000,
+      "counts": {
+        "CREATED": 18000,
+        "COURSE_FULL": 17993,
+        "DB_CONNECTION_UNAVAILABLE": 7
+      },
+      "mean_rps": 489.5880694227159,
+      "success_rps": 239.00865248625948,
+      "latency": {
+        "201": {
+          "p50_ms": 314.9027190000311,
+          "p95_ms": 695.7782999999722,
+          "p99_ms": 901.2106229999972
+        },
+        "409": {
+          "p50_ms": 120.82624700002498,
+          "p95_ms": 237.02794500002256,
+          "p99_ms": 305.25292000004356
+        },
+        "503": {
+          "p50_ms": 1260.0259919999814,
+          "p95_ms": 1382.2375999999963,
+          "p99_ms": 1382.2375999999963
+        }
+      },
+      "db_usage_seconds": 2080.361,
+      "db_acquire_seconds": 1636.757459003,
+      "external_calls": 18000.0
+    },
+    {
+      "strategy": "OPTIMISTIC",
+      "workload": "distributed",
+      "requests": 36000,
+      "counts": {
+        "CREATED": 18000,
+        "DB_CONNECTION_UNAVAILABLE": 2,
+        "COURSE_FULL": 17998
+      },
+      "mean_rps": 454.641470132446,
+      "success_rps": 222.545798780267,
+      "latency": {
+        "201": {
+          "p50_ms": 336.9669040000076,
+          "p95_ms": 830.6459639999844,
+          "p99_ms": 1204.9657169999932
+        },
+        "503": {
+          "p50_ms": 1458.0940750000195,
+          "p95_ms": 1915.9740000000056,
+          "p99_ms": 1915.9740000000056
+        },
+        "409": {
+          "p50_ms": 121.24510600000349,
+          "p95_ms": 233.5400499999878,
+          "p99_ms": 327.3053649999724
+        }
+      },
+      "db_usage_seconds": 2371.562,
+      "db_acquire_seconds": 2179.97311997,
+      "external_calls": 23250.0
+    },
+    {
+      "strategy": "REDIS",
+      "workload": "distributed",
+      "requests": 36000,
+      "counts": {
+        "CREATED": 18000,
+        "COURSE_FULL": 17999,
+        "REDIS_LOCK_TIMEOUT": 1
+      },
+      "mean_rps": 430.91861306148013,
+      "success_rps": 210.06099796106815,
+      "latency": {
+        "201": {
+          "p50_ms": 330.7244390000079,
+          "p95_ms": 1347.6500990000204,
+          "p99_ms": 2404.6400109999695
+        },
+        "409": {
+          "p50_ms": 89.5405139999923,
+          "p95_ms": 164.71959400007563,
+          "p99_ms": 214.03280900000254
+        },
+        "503": {
+          "p50_ms": 5284.980642999983,
+          "p95_ms": 5284.980642999983,
+          "p99_ms": 5284.980642999983
+        }
+      },
+      "db_usage_seconds": 1486.414,
+      "db_acquire_seconds": 77.092796961,
+      "external_calls": 18000.0
+    },
+    {
+      "strategy": "PESSIMISTIC",
+      "workload": "hot",
+      "requests": 36000,
+      "counts": {
+        "CREATED": 300,
+        "DB_CONNECTION_UNAVAILABLE": 267,
+        "COURSE_FULL": 35433
+      },
+      "mean_rps": 500.1441499668775,
+      "success_rps": 4.1013774483488055,
+      "latency": {
+        "201": {
+          "p50_ms": 1567.8987150000125,
+          "p95_ms": 2845.987100000002,
+          "p99_ms": 3115.251100000023
+        },
+        "503": {
+          "p50_ms": 1149.2971129999887,
+          "p95_ms": 1900.2251030000252,
+          "p99_ms": 2337.987511999984
+        },
+        "409": {
+          "p50_ms": 195.40754700000207,
+          "p95_ms": 516.5022570000133,
+          "p99_ms": 852.5625080000054
+        }
+      },
+      "db_usage_seconds": 2864.991,
+      "db_acquire_seconds": 6300.1326933889995,
+      "external_calls": 300.0
+    },
+    {
+      "strategy": "OPTIMISTIC",
+      "workload": "hot",
+      "requests": 36000,
+      "counts": {
+        "RETRY_EXHAUSTED": 1107,
+        "CREATED": 300,
+        "COURSE_FULL": 34593
+      },
+      "mean_rps": 549.3507126338305,
+      "success_rps": 4.466525914182936,
+      "latency": {
+        "503": {
+          "p50_ms": 2345.421103000007,
+          "p95_ms": 3286.1517979999917,
+          "p99_ms": 3637.0353069999624
+        },
+        "201": {
+          "p50_ms": 1155.1601239999911,
+          "p95_ms": 2555.072150000001,
+          "p99_ms": 3229.476817000034
+        },
+        "409": {
+          "p50_ms": 118.44172900003969,
+          "p95_ms": 249.09979700004214,
+          "p99_ms": 497.6080209999907
+        }
+      },
+      "db_usage_seconds": 1772.786,
+      "db_acquire_seconds": 2298.729862722,
+      "external_calls": 11388.0
+    },
+    {
+      "strategy": "REDIS",
+      "workload": "hot",
+      "requests": 36000,
+      "counts": {
+        "REDIS_LOCK_TIMEOUT": 118,
+        "CREATED": 300,
+        "COURSE_FULL": 35582
+      },
+      "mean_rps": 434.33903901235374,
+      "success_rps": 3.482900593926765,
+      "latency": {
+        "503": {
+          "p50_ms": 5141.237023000031,
+          "p95_ms": 5241.071777999991,
+          "p99_ms": 5242.181401999915
+        },
+        "201": {
+          "p50_ms": 1917.3316090000014,
+          "p95_ms": 4477.6959989999905,
+          "p99_ms": 4902.107846000035
+        },
+        "409": {
+          "p50_ms": 160.19027100003314,
+          "p95_ms": 864.5838529999992,
+          "p99_ms": 1673.7547389999463
+        }
+      },
+      "db_usage_seconds": 23.498,
+      "db_acquire_seconds": 0.761695942,
+      "external_calls": 300.0
+    }
+  ]
+}
