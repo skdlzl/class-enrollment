@@ -1,8 +1,5 @@
 name: Atomic capacity precheck performance
 on:
-  push:
-    branches: [feat/atomic-capacity-precheck]
-    paths: ['experiments/db-split/**', '.github/workflows/precheck-performance.yml']
   workflow_dispatch:
 jobs:
   measure:

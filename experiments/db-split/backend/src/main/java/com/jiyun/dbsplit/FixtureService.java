@@ -10,6 +10,7 @@ import java.util.*;
 public class FixtureService {
     private final JdbcTemplate jdbc, academic;
     private final TransactionTemplate enrollmentTx, academicTx;
+    @Value("${experiment.fixture-students:500}") private int studentCount;
     private final String policy;
     public FixtureService(JdbcTemplate jdbc,@Qualifier("academicJdbc") JdbcTemplate academic,
             PlatformTransactionManager transactionManager,@Qualifier("academicTransaction") TransactionTemplate academicTx,
@@ -19,7 +20,7 @@ public class FixtureService {
         if(!List.of("append","fixed").contains(policy))throw new IllegalArgumentException("Unknown dataset policy");
     }
     private Map<String,Object> descriptor(String run){
-        return Map.of("runId",run,"termId",202602,"students",500,"catalogCount",10000,
+        return Map.of("runId",run,"termId",202602,"students",studentCount,"catalogCount",10000,
             "courseIds",List.of(1,2,3,4,5),"datasetPolicy",policy);
     }
     public Map<String,Object> create(){
@@ -39,7 +40,7 @@ public class FixtureService {
             // On partial provisioning failure keep the volume for inspection and start a new session.
             academicTx.executeWithoutResult(txA->{
                 List<Object[]> students=new ArrayList<>(),subjects=new ArrayList<>();
-                for(int i=1;i<=500;i++)students.add(new Object[]{run,i,"Student "+i,"ACTIVE",18});
+                for(int i=1;i<=studentCount;i++)students.add(new Object[]{run,i,"Student "+i,"ACTIVE",18});
                 academic.batchUpdate("INSERT INTO academic_student(run_id,id,name,status,max_credits) VALUES(?,?,?,?,?)",students);
                 for(int i=1;i<=10000;i++)subjects.add(new Object[]{run,i,"S"+i,courseName(i),"학사 기본 과목 설명 "+i,department(i)});
                 academic.batchUpdate("INSERT INTO subject(run_id,id,code,name,description,department) VALUES(?,?,?,?,?,?)",subjects);

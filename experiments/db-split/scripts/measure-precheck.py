@@ -107,4 +107,5 @@ async def main():
                     except subprocess.TimeoutExpired:p.kill();p.wait()
                 for f in logs:f.close()
             await asyncio.sleep(3)
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
