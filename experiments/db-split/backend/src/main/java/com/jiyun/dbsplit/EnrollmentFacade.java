@@ -12,20 +12,31 @@ public class EnrollmentFacade {
         public final String code;
         Unavailable(String code,Throwable cause){super(code,cause);this.code=code;}
     }
+    private final ClosedCoursePrecheck precheck;
     private final EnrollmentService service;
     private final Metrics metrics;
     private final DatabaseConfig.Mode mode;
     private final RedissonClient redis;
     private final AtomicInteger inFlight=new AtomicInteger();
-    public EnrollmentFacade(EnrollmentService service,Metrics metrics,ObjectProvider<RedissonClient> clients,DatabaseConfig.Mode mode){
-        this.service=service;this.metrics=metrics;this.redis=clients.getIfAvailable();this.mode=mode;
+    public EnrollmentFacade(EnrollmentService service,Metrics metrics,ObjectProvider<RedissonClient> clients,DatabaseConfig.Mode mode,ClosedCoursePrecheck precheck){
+        this.precheck=precheck;this.service=service;this.metrics=metrics;this.redis=clients.getIfAvailable();this.mode=mode;
     }
     public int inFlight(){return inFlight.get();}
     public EnrollmentService.Result enroll(EnrollmentService.Request r){
-        return execute(r,()->metrics.time("enrollment.transactionProxy",()->service.enroll(r)));
+        precheck.check(r);
+        try{
+            var result=execute(r,()->metrics.time("enrollment.transactionProxy",()->service.enroll(r)));
+            precheck.refresh(r); // Transactional proxy has committed.
+            return result;
+        }catch(EnrollmentService.Rejected e){
+            if("COURSE_FULL".equals(e.code))precheck.refresh(r);
+            throw e;
+        }
     }
     public EnrollmentService.Result cancel(EnrollmentService.Request r){
-        return execute(r,()->metrics.time("cancellation.transactionProxy",()->service.cancel(r)));
+        var result=execute(r,()->metrics.time("cancellation.transactionProxy",()->service.cancel(r)));
+        precheck.clear(r); // Only after successful commit.
+        return result;
     }
     String studentKey(EnrollmentService.Request r){return "db-split:"+r.runId()+":student:"+r.termId()+":"+r.studentId();}
     String courseKey(EnrollmentService.Request r){return "db-split:"+r.runId()+":course:"+r.termId()+":"+r.courseId();}

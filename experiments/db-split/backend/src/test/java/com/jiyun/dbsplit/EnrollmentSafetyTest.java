@@ -26,6 +26,7 @@ class EnrollmentSafetyTest {
   r.add("spring.datasource.url",mysql::getJdbcUrl);r.add("spring.datasource.username",mysql::getUsername);r.add("spring.datasource.password",mysql::getPassword);
  }
  @Autowired DatabaseConfig.Mode mode;
+ @org.springframework.beans.factory.annotation.Value("${experiment.atomic-capacity:false}") boolean atomicCapacity;
  @Autowired EnrollmentService service; @Autowired JdbcTemplate jdbc;
  @Autowired PlatformTransactionManager tx; @Autowired Metrics metrics; @Autowired FixtureService fixture;
  @Autowired TestRestTemplate http; @LocalServerPort int port;
@@ -87,9 +88,10 @@ class EnrollmentSafetyTest {
   assertFalse(metrics.poolSamples().isEmpty(),"Scheduled pool probe must run");
   var phases=(Map<?,?>)metrics.snapshot().get("phases");
   String prefix=mode==DatabaseConfig.Mode.A?"sharedPool":"enrollmentPool";
-  for(String name:List.of(prefix+".acquire",prefix+".usage","courseLock.sql","courseLock.holdUntilCompletion","enrollment.transactionProxy")){
+  for(String name:List.of(prefix+".acquire",prefix+".usage",atomicCapacity?"capacityUpdate.sql":"courseLock.sql","enrollment.transactionProxy")){
    assertTrue(phases.containsKey(name),name);assertTrue(((Number)((Map<?,?>)phases.get(name)).get("count")).longValue()>0,name);
   }
+  if(!atomicCapacity)assertTrue(phases.containsKey("courseLock.holdUntilCompletion"));
  }
  @Test void fullFixtureSearchAndPagination(){
   var seeded=fixture.create();String id=(String)seeded.get("runId");

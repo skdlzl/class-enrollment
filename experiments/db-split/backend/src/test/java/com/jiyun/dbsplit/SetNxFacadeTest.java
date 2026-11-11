@@ -15,7 +15,7 @@ class SetNxFacadeTest {
   service=mock(EnrollmentService.class);redis=mock(RedissonClient.class);
   student=mock(RBucket.class);course=mock(RBucket.class);script=mock(RScript.class);
   ObjectProvider<RedissonClient> provider=mock(ObjectProvider.class);when(provider.getIfAvailable()).thenReturn(redis);
-  facade=new EnrollmentFacade(service,new Metrics(true),provider,DatabaseConfig.Mode.E);
+  facade=new EnrollmentFacade(service,new Metrics(true),provider,DatabaseConfig.Mode.E,mock(ClosedCoursePrecheck.class));
   when(redis.<String>getBucket(facade.studentKey(request),StringCodec.INSTANCE)).thenReturn(student);
   when(redis.<String>getBucket(facade.courseKey(request),StringCodec.INSTANCE)).thenReturn(course);
   when(redis.getScript(StringCodec.INSTANCE)).thenReturn(script);

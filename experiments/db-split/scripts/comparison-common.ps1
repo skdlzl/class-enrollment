@@ -20,6 +20,7 @@ function Assert-ComparisonStates($context,$states){
    if($s.lockApi.strategy -ne $context.lockStrategy -or $s.lockApi.url -ne $context.eligibilityUrl -or $s.lockApi.requestBudgetMs -ne 10000 -or $s.lockApi.maxOptimisticAttempts -ne 5 -or $s.lockApi.apiTimeoutMs -ne 2000){throw 'Lock/API strategy or budget mismatch'}
   }elseif($s.lockApi -and $s.lockApi.strategy -ne 'OFF'){throw 'Unexpected lock/API comparison enabled'}
   if($s.notifications.enabled){throw 'Notifications must be disabled for enrollment-only comparison'}
+  if([bool]$s.atomicCapacity -ne [bool]$context.atomicCapacity -or [bool]$s.closedPrecheck -ne [bool]$context.closedPrecheck){throw 'Atomic capacity/precheck settings mismatch'}
   if($s.version -ne 'db-split-v2' -or $s.mode -ne $context.mode -or $s.session -ne $context.session -or $s.revision -ne $context.revision -or $s.datasetPolicy -ne 'fixed' -or $s.strategy -ne $strategy -or $s.isolation -ne 'TRANSACTION_READ_COMMITTED'){throw 'Server configuration mismatch'}
   if($context.mode -eq 'E' -and ($s.redisGuard.leaseMs -ne 30000 -or $s.redisGuard.pollMinMs -ne 20 -or $s.redisGuard.pollMaxMs -ne 40)){throw 'SET NX lease/poll mismatch'}
   if($context.mode -in @('C','D','E') -and (!$s.redisGuard.enabled -or $s.redisGuard.waitBudgetMs -ne 10000 -or $s.redisGuard.watchdogMs -ne $(if($context.mode -eq 'E'){0}else{30000}))){throw 'Redis guard configuration mismatch'}

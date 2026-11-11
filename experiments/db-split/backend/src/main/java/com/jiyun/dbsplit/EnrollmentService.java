@@ -13,6 +13,8 @@ public class EnrollmentService {
     public static class Rejected extends RuntimeException {
         public final String code;public Rejected(String code){super(code);this.code=code;}
     }
+    @org.springframework.beans.factory.annotation.Value("${experiment.atomic-capacity:false}")
+    private boolean atomicCapacity;
     private final JdbcTemplate jdbc;private final Metrics metrics;
     private final com.jiyun.dbsplit.notification.NotificationOutbox outbox;
     public EnrollmentService(JdbcTemplate jdbc,Metrics metrics,com.jiyun.dbsplit.notification.NotificationOutbox outbox){this.jdbc=jdbc;this.metrics=metrics;this.outbox=outbox;}
@@ -53,9 +55,14 @@ public class EnrollmentService {
                 """,Integer.class,r.courseId(),r.runId(),r.studentId(),r.termId());
             if(conflicts>0)throw new Rejected("SCHEDULE_CONFLICT");return value;
         });
-        courseLock(r);
+        if(atomicCapacity){
+            int changed=metrics.time("capacityUpdate.sql",()->jdbc.update(
+                "UPDATE offered_course SET enrolled_count=enrolled_count+1 WHERE run_id=? AND id=? AND term_id=? AND enrolled_count<capacity",
+                r.runId(),r.courseId(),r.termId()));
+            if(changed!=1)throw new Rejected("COURSE_FULL");
+        }else courseLock(r);
         jdbc.update("INSERT INTO enrollment(request_id,run_id,student_id,term_id,course_id) VALUES(?,?,?,?,?)",r.requestId(),r.runId(),r.studentId(),r.termId(),r.courseId());
-        jdbc.update("UPDATE offered_course SET enrolled_count=enrolled_count+1 WHERE run_id=? AND id=?",r.runId(),r.courseId());
+        if(!atomicCapacity)jdbc.update("UPDATE offered_course SET enrolled_count=enrolled_count+1 WHERE run_id=? AND id=?",r.runId(),r.courseId());
         jdbc.update("UPDATE student_term SET enrolled_credits=enrolled_credits+? WHERE run_id=? AND student_id=? AND term_id=?",credits,r.runId(),r.studentId(),r.termId());
         outbox.enqueue(r,"CONFIRMED");
         return new Result(r.requestId(),"CONFIRMED");

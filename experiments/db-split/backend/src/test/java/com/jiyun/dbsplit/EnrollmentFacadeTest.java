@@ -13,7 +13,7 @@ class EnrollmentFacadeTest {
   service=mock(EnrollmentService.class,withSettings().mockMaker("mock-maker-subclass"));redis=mock(RedissonClient.class,withSettings().mockMaker("mock-maker-subclass"));
   student=mock(RLock.class,withSettings().mockMaker("mock-maker-subclass"));course=mock(RLock.class,withSettings().mockMaker("mock-maker-subclass"));
   ObjectProvider<RedissonClient> provider=mock(ObjectProvider.class,withSettings().mockMaker("mock-maker-subclass"));when(provider.getIfAvailable()).thenReturn(redis);
-  facade=new EnrollmentFacade(service,new Metrics(true),provider,DatabaseConfig.Mode.C);
+  facade=new EnrollmentFacade(service,new Metrics(true),provider,DatabaseConfig.Mode.C,mock(ClosedCoursePrecheck.class));
   when(redis.getLock(facade.studentKey(request))).thenReturn(student);
   when(redis.getLock(facade.courseKey(request))).thenReturn(course);
   when(student.tryLock(anyLong(),eq(TimeUnit.NANOSECONDS))).thenReturn(true);
@@ -21,7 +21,7 @@ class EnrollmentFacadeTest {
  }
  @Test @SuppressWarnings("unchecked") void hybridSkipsCourseRedisAndRetainsStudentLock() throws Exception {
   ObjectProvider<RedissonClient> provider=mock(ObjectProvider.class);when(provider.getIfAvailable()).thenReturn(redis);
-  var hybrid=new EnrollmentFacade(service,new Metrics(true),provider,DatabaseConfig.Mode.D);
+  var hybrid=new EnrollmentFacade(service,new Metrics(true),provider,DatabaseConfig.Mode.D,mock(ClosedCoursePrecheck.class));
   when(service.enroll(request)).thenReturn(new EnrollmentService.Result("request","CONFIRMED"));
   assertEquals("CONFIRMED",hybrid.enroll(request).status());
   verify(redis,never()).getLock(hybrid.courseKey(request));verifyNoInteractions(course);

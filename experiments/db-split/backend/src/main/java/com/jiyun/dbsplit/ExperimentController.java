@@ -13,6 +13,8 @@ import java.util.*;
 public class ExperimentController {
     private final JdbcTemplate jdbc, academic;private final EnrollmentFacade service;private final FixtureService fixture;
     private final Metrics metrics;private final HikariDataSource pool;private final String revision,session,policy;
+    @Value("${experiment.atomic-capacity:false}") private boolean atomicCapacity;
+    @Value("${experiment.closed-precheck:false}") private boolean closedPrecheck;
     private final DatabaseConfig.Mode mode;
     private final com.jiyun.dbsplit.lockapi.LockApiEnrollment lockApi;
     private final org.springframework.core.env.Environment environment;
@@ -34,6 +36,7 @@ public class ExperimentController {
     @GetMapping("/experiment/pool-samples") public List<Map<String,Object>> poolSamples(){return metrics.poolSamples();}
     @GetMapping("/experiment/state") public Map<String,Object> state(){
         var result=new LinkedHashMap<String,Object>();
+        result.put("atomicCapacity",atomicCapacity);result.put("closedPrecheck",closedPrecheck);
         result.put("pid",ProcessHandle.current().pid());result.put("version","db-split-v2");result.put("mode",mode.name());result.put("layout",(mode==DatabaseConfig.Mode.B||mode==DatabaseConfig.Mode.C||mode==DatabaseConfig.Mode.D||mode==DatabaseConfig.Mode.E)?"SPLIT":"SINGLE");
         result.put("strategy",mode==DatabaseConfig.Mode.E?"SETNX_GUARDED":mode==DatabaseConfig.Mode.C?"REDIS_GUARDED":mode==DatabaseConfig.Mode.D?"HYBRID_GUARDED":"DB_ONLY");
         result.put("inFlight",service.inFlight()+lockApi.inFlight());
