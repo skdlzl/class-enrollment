@@ -1,0 +1,2566 @@
+{
+  "workflow": "https://github.com/skdlzl/class-enrollment/actions/runs/42983167806",
+  "rounds": {
+    "hot-5s": [
+      {
+        "scenario": "hot-5s",
+        "label": "1-OFF",
+        "round": 1,
+        "enabled": false,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 5.36,
+            "p95Ms": 12.17,
+            "maxMs": 26.23
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 8.13,
+            "p95Ms": 17.23,
+            "maxMs": 26.23
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 5.05,
+            "p95Ms": 11.71,
+            "maxMs": 23.88
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 0.75,
+            "p95Ms": 1.81,
+            "maxMs": 5.2
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 0.6,
+            "p95Ms": 1.1,
+            "maxMs": 4.97
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 2.78,
+            "p95Ms": 5.07,
+            "maxMs": 9.34,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 5.1,
+            "p95Ms": 8.35,
+            "maxMs": 12.87,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 1000,
+          "enrollment.transactionProxy": 1000,
+          "enrollmentPool.acquire": 1752,
+          "enrollmentPool.usage": 1752,
+          "offeringRead": 750,
+          "studentLock.sql": 1000,
+          "validation": 1000
+        },
+        "database": {
+          "scheduleViolations": 0,
+          "counterMismatches": 0,
+          "studentsWithMultipleEnrollments": 0,
+          "totalCatalogRows": 10000,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "creditViolations": 0,
+          "confirmed": 100,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "cd89b309-47fa-4539-8b06-5ea882f2cdb1"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 2.8,
+            "p95Ms": 4.67,
+            "maxMs": 6.75
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 4.87,
+            "p95Ms": 7.05,
+            "maxMs": 8.88
+          }
+        }
+      },
+      {
+        "scenario": "hot-5s",
+        "label": "1-ON",
+        "round": 1,
+        "enabled": true,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 3.14,
+            "p95Ms": 13.75,
+            "maxMs": 32.62
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 15.04,
+            "p95Ms": 27.3,
+            "maxMs": 32.62
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 1.82,
+            "p95Ms": 3.92,
+            "maxMs": 11.26
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 0.75,
+            "p95Ms": 1.75,
+            "maxMs": 6.03
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 0.6,
+            "p95Ms": 1.06,
+            "maxMs": 4.11
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 2.85,
+            "p95Ms": 4.76,
+            "maxMs": 9.23,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 4.92,
+            "p95Ms": 7.06,
+            "maxMs": 15.72,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 101,
+          "closedPrecheck.rejected": 899,
+          "enrollment.transactionProxy": 101,
+          "enrollmentPool.acquire": 1853,
+          "enrollmentPool.usage": 1853,
+          "offeringRead": 750,
+          "studentLock.sql": 101,
+          "validation": 101
+        },
+        "database": {
+          "totalCatalogRows": 10000,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "creditViolations": 0,
+          "confirmed": 100,
+          "scheduleViolations": 0,
+          "counterMismatches": 0,
+          "studentsWithMultipleEnrollments": 0,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "cd89b309-47fa-4539-8b06-5ea882f2cdb1"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 2.91,
+            "p95Ms": 5.15,
+            "maxMs": 7.42
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 4.89,
+            "p95Ms": 7.04,
+            "maxMs": 10.81
+          }
+        }
+      },
+      {
+        "scenario": "hot-5s",
+        "label": "2-ON",
+        "round": 2,
+        "enabled": true,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 3.14,
+            "p95Ms": 13.83,
+            "maxMs": 33.72
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 14.14,
+            "p95Ms": 28.51,
+            "maxMs": 33.72
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 1.92,
+            "p95Ms": 4.12,
+            "maxMs": 21.19
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 0.76,
+            "p95Ms": 1.79,
+            "maxMs": 6.85
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 0.62,
+            "p95Ms": 1.07,
+            "maxMs": 6.85
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 2.71,
+            "p95Ms": 4.81,
+            "maxMs": 13.54,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 4.86,
+            "p95Ms": 7.17,
+            "maxMs": 20.57,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 103,
+          "closedPrecheck.rejected": 897,
+          "enrollment.transactionProxy": 103,
+          "enrollmentPool.acquire": 1855,
+          "enrollmentPool.usage": 1855,
+          "offeringRead": 750,
+          "studentLock.sql": 103,
+          "validation": 103
+        },
+        "database": {
+          "counterMismatches": 0,
+          "studentsWithMultipleEnrollments": 0,
+          "totalCatalogRows": 10000,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "creditViolations": 0,
+          "confirmed": 100,
+          "scheduleViolations": 0,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "cd89b309-47fa-4539-8b06-5ea882f2cdb1"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 3.05,
+            "p95Ms": 5.7,
+            "maxMs": 11.17
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 4.96,
+            "p95Ms": 7.26,
+            "maxMs": 15.58
+          }
+        }
+      },
+      {
+        "scenario": "hot-5s",
+        "label": "2-OFF",
+        "round": 2,
+        "enabled": false,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 5.61,
+            "p95Ms": 13.16,
+            "maxMs": 27.94
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 8.92,
+            "p95Ms": 21.83,
+            "maxMs": 27.94
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 5.24,
+            "p95Ms": 12.19,
+            "maxMs": 23.87
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 0.75,
+            "p95Ms": 1.8,
+            "maxMs": 7.06
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 0.59,
+            "p95Ms": 1.09,
+            "maxMs": 3.52
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 2.96,
+            "p95Ms": 5.94,
+            "maxMs": 11.1,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 5.3,
+            "p95Ms": 9.41,
+            "maxMs": 15.6,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 1000,
+          "enrollment.transactionProxy": 1000,
+          "enrollmentPool.acquire": 1752,
+          "enrollmentPool.usage": 1752,
+          "offeringRead": 750,
+          "studentLock.sql": 1000,
+          "validation": 1000
+        },
+        "database": {
+          "counterMismatches": 0,
+          "scheduleViolations": 0,
+          "confirmed": 100,
+          "creditViolations": 0,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "totalCatalogRows": 10000,
+          "studentsWithMultipleEnrollments": 0,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "cd89b309-47fa-4539-8b06-5ea882f2cdb1"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 2.78,
+            "p95Ms": 4.69,
+            "maxMs": 8.95
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 4.92,
+            "p95Ms": 7.38,
+            "maxMs": 11.07
+          }
+        }
+      },
+      {
+        "scenario": "hot-5s",
+        "label": "3-OFF",
+        "round": 3,
+        "enabled": false,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 6.0,
+            "p95Ms": 15.48,
+            "maxMs": 34.53
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 6.24,
+            "p95Ms": 10.27,
+            "maxMs": 15.48
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 5.98,
+            "p95Ms": 15.86,
+            "maxMs": 34.53
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 0.74,
+            "p95Ms": 1.75,
+            "maxMs": 5.8
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 0.6,
+            "p95Ms": 1.09,
+            "maxMs": 3.74
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 2.91,
+            "p95Ms": 5.69,
+            "maxMs": 11.26,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 5.32,
+            "p95Ms": 9.42,
+            "maxMs": 17.24,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 1000,
+          "enrollment.transactionProxy": 1000,
+          "enrollmentPool.acquire": 1752,
+          "enrollmentPool.usage": 1752,
+          "offeringRead": 750,
+          "studentLock.sql": 1000,
+          "validation": 1000
+        },
+        "database": {
+          "confirmed": 100,
+          "creditViolations": 0,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "totalCatalogRows": 10000,
+          "studentsWithMultipleEnrollments": 0,
+          "counterMismatches": 0,
+          "scheduleViolations": 0,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "cd89b309-47fa-4539-8b06-5ea882f2cdb1"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 2.84,
+            "p95Ms": 4.89,
+            "maxMs": 8.73
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 4.93,
+            "p95Ms": 7.1,
+            "maxMs": 11.28
+          }
+        }
+      },
+      {
+        "scenario": "hot-5s",
+        "label": "3-ON",
+        "round": 3,
+        "enabled": true,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 3.37,
+            "p95Ms": 14.47,
+            "maxMs": 35.08
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 15.87,
+            "p95Ms": 29.42,
+            "maxMs": 35.08
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 1.99,
+            "p95Ms": 4.41,
+            "maxMs": 29.8
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 0.73,
+            "p95Ms": 1.64,
+            "maxMs": 8.96
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 0.6,
+            "p95Ms": 1.08,
+            "maxMs": 4.99
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 2.77,
+            "p95Ms": 5.07,
+            "maxMs": 10.27,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 4.92,
+            "p95Ms": 7.31,
+            "maxMs": 21.34,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 105,
+          "closedPrecheck.rejected": 895,
+          "enrollment.transactionProxy": 105,
+          "enrollmentPool.acquire": 1857,
+          "enrollmentPool.usage": 1857,
+          "offeringRead": 750,
+          "studentLock.sql": 105,
+          "validation": 105
+        },
+        "database": {
+          "counterMismatches": 0,
+          "studentsWithMultipleEnrollments": 0,
+          "totalCatalogRows": 10000,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "creditViolations": 0,
+          "confirmed": 100,
+          "scheduleViolations": 0,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "cd89b309-47fa-4539-8b06-5ea882f2cdb1"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 2.93,
+            "p95Ms": 4.79,
+            "maxMs": 8.34
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 4.96,
+            "p95Ms": 6.8,
+            "maxMs": 11.22
+          }
+        }
+      }
+    ],
+    "delayed-click": [
+      {
+        "scenario": "delayed-click",
+        "label": "1-OFF",
+        "round": 1,
+        "enabled": false,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 84.28,
+            "p95Ms": 190.24,
+            "maxMs": 337.63
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 97.93,
+            "p95Ms": 182.14,
+            "maxMs": 241.72
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 82.76,
+            "p95Ms": 190.91,
+            "maxMs": 337.63
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 2.09,
+            "p95Ms": 9.38,
+            "maxMs": 27.44
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 3.21,
+            "p95Ms": 14.27,
+            "maxMs": 27.44
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 3.11,
+            "p95Ms": 7.0,
+            "maxMs": 26.05,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 11.0,
+            "p95Ms": 46.1,
+            "maxMs": 306.37,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 1000,
+          "enrollment.transactionProxy": 1000,
+          "enrollmentPool.acquire": 1752,
+          "enrollmentPool.usage": 1752,
+          "offeringRead": 750,
+          "studentLock.sql": 1000,
+          "validation": 1000
+        },
+        "database": {
+          "confirmed": 100,
+          "creditViolations": 0,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "totalCatalogRows": 10000,
+          "studentsWithMultipleEnrollments": 0,
+          "counterMismatches": 0,
+          "scheduleViolations": 0,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "788f089b-bc18-47e5-8f98-00fe27f39b23"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 2.73,
+            "p95Ms": 4.51,
+            "maxMs": 14.71
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 4.21,
+            "p95Ms": 5.81,
+            "maxMs": 14.38
+          }
+        }
+      },
+      {
+        "scenario": "delayed-click",
+        "label": "1-ON",
+        "round": 1,
+        "enabled": true,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 113.78,
+            "p95Ms": 484.89,
+            "maxMs": 775.68
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 210.32,
+            "p95Ms": 674.98,
+            "maxMs": 764.69
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 103.05,
+            "p95Ms": 478.01,
+            "maxMs": 775.68
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 2.35,
+            "p95Ms": 12.03,
+            "maxMs": 35.07
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 3.77,
+            "p95Ms": 21.85,
+            "maxMs": 35.07
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 3.15,
+            "p95Ms": 6.33,
+            "maxMs": 32.41,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 14.9,
+            "p95Ms": 33.03,
+            "maxMs": 493.33,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 268,
+          "closedPrecheck.rejected": 732,
+          "enrollment.transactionProxy": 268,
+          "enrollmentPool.acquire": 2020,
+          "enrollmentPool.usage": 2020,
+          "offeringRead": 750,
+          "studentLock.sql": 268,
+          "validation": 268
+        },
+        "database": {
+          "counterMismatches": 0,
+          "studentsWithMultipleEnrollments": 0,
+          "totalCatalogRows": 10000,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "creditViolations": 0,
+          "confirmed": 100,
+          "scheduleViolations": 0,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "788f089b-bc18-47e5-8f98-00fe27f39b23"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 2.82,
+            "p95Ms": 4.58,
+            "maxMs": 6.4
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 4.18,
+            "p95Ms": 5.63,
+            "maxMs": 6.79
+          }
+        }
+      },
+      {
+        "scenario": "delayed-click",
+        "label": "2-ON",
+        "round": 2,
+        "enabled": true,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 108.14,
+            "p95Ms": 445.61,
+            "maxMs": 796.13
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 207.32,
+            "p95Ms": 582.37,
+            "maxMs": 796.13
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 97.12,
+            "p95Ms": 439.97,
+            "maxMs": 779.5
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 3.74,
+            "p95Ms": 21.7,
+            "maxMs": 74.4
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 6.86,
+            "p95Ms": 42.21,
+            "maxMs": 74.4
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 3.5,
+            "p95Ms": 7.17,
+            "maxMs": 65.69,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 16.19,
+            "p95Ms": 37.3,
+            "maxMs": 741.91,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 263,
+          "closedPrecheck.rejected": 737,
+          "enrollment.transactionProxy": 263,
+          "enrollmentPool.acquire": 2015,
+          "enrollmentPool.usage": 2015,
+          "offeringRead": 750,
+          "studentLock.sql": 263,
+          "validation": 263
+        },
+        "database": {
+          "scheduleViolations": 0,
+          "counterMismatches": 0,
+          "studentsWithMultipleEnrollments": 0,
+          "totalCatalogRows": 10000,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "creditViolations": 0,
+          "confirmed": 100,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "788f089b-bc18-47e5-8f98-00fe27f39b23"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 2.82,
+            "p95Ms": 4.57,
+            "maxMs": 6.91
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 4.41,
+            "p95Ms": 6.63,
+            "maxMs": 9.61
+          }
+        }
+      },
+      {
+        "scenario": "delayed-click",
+        "label": "2-OFF",
+        "round": 2,
+        "enabled": false,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 126.82,
+            "p95Ms": 308.46,
+            "maxMs": 552.19
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 141.78,
+            "p95Ms": 241.47,
+            "maxMs": 329.93
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 125.16,
+            "p95Ms": 328.8,
+            "maxMs": 552.19
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 1.73,
+            "p95Ms": 6.14,
+            "maxMs": 25.13
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 2.51,
+            "p95Ms": 9.81,
+            "maxMs": 25.13
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 3.11,
+            "p95Ms": 6.96,
+            "maxMs": 32.61,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 16.79,
+            "p95Ms": 110.54,
+            "maxMs": 542.69,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 1000,
+          "enrollment.transactionProxy": 1000,
+          "enrollmentPool.acquire": 1752,
+          "enrollmentPool.usage": 1752,
+          "offeringRead": 750,
+          "studentLock.sql": 1000,
+          "validation": 1000
+        },
+        "database": {
+          "confirmed": 100,
+          "creditViolations": 0,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "totalCatalogRows": 10000,
+          "studentsWithMultipleEnrollments": 0,
+          "counterMismatches": 0,
+          "scheduleViolations": 0,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "788f089b-bc18-47e5-8f98-00fe27f39b23"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 2.93,
+            "p95Ms": 4.84,
+            "maxMs": 12.56
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 4.36,
+            "p95Ms": 5.99,
+            "maxMs": 13.98
+          }
+        }
+      },
+      {
+        "scenario": "delayed-click",
+        "label": "3-OFF",
+        "round": 3,
+        "enabled": false,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 117.41,
+            "p95Ms": 238.12,
+            "maxMs": 603.94
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 164.26,
+            "p95Ms": 228.34,
+            "maxMs": 234.76
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 112.2,
+            "p95Ms": 239.4,
+            "maxMs": 603.94
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 1.85,
+            "p95Ms": 7.45,
+            "maxMs": 20.66
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 2.84,
+            "p95Ms": 11.62,
+            "maxMs": 20.66
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 3.08,
+            "p95Ms": 6.46,
+            "maxMs": 27.86,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 15.01,
+            "p95Ms": 103.01,
+            "maxMs": 340.19,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 1000,
+          "enrollment.transactionProxy": 1000,
+          "enrollmentPool.acquire": 1752,
+          "enrollmentPool.usage": 1752,
+          "offeringRead": 750,
+          "studentLock.sql": 1000,
+          "validation": 1000
+        },
+        "database": {
+          "creditViolations": 0,
+          "confirmed": 100,
+          "scheduleViolations": 0,
+          "counterMismatches": 0,
+          "studentsWithMultipleEnrollments": 0,
+          "totalCatalogRows": 10000,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "788f089b-bc18-47e5-8f98-00fe27f39b23"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 2.74,
+            "p95Ms": 4.34,
+            "maxMs": 13.25
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 4.34,
+            "p95Ms": 5.62,
+            "maxMs": 13.69
+          }
+        }
+      },
+      {
+        "scenario": "delayed-click",
+        "label": "3-ON",
+        "round": 3,
+        "enabled": true,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 90.63,
+            "p95Ms": 422.14,
+            "maxMs": 708.01
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 194.09,
+            "p95Ms": 494.88,
+            "maxMs": 636.29
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 79.13,
+            "p95Ms": 410.79,
+            "maxMs": 708.01
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 9.51,
+            "p95Ms": 85.49,
+            "maxMs": 136.45
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 18.6,
+            "p95Ms": 106.8,
+            "maxMs": 136.45
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 4.31,
+            "p95Ms": 5.74,
+            "maxMs": 138.04,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 13.46,
+            "p95Ms": 20.72,
+            "maxMs": 647.97,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 234,
+          "closedPrecheck.rejected": 766,
+          "enrollment.transactionProxy": 234,
+          "enrollmentPool.acquire": 1986,
+          "enrollmentPool.usage": 1986,
+          "offeringRead": 750,
+          "studentLock.sql": 234,
+          "validation": 234
+        },
+        "database": {
+          "counterMismatches": 0,
+          "scheduleViolations": 0,
+          "confirmed": 100,
+          "creditViolations": 0,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "totalCatalogRows": 10000,
+          "studentsWithMultipleEnrollments": 0,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "788f089b-bc18-47e5-8f98-00fe27f39b23"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 2.88,
+            "p95Ms": 5.04,
+            "maxMs": 8.33
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 4.36,
+            "p95Ms": 6.54,
+            "maxMs": 10.9
+          }
+        }
+      }
+    ],
+    "burst-100ms": [
+      {
+        "scenario": "burst-100ms",
+        "label": "1-OFF",
+        "round": 1,
+        "enabled": false,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 1170.07,
+            "p95Ms": 2150.23,
+            "maxMs": 2535.45
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 388.77,
+            "p95Ms": 529.47,
+            "maxMs": 535.89
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 1256.88,
+            "p95Ms": 2179.44,
+            "maxMs": 2535.45
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 103.54,
+            "p95Ms": 406.88,
+            "maxMs": 449.88
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 243.53,
+            "p95Ms": 425.98,
+            "maxMs": 445.47
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 97.87,
+            "p95Ms": 987.33,
+            "maxMs": 1203.79,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 163.45,
+            "p95Ms": 1225.48,
+            "maxMs": 2121.81,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 1000,
+          "enrollment.transactionProxy": 1000,
+          "enrollmentPool.acquire": 1752,
+          "enrollmentPool.usage": 1752,
+          "offeringRead": 750,
+          "studentLock.sql": 1000,
+          "validation": 1000
+        },
+        "database": {
+          "counterMismatches": 0,
+          "scheduleViolations": 0,
+          "confirmed": 100,
+          "creditViolations": 0,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "totalCatalogRows": 10000,
+          "studentsWithMultipleEnrollments": 0,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "4231dc24-c4a2-40a5-b3e2-52416bc3a739"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 3.39,
+            "p95Ms": 5.65,
+            "maxMs": 16.72
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 5.44,
+            "p95Ms": 8.08,
+            "maxMs": 16.76
+          }
+        }
+      },
+      {
+        "scenario": "burst-100ms",
+        "label": "1-ON",
+        "round": 1,
+        "enabled": true,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 1218.1,
+            "p95Ms": 1986.12,
+            "maxMs": 2325.13
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 827.41,
+            "p95Ms": 1300.09,
+            "maxMs": 2325.13
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 1261.51,
+            "p95Ms": 1995.68,
+            "maxMs": 2324.09
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 195.25,
+            "p95Ms": 651.25,
+            "maxMs": 748.46
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 415.3,
+            "p95Ms": 696.55,
+            "maxMs": 748.46
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 102.8,
+            "p95Ms": 882.88,
+            "maxMs": 1090.48,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 125.14,
+            "p95Ms": 961.17,
+            "maxMs": 1898.2,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 483,
+          "closedPrecheck.rejected": 517,
+          "enrollment.transactionProxy": 483,
+          "enrollmentPool.acquire": 2235,
+          "enrollmentPool.usage": 2235,
+          "offeringRead": 750,
+          "studentLock.sql": 483,
+          "validation": 483
+        },
+        "database": {
+          "confirmed": 100,
+          "creditViolations": 0,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "totalCatalogRows": 10000,
+          "studentsWithMultipleEnrollments": 0,
+          "counterMismatches": 0,
+          "scheduleViolations": 0,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "4231dc24-c4a2-40a5-b3e2-52416bc3a739"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 3.45,
+            "p95Ms": 5.37,
+            "maxMs": 7.99
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 5.6,
+            "p95Ms": 7.93,
+            "maxMs": 9.65
+          }
+        }
+      },
+      {
+        "scenario": "burst-100ms",
+        "label": "2-ON",
+        "round": 2,
+        "enabled": true,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 1029.69,
+            "p95Ms": 1630.8,
+            "maxMs": 2006.72
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 798.36,
+            "p95Ms": 976.96,
+            "maxMs": 1876.62
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 1055.4,
+            "p95Ms": 1636.88,
+            "maxMs": 2006.72
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 185.9,
+            "p95Ms": 674.11,
+            "maxMs": 844.49
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 410.41,
+            "p95Ms": 722.96,
+            "maxMs": 841.69
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 73.64,
+            "p95Ms": 714.05,
+            "maxMs": 814.01,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 90.67,
+            "p95Ms": 815.21,
+            "maxMs": 1370.94,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 493,
+          "closedPrecheck.rejected": 507,
+          "enrollment.transactionProxy": 493,
+          "enrollmentPool.acquire": 2245,
+          "enrollmentPool.usage": 2245,
+          "offeringRead": 750,
+          "studentLock.sql": 493,
+          "validation": 493
+        },
+        "database": {
+          "creditViolations": 0,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "totalCatalogRows": 10000,
+          "studentsWithMultipleEnrollments": 0,
+          "counterMismatches": 0,
+          "scheduleViolations": 0,
+          "confirmed": 100,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "4231dc24-c4a2-40a5-b3e2-52416bc3a739"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 3.81,
+            "p95Ms": 6.32,
+            "maxMs": 17.43
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 5.63,
+            "p95Ms": 7.86,
+            "maxMs": 17.39
+          }
+        }
+      },
+      {
+        "scenario": "burst-100ms",
+        "label": "2-OFF",
+        "round": 2,
+        "enabled": false,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 1188.3,
+            "p95Ms": 2259.15,
+            "maxMs": 2683.3
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 365.15,
+            "p95Ms": 483.56,
+            "maxMs": 492.31
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 1279.76,
+            "p95Ms": 2270.03,
+            "maxMs": 2683.3
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 94.54,
+            "p95Ms": 373.78,
+            "maxMs": 392.89
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 224.7,
+            "p95Ms": 385.4,
+            "maxMs": 392.89
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 90.49,
+            "p95Ms": 918.91,
+            "maxMs": 1205.6,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 166.06,
+            "p95Ms": 1212.98,
+            "maxMs": 2198.25,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 1000,
+          "enrollment.transactionProxy": 1000,
+          "enrollmentPool.acquire": 1752,
+          "enrollmentPool.usage": 1752,
+          "offeringRead": 750,
+          "studentLock.sql": 1000,
+          "validation": 1000
+        },
+        "database": {
+          "creditViolations": 0,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "totalCatalogRows": 10000,
+          "studentsWithMultipleEnrollments": 0,
+          "counterMismatches": 0,
+          "scheduleViolations": 0,
+          "confirmed": 100,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "4231dc24-c4a2-40a5-b3e2-52416bc3a739"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 3.56,
+            "p95Ms": 5.53,
+            "maxMs": 26.66
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 5.59,
+            "p95Ms": 7.32,
+            "maxMs": 25.2
+          }
+        }
+      },
+      {
+        "scenario": "burst-100ms",
+        "label": "3-OFF",
+        "round": 3,
+        "enabled": false,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 1159.87,
+            "p95Ms": 2230.18,
+            "maxMs": 2611.1
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 327.89,
+            "p95Ms": 484.84,
+            "maxMs": 539.56
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 1252.32,
+            "p95Ms": 2248.63,
+            "maxMs": 2611.1
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 90.54,
+            "p95Ms": 323.15,
+            "maxMs": 339.92
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 217.2,
+            "p95Ms": 331.29,
+            "maxMs": 339.92
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 92.45,
+            "p95Ms": 936.44,
+            "maxMs": 1232.94,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 195.32,
+            "p95Ms": 1498.85,
+            "maxMs": 2350.05,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 1000,
+          "enrollment.transactionProxy": 1000,
+          "enrollmentPool.acquire": 1752,
+          "enrollmentPool.usage": 1752,
+          "offeringRead": 750,
+          "studentLock.sql": 1000,
+          "validation": 1000
+        },
+        "database": {
+          "counterMismatches": 0,
+          "scheduleViolations": 0,
+          "confirmed": 100,
+          "creditViolations": 0,
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "totalCatalogRows": 10000,
+          "studentsWithMultipleEnrollments": 0,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "4231dc24-c4a2-40a5-b3e2-52416bc3a739"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 3.64,
+            "p95Ms": 5.66,
+            "maxMs": 13.52
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 5.58,
+            "p95Ms": 7.71,
+            "maxMs": 15.34
+          }
+        }
+      },
+      {
+        "scenario": "burst-100ms",
+        "label": "3-ON",
+        "round": 3,
+        "enabled": true,
+        "integrityValid": true,
+        "outcomesComplete": true,
+        "mixed": {
+          "outcomes": {
+            "CONFIRMED": 100,
+            "COURSE_FULL": 900
+          },
+          "submit": {
+            "count": 1000,
+            "meanMs": 1011.38,
+            "p95Ms": 1584.13,
+            "maxMs": 2003.39
+          },
+          "confirmedApi": {
+            "count": 100,
+            "meanMs": 582.63,
+            "p95Ms": 1256.89,
+            "maxMs": 1958.86
+          },
+          "fullApi": {
+            "count": 900,
+            "meanMs": 1059.01,
+            "p95Ms": 1609.25,
+            "maxMs": 2003.39
+          },
+          "generatorLag": {
+            "count": 2500,
+            "meanMs": 167.18,
+            "p95Ms": 561.93,
+            "maxMs": 620.87
+          },
+          "submitLag": {
+            "count": 1000,
+            "meanMs": 389.3,
+            "p95Ms": 594.04,
+            "maxMs": 599.47
+          },
+          "academic": {
+            "count": 750,
+            "meanMs": 87.57,
+            "p95Ms": 970.93,
+            "maxMs": 1070.28,
+            "failed": 0
+          },
+          "offering": {
+            "count": 750,
+            "meanMs": 104.92,
+            "p95Ms": 1013.98,
+            "maxMs": 1394.47,
+            "failed": 0
+          }
+        },
+        "metricCountDelta": {
+          "academicPool.acquire": 752,
+          "academicPool.usage": 752,
+          "academicRead": 750,
+          "capacityUpdate.sql": 489,
+          "closedPrecheck.rejected": 511,
+          "enrollment.transactionProxy": 489,
+          "enrollmentPool.acquire": 2241,
+          "enrollmentPool.usage": 2241,
+          "offeringRead": 750,
+          "studentLock.sql": 489,
+          "validation": 489
+        },
+        "database": {
+          "courses": [
+            {
+              "id": 1,
+              "capacity": 100,
+              "enrolled_count": 100,
+              "actual": 100
+            },
+            {
+              "id": 2,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 3,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 4,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            },
+            {
+              "id": 5,
+              "capacity": 100,
+              "enrolled_count": 0,
+              "actual": 0
+            }
+          ],
+          "totalCatalogRows": 10000,
+          "studentsWithMultipleEnrollments": 0,
+          "counterMismatches": 0,
+          "scheduleViolations": 0,
+          "confirmed": 100,
+          "creditViolations": 0,
+          "totalSubjectRows": 10000,
+          "totalStudentRows": 1000,
+          "runId": "4231dc24-c4a2-40a5-b3e2-52416bc3a739"
+        },
+        "baseline": {
+          "academic": {
+            "count": 250,
+            "meanMs": 3.72,
+            "p95Ms": 5.77,
+            "maxMs": 6.88
+          },
+          "offering": {
+            "count": 250,
+            "meanMs": 5.47,
+            "p95Ms": 7.3,
+            "maxMs": 11.0
+          }
+        }
+      }
+    ]
+  },
+  "aggregate": {
+    "hot-5s": {
+      "OFF": {
+        "submit": {
+          "meanMs": 5.66,
+          "p95Ms": 13.6
+        },
+        "confirmedApi": {
+          "meanMs": 7.76,
+          "p95Ms": 16.44
+        },
+        "fullApi": {
+          "meanMs": 5.42,
+          "p95Ms": 13.25
+        },
+        "offering": {
+          "meanMs": 5.24,
+          "p95Ms": 9.06
+        },
+        "hits": 0,
+        "studentLockCount": 3000,
+        "poolAcquiresMean": 1752,
+        "maxSubmitLagMs": 4.97,
+        "rounds": [
+          {
+            "label": "1-OFF",
+            "actualSendSpanMs": 4994.93,
+            "snapshotAgeMinMs": 5188.82,
+            "snapshotAgeMaxMs": 7094.15
+          },
+          {
+            "label": "2-OFF",
+            "actualSendSpanMs": 4995.2,
+            "snapshotAgeMinMs": 5197.29,
+            "snapshotAgeMaxMs": 7105.88
+          },
+          {
+            "label": "3-OFF",
+            "actualSendSpanMs": 4995.84,
+            "snapshotAgeMinMs": 5145.82,
+            "snapshotAgeMaxMs": 7085.79
+          }
+        ]
+      },
+      "ON": {
+        "submit": {
+          "meanMs": 3.22,
+          "p95Ms": 14.02
+        },
+        "confirmedApi": {
+          "meanMs": 15.02,
+          "p95Ms": 28.41
+        },
+        "fullApi": {
+          "meanMs": 1.91,
+          "p95Ms": 4.15
+        },
+        "offering": {
+          "meanMs": 4.9,
+          "p95Ms": 7.18
+        },
+        "hits": 2691,
+        "studentLockCount": 309,
+        "poolAcquiresMean": 1855,
+        "maxSubmitLagMs": 6.85,
+        "rounds": [
+          {
+            "label": "1-ON",
+            "actualSendSpanMs": 4993.83,
+            "snapshotAgeMinMs": 5239.56,
+            "snapshotAgeMaxMs": 7088.8
+          },
+          {
+            "label": "2-ON",
+            "actualSendSpanMs": 4994.03,
+            "snapshotAgeMinMs": 5114.71,
+            "snapshotAgeMaxMs": 7099.61
+          },
+          {
+            "label": "3-ON",
+            "actualSendSpanMs": 4994.78,
+            "snapshotAgeMinMs": 5233.86,
+            "snapshotAgeMaxMs": 7086.79
+          }
+        ]
+      }
+    },
+    "delayed-click": {
+      "OFF": {
+        "submit": {
+          "meanMs": 109.5,
+          "p95Ms": 245.61
+        },
+        "confirmedApi": {
+          "meanMs": 134.66,
+          "p95Ms": 217.32
+        },
+        "fullApi": {
+          "meanMs": 106.71,
+          "p95Ms": 253.04
+        },
+        "offering": {
+          "meanMs": 14.27,
+          "p95Ms": 86.55
+        },
+        "hits": 0,
+        "studentLockCount": 3000,
+        "poolAcquiresMean": 1752,
+        "maxSubmitLagMs": 27.44,
+        "rounds": [
+          {
+            "label": "1-OFF",
+            "actualSendSpanMs": 2000.35,
+            "snapshotAgeMinMs": 3022.72,
+            "snapshotAgeMaxMs": 7319.71
+          },
+          {
+            "label": "2-OFF",
+            "actualSendSpanMs": 1999.04,
+            "snapshotAgeMinMs": 3031.82,
+            "snapshotAgeMaxMs": 7325.12
+          },
+          {
+            "label": "3-OFF",
+            "actualSendSpanMs": 1999.71,
+            "snapshotAgeMinMs": 3079.22,
+            "snapshotAgeMaxMs": 7413.36
+          }
+        ]
+      },
+      "ON": {
+        "submit": {
+          "meanMs": 104.18,
+          "p95Ms": 450.88
+        },
+        "confirmedApi": {
+          "meanMs": 203.91,
+          "p95Ms": 584.08
+        },
+        "fullApi": {
+          "meanMs": 93.1,
+          "p95Ms": 442.92
+        },
+        "offering": {
+          "meanMs": 14.85,
+          "p95Ms": 30.35
+        },
+        "hits": 2235,
+        "studentLockCount": 765,
+        "poolAcquiresMean": 2007,
+        "maxSubmitLagMs": 136.45,
+        "rounds": [
+          {
+            "label": "1-ON",
+            "actualSendSpanMs": 1999.57,
+            "snapshotAgeMinMs": 3023.93,
+            "snapshotAgeMaxMs": 7309.64
+          },
+          {
+            "label": "2-ON",
+            "actualSendSpanMs": 1999.78,
+            "snapshotAgeMinMs": 3091.47,
+            "snapshotAgeMaxMs": 7464.65
+          },
+          {
+            "label": "3-ON",
+            "actualSendSpanMs": 1999.73,
+            "snapshotAgeMinMs": 3092.57,
+            "snapshotAgeMaxMs": 7405.13
+          }
+        ]
+      }
+    },
+    "burst-100ms": {
+      "OFF": {
+        "submit": {
+          "meanMs": 1172.75,
+          "p95Ms": 2213.19
+        },
+        "confirmedApi": {
+          "meanMs": 360.6,
+          "p95Ms": 499.29
+        },
+        "fullApi": {
+          "meanMs": 1262.99,
+          "p95Ms": 2232.7
+        },
+        "offering": {
+          "meanMs": 174.94,
+          "p95Ms": 1312.44
+        },
+        "hits": 0,
+        "studentLockCount": 3000,
+        "poolAcquiresMean": 1752,
+        "maxSubmitLagMs": 445.47,
+        "rounds": [
+          {
+            "label": "1-OFF",
+            "actualSendSpanMs": 545.01,
+            "snapshotAgeMinMs": 2523.01,
+            "snapshotAgeMaxMs": 5349.84
+          },
+          {
+            "label": "2-OFF",
+            "actualSendSpanMs": 492.03,
+            "snapshotAgeMinMs": 2491.33,
+            "snapshotAgeMaxMs": 5344.47
+          },
+          {
+            "label": "3-OFF",
+            "actualSendSpanMs": 439.02,
+            "snapshotAgeMinMs": 2436.84,
+            "snapshotAgeMaxMs": 5375.49
+          }
+        ]
+      },
+      "ON": {
+        "submit": {
+          "meanMs": 1086.39,
+          "p95Ms": 1733.68
+        },
+        "confirmedApi": {
+          "meanMs": 736.13,
+          "p95Ms": 1177.98
+        },
+        "fullApi": {
+          "meanMs": 1125.31,
+          "p95Ms": 1747.27
+        },
+        "offering": {
+          "meanMs": 106.91,
+          "p95Ms": 930.12
+        },
+        "hits": 1535,
+        "studentLockCount": 1465,
+        "poolAcquiresMean": 2240.3333333333335,
+        "maxSubmitLagMs": 841.69,
+        "rounds": [
+          {
+            "label": "1-ON",
+            "actualSendSpanMs": 847.59,
+            "snapshotAgeMinMs": 2820.18,
+            "snapshotAgeMaxMs": 5337.2
+          },
+          {
+            "label": "2-ON",
+            "actualSendSpanMs": 940.53,
+            "snapshotAgeMinMs": 2786.83,
+            "snapshotAgeMaxMs": 5358.21
+          },
+          {
+            "label": "3-ON",
+            "actualSendSpanMs": 698.07,
+            "snapshotAgeMinMs": 2705.21,
+            "snapshotAgeMaxMs": 5400.55
+          }
+        ]
+      }
+    }
+  }
+}
